@@ -124,9 +124,17 @@ export function useVoiceChat(phoneNumber: string | null) {
             await playAudio(msg.audio_b64, msg.mime_type ?? "audio/wav");
           }
 
-          setStateSync("idle");
-          setStatusText("Diga \"E aí Teq\" ou clique para falar");
           setInterimText("");
+
+          if (looksLikeFollowUp(msg.text)) {
+            isCapturingRef.current = true;
+            transcriptBufRef.current = "";
+            setStateSync("listening");
+            setStatusText("Pode falar...");
+          } else {
+            setStateSync("idle");
+            setStatusText("Diga \"E aí Teq\" ou clique para falar");
+          }
           restartRecognition();
           break;
         }
@@ -359,6 +367,13 @@ export function useVoiceChat(phoneNumber: string | null) {
     sendName,
     onOrbScale,
   };
+}
+
+// ─── Detecção de follow-up ────────────────────────────────────────────────────
+
+function looksLikeFollowUp(text: string): boolean {
+  const cleaned = text.trim().replace(/[\s\u{FE00}-\u{FE0F}\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]+$/u, "");
+  return cleaned.endsWith("?");
 }
 
 // ─── Helpers de áudio ─────────────────────────────────────────────────────────
