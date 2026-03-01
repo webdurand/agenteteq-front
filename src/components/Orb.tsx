@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ChatState } from "../hooks/useVoiceChat";
+import { getPlaybackAmplitude, getMicAmplitude } from "../lib/audioCtx";
 
 interface OrbProps {
   state: ChatState;
@@ -76,6 +77,7 @@ export function Orb({ state, onClick }: OrbProps) {
   const curRef = useRef<WaveParams | null>(null);
   const angleRef = useRef(Math.PI * 1.15);
   const prevTimeRef = useRef(0);
+  const reactRef = useRef(0);
 
   stateRef.current = state;
   const isClickable = state === "idle" || state === "listening";
@@ -109,13 +111,29 @@ export function Orb({ state, onClick }: OrbProps) {
       const waveRGB = isDark ? "255, 255, 255" : "0, 0, 0";
       const glowRGB = isDark ? "200, 200, 200" : "80, 80, 80";
 
-      const target = getTargetParams(stateRef.current);
+      const currentState = stateRef.current;
+      const target = getTargetParams(currentState);
       const cur = curRef.current!;
       const factor = 1 - Math.pow(SMOOTHING, dt);
 
       for (const k of PARAM_KEYS) {
         cur[k] += (target[k] - cur[k]) * factor;
       }
+
+      // Audio-reactive amplitude
+      let rawAmp = 0;
+      if (currentState === "speaking") {
+        rawAmp = getPlaybackAmplitude();
+      } else if (currentState === "listening") {
+        rawAmp = getMicAmplitude();
+      }
+      const targetReact = Math.min(rawAmp * 6, 1);
+      const reactSmooth = targetReact > reactRef.current ? 0.35 : 0.12;
+      reactRef.current += (targetReact - reactRef.current) * reactSmooth;
+      const react = reactRef.current;
+
+      const ampBoost = 1 + react * 4;
+      const glowBoost = 1 + react * 1.5;
 
       angleRef.current = (angleRef.current + cur.rotSpeed * dt) % (Math.PI * 2);
       const center = angleRef.current;
@@ -137,8 +155,8 @@ export function Orb({ state, onClick }: OrbProps) {
         const env = envelope(angle);
         const wave =
           env *
-          (Math.sin(angle * cur.freq1 + t * cur.speed1) * cur.amp1 +
-            Math.sin(angle * cur.freq2 - t * cur.speed2) * cur.amp2);
+          (Math.sin(angle * cur.freq1 + t * cur.speed1) * cur.amp1 * ampBoost +
+            Math.sin(angle * cur.freq2 - t * cur.speed2) * cur.amp2 * ampBoost);
         const r = RADIUS + wave;
         const x = cx + Math.cos(angle) * r;
         const y = cy + Math.sin(angle) * r;
@@ -146,10 +164,10 @@ export function Orb({ state, onClick }: OrbProps) {
         else drawCtx.lineTo(x, y);
       }
       drawCtx.closePath();
-      drawCtx.strokeStyle = `rgba(${waveRGB}, ${cur.waveAlpha})`;
-      drawCtx.lineWidth = 1.2;
-      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha})`;
-      drawCtx.shadowBlur = cur.glowBlur;
+      drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(cur.waveAlpha + react * 0.15, 1)})`;
+      drawCtx.lineWidth = 1.2 + react * 0.6;
+      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * glowBoost})`;
+      drawCtx.shadowBlur = cur.glowBlur * glowBoost;
       drawCtx.stroke();
       drawCtx.restore();
 

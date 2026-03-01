@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAudioCtx, ensureAudioResumed } from "../lib/audioCtx";
+import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking";
@@ -147,6 +147,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     if (phoneNumber) {
       connectWS();
       startRecognition();
+      startMicAnalysis();
     }
     return () => {
       wsRef.current?.close();
@@ -363,53 +364,45 @@ function b64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const ctx = getAudioCtx();
+      if (ctx.state !== "running") {
+        resolve(false);
+        return;
+      }
+
+      const analyser = getPlaybackAnalyser();
+
+      ctx.decodeAudioData(
+        bytes.buffer.slice(0),
+        (buffer) => {
+          console.log(`[AUDIO] Analyser | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          src.connect(analyser);
+          src.onended = () => resolve(true);
+          src.start(0);
+        },
+        () => resolve(false),
+      );
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
 function playWithElement(bytes: Uint8Array, mimeType: string): Promise<void> {
   return new Promise((resolve) => {
     const blob = new Blob([bytes], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-    audio.onerror = (e) => {
-      console.error("[AUDIO] <audio> element error:", e);
-      URL.revokeObjectURL(url);
-      resolve();
-    };
+    audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
     audio.play()
-      .then(() => console.log("[AUDIO] Reprodução iniciada via <audio>"))
-      .catch((err) => {
-        console.warn("[AUDIO] <audio>.play() bloqueado:", err.message);
-        URL.revokeObjectURL(url);
-        resolve();
-      });
-  });
-}
-
-function playWithAudioContext(bytes: Uint8Array): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const ctx = getAudioCtx();
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-      }
-      ctx.decodeAudioData(
-        bytes.buffer.slice(0),
-        (buffer) => {
-          console.log(`[AUDIO] AudioContext | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
-          const src = ctx.createBufferSource();
-          src.buffer = buffer;
-          src.connect(ctx.destination);
-          src.onended = () => resolve();
-          src.start(0);
-        },
-        (err) => {
-          console.error("[AUDIO] decodeAudioData falhou:", err);
-          resolve();
-        },
-      );
-    } catch (err) {
-      console.error("[AUDIO] AudioContext erro:", err);
-      resolve();
-    }
+      .then(() => console.log("[AUDIO] Reprodução via <audio> (sem analyser)"))
+      .catch(() => { URL.revokeObjectURL(url); resolve(); });
   });
 }
 
@@ -417,11 +410,15 @@ async function playAudio(base64: string, mimeType: string = "audio/wav") {
   const bytes = b64ToBytes(base64);
   console.log(`[AUDIO] Tentando reproduzir ${bytes.length} bytes (${mimeType})`);
 
-  try {
+  const ctx = getAudioCtx();
+  if (ctx.state === "suspended") {
+    await ctx.resume().catch(() => {});
+  }
+
+  const ok = await playWithAnalyser(bytes);
+  if (!ok) {
+    console.warn("[AUDIO] Fallback para <audio> element");
     await playWithElement(bytes, mimeType);
-  } catch {
-    console.warn("[AUDIO] Fallback para AudioContext");
-    await playWithAudioContext(bytes);
   }
 }
 
