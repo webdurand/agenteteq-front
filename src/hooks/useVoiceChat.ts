@@ -62,6 +62,8 @@ export function useVoiceChat(phoneNumber: string | null) {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestGenRef = useRef(0);
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
+  const sttFailCountRef = useRef(0);
+  const sttLastErrorRef = useRef<string | null>(null);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -366,6 +368,8 @@ export function useVoiceChat(phoneNumber: string | null) {
 
     r.onstart = () => {
       console.log("[STT] Reconhecimento ativo");
+      sttFailCountRef.current = 0;
+      sttLastErrorRef.current = null;
       setWakeWordActive(true);
     };
 
@@ -374,17 +378,36 @@ export function useVoiceChat(phoneNumber: string | null) {
       recognitionRef.current = null;
       setWakeWordActive(false);
 
-      console.log(`[STT] Reconhecimento encerrou (state=${stateRef.current}), reiniciando...`);
-      setTimeout(() => startRecognition(), 500);
+      const MAX_RETRIES = 10;
+      if (sttLastErrorRef.current === "aborted") {
+        sttFailCountRef.current++;
+      }
+
+      if (sttFailCountRef.current >= MAX_RETRIES) {
+        console.warn(`[STT] ${MAX_RETRIES} falhas consecutivas, parando auto-restart. Clique no orb para reativar.`);
+        sttFailCountRef.current = 0;
+        return;
+      }
+
+      const delay = sttLastErrorRef.current === "aborted"
+        ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000)
+        : 500;
+
+      console.log(`[STT] Reconhecimento encerrou (state=${stateRef.current}), reiniciando em ${delay}ms...`);
+      setTimeout(() => startRecognition(), delay);
     };
 
     r.onerror = (e: Event & { error?: string }) => {
+      sttLastErrorRef.current = e.error ?? null;
+
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         console.error("[STT] Permissão de microfone negada");
         recognitionRef.current = null;
         return;
       }
-      if (e.error !== "no-speech") console.error("[STT] Erro:", e.error);
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        console.error("[STT] Erro:", e.error);
+      }
     };
 
     try {
@@ -437,6 +460,8 @@ export function useVoiceChat(phoneNumber: string | null) {
     if (stateRef.current === "listening") {
       sendTranscript();
     } else {
+      sttFailCountRef.current = 0;
+      sttLastErrorRef.current = null;
       sfx.micOpen();
       isCapturingRef.current = true;
       transcriptBufRef.current = "";
