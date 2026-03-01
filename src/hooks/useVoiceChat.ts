@@ -14,6 +14,7 @@ export interface Message {
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
 const WAKE_WORDS = ["teq", "tec", "tech", "tek"];
 const SEND_SILENCE_MS = 1800;
+const IDLE_TIMEOUT_MS = 8000;
 
 declare global {
   interface Window {
@@ -40,6 +41,8 @@ export function useVoiceChat(phoneNumber: string | null) {
   const isCapturingRef = useRef(false);
   const transcriptBufRef = useRef("");
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestGenRef = useRef(0);
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
@@ -76,12 +79,15 @@ export function useVoiceChat(phoneNumber: string | null) {
       const msg = JSON.parse(event.data);
       console.log(`[WS] ${msg.type}`, msg.type === "response" ? msg.text?.slice(0, 60) : "");
 
+      const genAtReceive = requestGenRef.current;
+
       switch (msg.type) {
         case "status":
           setStatusText(msg.text);
           break;
 
         case "transcript":
+          if (requestGenRef.current !== genAtReceive) break;
           if (msg.text && msg.text !== "...") addMessage("user", msg.text);
           sfx.thinking();
           setStateSync("thinking");
@@ -89,6 +95,12 @@ export function useVoiceChat(phoneNumber: string | null) {
           break;
 
         case "response": {
+          if (requestGenRef.current !== genAtReceive) {
+            console.log("[WS] Resposta descartada (geração antiga)");
+            addMessage("agent", msg.text);
+            break;
+          }
+
           sfx.messageReceived();
           addMessage("agent", msg.text);
           console.log(`[AUDIO] mime=${msg.mime_type} | b64 length=${msg.audio_b64?.length ?? 0}`);
@@ -102,6 +114,11 @@ export function useVoiceChat(phoneNumber: string | null) {
             await playAudio(msg.audio_b64, msg.mime_type ?? "audio/wav");
           }
 
+          if (requestGenRef.current !== genAtReceive) {
+            console.log("[WS] Geração mudou durante playback, ignorando transição");
+            break;
+          }
+
           setInterimText("");
 
           if (looksLikeFollowUp(msg.text)) {
@@ -110,6 +127,7 @@ export function useVoiceChat(phoneNumber: string | null) {
             transcriptBufRef.current = "";
             setStateSync("listening");
             setStatusText("Pode falar...");
+            startIdleTimer();
           } else {
             setStateSync("idle");
             setStatusText("Diga \"E aí Teq\" ou clique para falar");
@@ -161,14 +179,41 @@ export function useVoiceChat(phoneNumber: string | null) {
     if (sendTimerRef.current) { clearTimeout(sendTimerRef.current); sendTimerRef.current = null; }
   };
 
+  const clearIdleTimer = () => {
+    if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
+  };
+
+  const cancelCapture = useCallback(() => {
+    clearSendTimer();
+    clearIdleTimer();
+    isCapturingRef.current = false;
+    transcriptBufRef.current = "";
+    setInterimText("");
+    sfx.micClose();
+    setStateSync("idle");
+    setStatusText("Diga \"E aí Teq\" ou clique para falar");
+    console.log("[STT] Captura cancelada (inatividade ou vazio)");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startIdleTimer = useCallback(() => {
+    clearIdleTimer();
+    idleTimerRef.current = setTimeout(cancelCapture, IDLE_TIMEOUT_MS);
+  }, [cancelCapture]);
+
   const sendTranscript = useCallback(() => {
     clearSendTimer();
+    clearIdleTimer();
     const text = transcriptBufRef.current.trim();
     isCapturingRef.current = false;
     transcriptBufRef.current = "";
     setInterimText("");
 
-    if (!text || stateRef.current !== "listening") return;
+    if (!text || stateRef.current !== "listening") {
+      if (!text && stateRef.current === "listening") {
+        cancelCapture();
+      }
+      return;
+    }
 
     sfx.micClose();
     console.log(`[STT] Enviando: "${text}"`);
@@ -179,7 +224,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "user_message", text }));
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cancelCapture]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startRecognition = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -216,13 +261,22 @@ export function useVoiceChat(phoneNumber: string | null) {
         if (!isCapturingRef.current) {
           if (WAKE_WORDS.some((w) => norm.includes(w))) {
             console.log(`[STT] Wake word detectada (interrompendo ${stateRef.current}): "${text}"`);
-            if (busy) stopPlayback();
+            if (busy) {
+              stopPlayback();
+              requestGenRef.current++;
+              console.log(`[STT] Geração incrementada para ${requestGenRef.current}`);
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: "cancel" }));
+                console.log("[WS] Cancelamento enviado ao backend");
+              }
+            }
             sfx.micOpen();
             isCapturingRef.current = true;
             transcriptBufRef.current = "";
             setStateSync("listening");
             setStatusText("Pode falar...");
             setWakeWordActive(false);
+            startIdleTimer();
 
             const wakeEnd = WAKE_WORDS.reduce((idx, w) => {
               const i = norm.indexOf(w);
@@ -235,8 +289,10 @@ export function useVoiceChat(phoneNumber: string | null) {
           if (result.isFinal) {
             transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + text;
             clearSendTimer();
+            clearIdleTimer();
             sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS);
           } else {
+            startIdleTimer();
             interimConcat += text;
           }
         }
@@ -326,9 +382,10 @@ export function useVoiceChat(phoneNumber: string | null) {
       setStateSync("listening");
       setStatusText("Pode falar...");
       setInterimText("");
+      startIdleTimer();
       if (!recognitionRef.current) startRecognition();
     }
-  }, [sendTranscript, startRecognition]);
+  }, [sendTranscript, startRecognition, startIdleTimer]);
 
   const sendName = useCallback((name: string) => {
     wsRef.current?.send(JSON.stringify({ type: "name", value: name }));

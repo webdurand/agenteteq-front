@@ -49,11 +49,19 @@ function rms(analyser: AnalyserNode): number {
   return Math.sqrt(sum / _tdBuf.length);
 }
 
+let _blankUntil = 0;
+
+export function blankAmplitude(durationMs: number) {
+  _blankUntil = performance.now() + durationMs;
+}
+
 export function getPlaybackAmplitude(): number {
+  if (performance.now() < _blankUntil) return 0;
   return _playbackAnalyser ? rms(_playbackAnalyser) : 0;
 }
 
 export function getMicAmplitude(): number {
+  if (performance.now() < _blankUntil) return 0;
   return _micAnalyser ? rms(_micAnalyser) : 0;
 }
 
@@ -67,7 +75,7 @@ export async function startMicAnalysis(): Promise<void> {
     const source = ctx.createMediaStreamSource(_micStream);
     _micAnalyser = ctx.createAnalyser();
     _micAnalyser.fftSize = 256;
-    _micAnalyser.smoothingTimeConstant = 0.75;
+    _micAnalyser.smoothingTimeConstant = 0.5;
     source.connect(_micAnalyser);
     console.log("[AUDIO] Mic analyser ativo");
   } catch (e) {
