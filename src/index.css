@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-navy-900 text-white antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .orb-glow-idle {
+    box-shadow:
+      0 0 30px 8px rgba(59, 130, 246, 0.15),
+      0 0 80px 20px rgba(30, 58, 138, 0.12),
+      inset 0 0 40px rgba(59, 130, 246, 0.08);
+  }
+
+  .orb-glow-listen {
+    box-shadow:
+      0 0 40px 12px rgba(96, 165, 250, 0.35),
+      0 0 100px 30px rgba(59, 130, 246, 0.2),
+      inset 0 0 50px rgba(96, 165, 250, 0.15);
+  }
+
+  .orb-glow-think {
+    box-shadow:
+      0 0 50px 15px rgba(59, 130, 246, 0.4),
+      0 0 120px 40px rgba(30, 58, 138, 0.25),
+      inset 0 0 60px rgba(59, 130, 246, 0.2);
+  }
+
+  .orb-glow-speak {
+    box-shadow:
+      0 0 60px 20px rgba(147, 197, 253, 0.45),
+      0 0 140px 50px rgba(59, 130, 246, 0.3),
+      inset 0 0 70px rgba(147, 197, 253, 0.2);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-navy-600 rounded-full;
+  }
+}
