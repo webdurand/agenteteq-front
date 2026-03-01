@@ -1,26 +1,28 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        navy: {
-          950: "#030712",
-          900: "#080c14",
-          800: "#0a1628",
-          700: "#0f2040",
-          600: "#1e3a8a",
-          500: "#1d4ed8",
-          400: "#3b82f6",
-          300: "#60a5fa",
-          200: "#93c5fd",
+        surface: {
+          DEFAULT: "var(--bg)",
+          up: "var(--bg-up)",
+          card: "var(--bg-card)",
+          overlay: "var(--bg-overlay)",
+        },
+        content: {
+          DEFAULT: "var(--fg)",
+          2: "var(--fg-2)",
+          3: "var(--fg-3)",
+          4: "var(--fg-4)",
+        },
+        line: {
+          DEFAULT: "var(--border)",
+          strong: "var(--border-strong)",
         },
       },
-      animation: {},
-      keyframes: {},
     },
   },
   plugins: [],
-}
-
-
+};

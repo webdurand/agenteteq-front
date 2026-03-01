@@ -34,32 +34,32 @@ function getTargetParams(state: ChatState): WaveParams {
         amp1: 9, amp2: 5, freq1: 5, freq2: 8,
         speed1: 2.5, speed2: 3.5,
         rotSpeed: 0.3, distortSpan: Math.PI * 1.2,
-        baseAlpha: 0.45, waveAlpha: 0.85,
-        glowBlur: 22, glowAlpha: 0.55,
+        baseAlpha: 0.5, waveAlpha: 0.9,
+        glowBlur: 20, glowAlpha: 0.5,
       };
     case "thinking":
       return {
         amp1: 5, amp2: 3, freq1: 4, freq2: 7,
         speed1: 2, speed2: 3,
         rotSpeed: 1.2, distortSpan: Math.PI * 0.6,
-        baseAlpha: 0.35, waveAlpha: 0.75,
-        glowBlur: 28, glowAlpha: 0.45,
+        baseAlpha: 0.35, waveAlpha: 0.7,
+        glowBlur: 25, glowAlpha: 0.4,
       };
     case "speaking":
       return {
         amp1: 11, amp2: 7, freq1: 3, freq2: 6,
         speed1: 3, speed2: 4,
         rotSpeed: 0.5, distortSpan: Math.PI * 1.5,
-        baseAlpha: 0.4, waveAlpha: 0.9,
-        glowBlur: 32, glowAlpha: 0.6,
+        baseAlpha: 0.45, waveAlpha: 0.95,
+        glowBlur: 30, glowAlpha: 0.55,
       };
     default:
       return {
         amp1: 4, amp2: 2, freq1: 3, freq2: 5,
         speed1: 0.8, speed2: 1.2,
         rotSpeed: 0.05, distortSpan: Math.PI * 0.7,
-        baseAlpha: 0.3, waveAlpha: 0.55,
-        glowBlur: 14, glowAlpha: 0.25,
+        baseAlpha: 0.25, waveAlpha: 0.5,
+        glowBlur: 12, glowAlpha: 0.2,
       };
   }
 }
@@ -105,6 +105,10 @@ export function Orb({ state, onClick }: OrbProps) {
 
       drawCtx.clearRect(0, 0, SIZE, SIZE);
 
+      const isDark = document.documentElement.classList.contains("dark");
+      const waveRGB = isDark ? "255, 255, 255" : "0, 0, 0";
+      const glowRGB = isDark ? "200, 200, 200" : "80, 80, 80";
+
       const target = getTargetParams(stateRef.current);
       const cur = curRef.current!;
       const factor = 1 - Math.pow(SMOOTHING, dt);
@@ -142,9 +146,9 @@ export function Orb({ state, onClick }: OrbProps) {
         else drawCtx.lineTo(x, y);
       }
       drawCtx.closePath();
-      drawCtx.strokeStyle = `rgba(190, 215, 255, ${cur.waveAlpha})`;
+      drawCtx.strokeStyle = `rgba(${waveRGB}, ${cur.waveAlpha})`;
       drawCtx.lineWidth = 1.2;
-      drawCtx.shadowColor = `rgba(110, 175, 255, ${cur.glowAlpha})`;
+      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha})`;
       drawCtx.shadowBlur = cur.glowBlur;
       drawCtx.stroke();
       drawCtx.restore();
@@ -153,9 +157,9 @@ export function Orb({ state, onClick }: OrbProps) {
       drawCtx.save();
       drawCtx.beginPath();
       drawCtx.arc(cx, cy, RADIUS, 0, Math.PI * 2);
-      drawCtx.strokeStyle = `rgba(190, 215, 255, ${cur.baseAlpha})`;
+      drawCtx.strokeStyle = `rgba(${waveRGB}, ${cur.baseAlpha})`;
       drawCtx.lineWidth = 0.8;
-      drawCtx.shadowColor = `rgba(110, 175, 255, ${cur.glowAlpha * 0.4})`;
+      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * 0.4})`;
       drawCtx.shadowBlur = cur.glowBlur * 0.4;
       drawCtx.stroke();
       drawCtx.restore();

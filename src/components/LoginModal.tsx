@@ -19,34 +19,21 @@ export function LoginModal({ onLogin }: LoginModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-navy-900/95 backdrop-blur-sm z-50">
-      <div
-        className="
-          w-full max-w-sm mx-4 rounded-2xl p-8
-          bg-navy-800/60 backdrop-blur-md
-          border border-navy-600/30
-        "
-        style={{
-          boxShadow: "0 0 60px 10px rgba(30, 58, 138, 0.15), 0 25px 50px rgba(0,0,0,0.5)",
-        }}
-      >
-        {/* Logo / título */}
+    <div className="fixed inset-0 flex items-center justify-center bg-surface-overlay backdrop-blur-sm z-50">
+      <div className="w-full max-w-sm mx-4 rounded-2xl p-8 bg-surface-up border border-line shadow-2xl">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-            style={{
-              background: "radial-gradient(circle at 38% 35%, #1e40af 0%, #0a1628 80%)",
-              boxShadow: "0 0 30px 8px rgba(59, 130, 246, 0.2)",
-            }}
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 border border-line-strong"
           >
-            <span className="text-navy-200 text-2xl font-light tracking-widest">T</span>
+            <span className="text-content text-2xl font-light tracking-widest">T</span>
           </div>
-          <h1 className="text-2xl font-light tracking-[0.3em] text-white uppercase mb-1">TEQ</h1>
-          <p className="text-navy-400 text-sm">Identificação por número</p>
+          <h1 className="text-2xl font-light tracking-[0.3em] text-content uppercase mb-1">TEQ</h1>
+          <p className="text-content-3 text-sm">Identificação por número</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="phone" className="text-navy-300 text-xs tracking-widest uppercase">
+            <label htmlFor="phone" className="text-content-2 text-xs tracking-widest uppercase">
               Número de telefone
             </label>
             <input
@@ -61,14 +48,14 @@ export function LoginModal({ onLogin }: LoginModalProps) {
               autoFocus
               className="
                 w-full px-4 py-3 rounded-xl
-                bg-navy-900/60 border border-navy-600/40
-                text-white placeholder-navy-500
-                focus:outline-none focus:border-navy-400/60 focus:ring-1 focus:ring-navy-400/30
+                bg-surface-card border border-line
+                text-content placeholder-content-4
+                focus:outline-none focus:border-line-strong focus:ring-1 focus:ring-line-strong
                 transition-all duration-200 text-sm
               "
             />
             {error && (
-              <p className="text-red-400 text-xs mt-0.5">{error}</p>
+              <p className="text-red-500 text-xs mt-0.5">{error}</p>
             )}
           </div>
 
@@ -76,19 +63,16 @@ export function LoginModal({ onLogin }: LoginModalProps) {
             type="submit"
             className="
               w-full py-3 rounded-xl font-medium text-sm tracking-wider
-              bg-navy-600 hover:bg-navy-500 active:bg-navy-700
-              text-white transition-all duration-200 active:scale-98
-              border border-navy-500/30
+              bg-content text-surface
+              hover:opacity-90 active:opacity-80
+              transition-all duration-200 active:scale-[0.98]
             "
-            style={{
-              boxShadow: "0 0 20px rgba(59, 130, 246, 0.15)",
-            }}
           >
             ENTRAR
           </button>
         </form>
 
-        <p className="text-navy-500 text-xs text-center mt-6 leading-relaxed">
+        <p className="text-content-3 text-xs text-center mt-6 leading-relaxed">
           Seu número identifica você no Teq —<br />
           a mesma memória do WhatsApp.
         </p>

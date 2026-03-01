@@ -2,13 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #fafafa;
+  --bg-up: #ffffff;
+  --bg-card: rgba(0, 0, 0, 0.03);
+  --bg-overlay: rgba(250, 250, 250, 0.95);
+
+  --fg: #111111;
+  --fg-2: #555555;
+  --fg-3: #999999;
+  --fg-4: #cccccc;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+}
+
+.dark {
+  --bg: #0a0a0a;
+  --bg-up: #141414;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-overlay: rgba(10, 10, 10, 0.95);
+
+  --fg: #ffffff;
+  --fg-2: #a0a0a0;
+  --fg-3: #666666;
+  --fg-4: #3a3a3a;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+}
+
 @layer base {
   html, body, #root {
     @apply h-full;
   }
 
   body {
-    @apply bg-navy-900 text-white antialiased;
+    @apply bg-surface text-content antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
@@ -21,6 +51,7 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-navy-600 rounded-full;
+    background: var(--fg-4);
+    border-radius: 9999px;
   }
 }

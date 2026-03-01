@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getAudioCtx, ensureAudioResumed } from "../lib/audioCtx";
+import { sfx } from "../lib/sounds";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -22,32 +24,6 @@ declare global {
   }
 }
 
-// ─── AudioContext singleton — resumed on first user gesture ───────────────────
-let _audioCtx: AudioContext | null = null;
-
-function getAudioCtx(): AudioContext {
-  if (!_audioCtx || _audioCtx.state === "closed") {
-    _audioCtx = new AudioContext();
-  }
-  return _audioCtx;
-}
-
-export function ensureAudioResumed(): void {
-  const ctx = getAudioCtx();
-  if (ctx.state === "suspended") {
-    ctx.resume().then(() => console.log("[AUDIO] AudioContext resumed"));
-  }
-}
-
-// Auto-resume on first interaction anywhere on the page
-const _resumeOnGesture = () => {
-  ensureAudioResumed();
-  document.removeEventListener("click", _resumeOnGesture);
-  document.removeEventListener("touchstart", _resumeOnGesture);
-};
-document.addEventListener("click", _resumeOnGesture, { capture: true });
-document.addEventListener("touchstart", _resumeOnGesture, { capture: true });
-
 export function useVoiceChat(phoneNumber: string | null) {
   const [state, setState] = useState<ChatState>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -61,8 +37,8 @@ export function useVoiceChat(phoneNumber: string | null) {
   const stateRef = useRef<ChatState>("idle");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const isCapturingRef = useRef(false);   // true = passou a wake word, coletando fala
-  const transcriptBufRef = useRef("");    // texto acumulado após wake word
+  const isCapturingRef = useRef(false);
+  const transcriptBufRef = useRef("");
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
@@ -107,11 +83,13 @@ export function useVoiceChat(phoneNumber: string | null) {
 
         case "transcript":
           if (msg.text && msg.text !== "...") addMessage("user", msg.text);
+          sfx.thinking();
           setStateSync("thinking");
           setStatusText("Pensando...");
           break;
 
         case "response": {
+          sfx.messageReceived();
           addMessage("agent", msg.text);
           console.log(`[AUDIO] mime=${msg.mime_type} | b64 length=${msg.audio_b64?.length ?? 0}`);
 
@@ -127,6 +105,7 @@ export function useVoiceChat(phoneNumber: string | null) {
           setInterimText("");
 
           if (looksLikeFollowUp(msg.text)) {
+            sfx.micOpen();
             isCapturingRef.current = true;
             transcriptBufRef.current = "";
             setStateSync("listening");
@@ -175,7 +154,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     };
   }, [phoneNumber, connectWS]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Speech Recognition (wake word + transcrição unificados) ───────────────
+  // ─── Speech Recognition ────────────────────────────────────────────────────
 
   const clearSendTimer = () => {
     if (sendTimerRef.current) { clearTimeout(sendTimerRef.current); sendTimerRef.current = null; }
@@ -190,6 +169,7 @@ export function useVoiceChat(phoneNumber: string | null) {
 
     if (!text || stateRef.current !== "listening") return;
 
+    sfx.micClose();
     console.log(`[STT] Enviando: "${text}"`);
     addMessage("user", text);
     setStateSync("thinking");
@@ -207,7 +187,6 @@ export function useVoiceChat(phoneNumber: string | null) {
       return;
     }
 
-    // Para a instância anterior sem disparar restart
     if (recognitionRef.current) {
       try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
@@ -220,7 +199,6 @@ export function useVoiceChat(phoneNumber: string | null) {
     r.lang = "pt-BR";
     r.maxAlternatives = 2;
 
-    // Guarda referência ANTES de registrar onend para checar se ainda é a instância ativa
     recognitionRef.current = r;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,6 +215,7 @@ export function useVoiceChat(phoneNumber: string | null) {
         if (!isCapturingRef.current) {
           if (WAKE_WORDS.some((w) => norm.includes(w))) {
             console.log(`[STT] Wake word detectada: "${text}"`);
+            sfx.micOpen();
             isCapturingRef.current = true;
             setStateSync("listening");
             setStatusText("Pode falar...");
@@ -271,7 +250,6 @@ export function useVoiceChat(phoneNumber: string | null) {
     };
 
     r.onend = () => {
-      // Só reinicia se esta instância ainda é a ativa — evita loop do StrictMode
       if (recognitionRef.current !== r) return;
       recognitionRef.current = null;
       setWakeWordActive(false);
@@ -300,7 +278,6 @@ export function useVoiceChat(phoneNumber: string | null) {
 
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
-      // Nulifica onend ANTES de parar para não disparar restart
       try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
@@ -312,7 +289,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     setTimeout(() => startRecognition(), 300);
   }, [startRecognition, stopRecognition]);
 
-  // ─── Visibility change — retoma WS e recognition ao voltar à aba ───────────
+  // ─── Visibility change ─────────────────────────────────────────────────────
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== "visible" || !phoneNumber) return;
@@ -332,7 +309,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [phoneNumber, connectWS, startRecognition]);
 
-  // ─── Ação do orb (clique = ativar/cancelar manualmente) ───────────────────
+  // ─── Ação do orb ───────────────────────────────────────────────────────────
 
   const toggleListening = useCallback(() => {
     ensureAudioResumed();
@@ -342,6 +319,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     if (stateRef.current === "listening") {
       sendTranscript();
     } else {
+      sfx.micOpen();
       isCapturingRef.current = true;
       transcriptBufRef.current = "";
       setStateSync("listening");
