@@ -31,8 +31,27 @@ const CANCEL_PHRASES = [
   "sai",
   "sair",
 ];
-const SEND_SILENCE_MS = 1800;
+const SEND_SILENCE_MS = 2200;
 const IDLE_TIMEOUT_MS = 8000;
+
+/**
+ * Verifica se um segmento de fala é uma intenção de cancelar.
+ * - Palavra simples: requer match exato (evita "para casa" → cancela por "para")
+ * - Frase composta: permite até 2 palavras extras após a frase (ex: "para de falar já")
+ */
+function matchesCancelPhrase(norm: string): boolean {
+  return CANCEL_PHRASES.some((p) => {
+    if (!p.includes(" ")) {
+      return norm === p;
+    }
+    if (norm === p) return true;
+    if (norm.startsWith(p + " ")) {
+      const extraWords = norm.split(/\s+/).length - p.split(/\s+/).length;
+      return extraWords <= 2;
+    }
+    return false;
+  });
+}
 
 declare global {
   interface Window {
@@ -66,6 +85,7 @@ export function useVoiceChat(phoneNumber: string | null) {
   const sttLastErrorRef = useRef<string | null>(null);
   const lastWakeResultIdxRef = useRef(-1);
   const wakeCooldownRef = useRef(0);
+  const recognitionPausedRef = useRef(false);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -130,6 +150,9 @@ export function useVoiceChat(phoneNumber: string | null) {
           setStateSync("speaking");
           setStatusText("Falando...");
 
+          recognitionPausedRef.current = true;
+          stopRecognition();
+
           if (msg.mime_type === "browser" || !msg.audio_b64) {
             await speakBrowser(msg.text, "pt-BR");
           } else {
@@ -154,7 +177,10 @@ export function useVoiceChat(phoneNumber: string | null) {
             setStateSync("idle");
             setStatusText("Diga \"E aí Teq\" ou clique para falar");
           }
-          restartRecognition();
+          
+          recognitionPausedRef.current = false;
+          setTimeout(() => startRecognition(), 1200);
+          
           break;
         }
 
@@ -271,6 +297,8 @@ export function useVoiceChat(phoneNumber: string | null) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (event: any) => {
+      if (recognitionPausedRef.current) return;
+
       const busy = stateRef.current === "thinking" || stateRef.current === "speaking";
 
       let interimConcat = "";
@@ -287,7 +315,7 @@ export function useVoiceChat(phoneNumber: string | null) {
 
         if (!isCapturingRef.current) {
           // Detectar cancel phrase quando Teq está falando/pensando
-          if (busy && result.isFinal && CANCEL_PHRASES.some((p) => norm === p || norm.startsWith(p + " "))) {
+          if (busy && result.isFinal && matchesCancelPhrase(norm)) {
             console.log(`[STT] Cancel phrase detectada durante ${stateRef.current}: "${text}"`);
             stopPlayback();
             requestGenRef.current++;
@@ -350,7 +378,7 @@ export function useVoiceChat(phoneNumber: string | null) {
           if (i <= lastWakeResultIdxRef.current) continue;
           if (result.isFinal) {
             // Detectar cancel phrase durante captura ativa
-            if (CANCEL_PHRASES.some((p) => norm === p || norm.startsWith(p + " "))) {
+            if (matchesCancelPhrase(norm)) {
               console.log(`[STT] Cancel phrase detectada durante escuta: "${text}"`);
               clearSendTimer();
               clearIdleTimer();
@@ -392,6 +420,8 @@ export function useVoiceChat(phoneNumber: string | null) {
       if (recognitionRef.current !== r) return;
       recognitionRef.current = null;
       setWakeWordActive(false);
+
+      if (recognitionPausedRef.current) return;
 
       const MAX_RETRIES = 10;
       if (sttLastErrorRef.current === "aborted") {
@@ -470,7 +500,18 @@ export function useVoiceChat(phoneNumber: string | null) {
   const toggleListening = useCallback(() => {
     ensureAudioResumed();
 
-    if (stateRef.current === "thinking" || stateRef.current === "speaking") return;
+    if (stateRef.current === "thinking") return;
+
+    if (stateRef.current === "speaking") {
+      stopPlayback();
+      requestGenRef.current++;
+      wsRef.current?.send(JSON.stringify({ type: "cancel" }));
+      recognitionPausedRef.current = false;
+      setStateSync("idle");
+      setStatusText("Diga \"E aí Teq\" ou clique para falar");
+      setTimeout(() => startRecognition(), 500);
+      return;
+    }
 
     if (stateRef.current === "listening") {
       sendTranscript();
