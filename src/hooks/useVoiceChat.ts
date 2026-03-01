@@ -204,7 +204,7 @@ export function useVoiceChat(phoneNumber: string | null) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (event: any) => {
-      if (stateRef.current === "thinking" || stateRef.current === "speaking") return;
+      const busy = stateRef.current === "thinking" || stateRef.current === "speaking";
 
       let interimConcat = "";
 
@@ -215,9 +215,11 @@ export function useVoiceChat(phoneNumber: string | null) {
 
         if (!isCapturingRef.current) {
           if (WAKE_WORDS.some((w) => norm.includes(w))) {
-            console.log(`[STT] Wake word detectada: "${text}"`);
+            console.log(`[STT] Wake word detectada (interrompendo ${stateRef.current}): "${text}"`);
+            if (busy) stopPlayback();
             sfx.micOpen();
             isCapturingRef.current = true;
+            transcriptBufRef.current = "";
             setStateSync("listening");
             setStatusText("Pode falar...");
             setWakeWordActive(false);
@@ -229,7 +231,7 @@ export function useVoiceChat(phoneNumber: string | null) {
             const afterWake = text.slice(wakeEnd).trim();
             if (afterWake) transcriptBufRef.current = afterWake;
           }
-        } else {
+        } else if (!busy) {
           if (result.isFinal) {
             transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + text;
             clearSendTimer();
@@ -255,10 +257,8 @@ export function useVoiceChat(phoneNumber: string | null) {
       recognitionRef.current = null;
       setWakeWordActive(false);
 
-      if (stateRef.current === "idle" || stateRef.current === "listening") {
-        console.log("[STT] Reiniciando reconhecimento...");
-        setTimeout(() => startRecognition(), 500);
-      }
+      console.log(`[STT] Reconhecimento encerrou (state=${stateRef.current}), reiniciando...`);
+      setTimeout(() => startRecognition(), 500);
     };
 
     r.onerror = (e: Event & { error?: string }) => {
@@ -364,6 +364,21 @@ function b64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+let _currentSource: AudioBufferSourceNode | null = null;
+let _currentElement: HTMLAudioElement | null = null;
+
+export function stopPlayback() {
+  if (_currentSource) {
+    try { _currentSource.stop(); } catch { /* already stopped */ }
+    _currentSource = null;
+  }
+  if (_currentElement) {
+    _currentElement.pause();
+    _currentElement.src = "";
+    _currentElement = null;
+  }
+}
+
 function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
   return new Promise((resolve) => {
     try {
@@ -382,7 +397,8 @@ function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(analyser);
-          src.onended = () => resolve(true);
+          src.onended = () => { _currentSource = null; resolve(true); };
+          _currentSource = src;
           src.start(0);
         },
         () => resolve(false),
@@ -398,11 +414,12 @@ function playWithElement(bytes: Uint8Array, mimeType: string): Promise<void> {
     const blob = new Blob([bytes], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+    _currentElement = audio;
+    audio.onended = () => { _currentElement = null; URL.revokeObjectURL(url); resolve(); };
+    audio.onerror = () => { _currentElement = null; URL.revokeObjectURL(url); resolve(); };
     audio.play()
       .then(() => console.log("[AUDIO] Reprodução via <audio> (sem analyser)"))
-      .catch(() => { URL.revokeObjectURL(url); resolve(); });
+      .catch(() => { _currentElement = null; URL.revokeObjectURL(url); resolve(); });
   });
 }
 

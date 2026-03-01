@@ -127,13 +127,13 @@ export function Orb({ state, onClick }: OrbProps) {
       } else if (currentState === "listening") {
         rawAmp = getMicAmplitude();
       }
-      const targetReact = Math.min(rawAmp * 6, 1);
-      const reactSmooth = targetReact > reactRef.current ? 0.35 : 0.12;
+      const targetReact = Math.min(rawAmp * 4, 1);
+      const reactSmooth = targetReact > reactRef.current ? 0.25 : 0.08;
       reactRef.current += (targetReact - reactRef.current) * reactSmooth;
       const react = reactRef.current;
 
-      const ampBoost = 1 + react * 4;
-      const glowBoost = 1 + react * 1.5;
+      const ampBoost = 1 + react * 1.5;
+      const glowBoost = 1 + react * 0.6;
 
       angleRef.current = (angleRef.current + cur.rotSpeed * dt) % (Math.PI * 2);
       const center = angleRef.current;
@@ -164,8 +164,8 @@ export function Orb({ state, onClick }: OrbProps) {
         else drawCtx.lineTo(x, y);
       }
       drawCtx.closePath();
-      drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(cur.waveAlpha + react * 0.15, 1)})`;
-      drawCtx.lineWidth = 1.2 + react * 0.6;
+      drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(cur.waveAlpha + react * 0.08, 1)})`;
+      drawCtx.lineWidth = 1.2 + react * 0.3;
       drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * glowBoost})`;
       drawCtx.shadowBlur = cur.glowBlur * glowBoost;
       drawCtx.stroke();
