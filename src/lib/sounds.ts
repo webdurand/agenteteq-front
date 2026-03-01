@@ -1,4 +1,4 @@
-import { getAudioCtx, blankAmplitude, ensureAudioResumed } from "./audioCtx";
+import { getAudioCtx, blankAmplitude } from "./audioCtx";
 
 const SFX_BLANK_MS = 350;
 

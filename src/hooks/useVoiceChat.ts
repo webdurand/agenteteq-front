@@ -509,7 +509,7 @@ function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
       const analyser = getPlaybackAnalyser();
 
       ctx.decodeAudioData(
-        bytes.buffer.slice(0),
+        bytes.buffer.slice(0) as ArrayBuffer,
         (buffer) => {
           console.log(`[AUDIO] Analyser | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
           const src = ctx.createBufferSource();
@@ -529,7 +529,7 @@ function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
 
 function playWithElement(bytes: Uint8Array, mimeType: string): Promise<void> {
   return new Promise((resolve) => {
-    const blob = new Blob([bytes], { type: mimeType });
+    const blob = new Blob([bytes as BlobPart], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     _currentElement = audio;
