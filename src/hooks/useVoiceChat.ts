@@ -64,6 +64,8 @@ export function useVoiceChat(phoneNumber: string | null) {
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
   const sttFailCountRef = useRef(0);
   const sttLastErrorRef = useRef<string | null>(null);
+  const lastWakeResultIdxRef = useRef(-1);
+  const wakeCooldownRef = useRef(0);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -141,7 +143,7 @@ export function useVoiceChat(phoneNumber: string | null) {
 
           setInterimText("");
 
-          if (looksLikeFollowUp(msg.text)) {
+          if (msg.needs_follow_up) {
             sfx.micOpen();
             isCapturingRef.current = true;
             transcriptBufRef.current = "";
@@ -279,7 +281,9 @@ export function useVoiceChat(phoneNumber: string | null) {
 
         const result = event.results[i];
         const text = result[0].transcript;
-        const norm = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        // normForPos preserva espacos para calcular offset corretamente em text.slice()
+        const normForPos = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const norm = normForPos.trim();
 
         if (!isCapturingRef.current) {
           // Detectar cancel phrase quando Teq está falando/pensando
@@ -304,7 +308,11 @@ export function useVoiceChat(phoneNumber: string | null) {
             break;
           }
 
-          if (WAKE_WORDS.some((w) => norm.includes(w))) {
+          // Guard: cooldown de 2.5s e indice para evitar re-deteccao do mesmo segmento
+          const withinCooldown = Date.now() - wakeCooldownRef.current < 2500;
+          const alreadyProcessed = i <= lastWakeResultIdxRef.current;
+
+          if (!withinCooldown && !alreadyProcessed && WAKE_WORDS.some((w) => norm.includes(w))) {
             console.log(`[STT] Wake word detectada (interrompendo ${stateRef.current}): "${text}"`);
             if (busy) {
               stopPlayback();
@@ -323,17 +331,23 @@ export function useVoiceChat(phoneNumber: string | null) {
             setWakeWordActive(false);
             startIdleTimer();
 
+            // Usar normForPos (sem trim) para alinhar offset com text original
             const wakeEnd = WAKE_WORDS.reduce((idx, w) => {
-              const wIdx = norm.indexOf(w);
+              const wIdx = normForPos.indexOf(w);
               return wIdx !== -1 ? Math.max(idx, wIdx + w.length) : idx;
             }, 0);
             const afterWake = text.slice(wakeEnd).trim();
             if (afterWake) transcriptBufRef.current = afterWake;
 
+            lastWakeResultIdxRef.current = i;
+            wakeCooldownRef.current = Date.now();
+
             wakeWordFound = true;
             break;
           }
         } else if (!busy) {
+          // Pular resultados do mesmo segmento onde a wake word foi detectada
+          if (i <= lastWakeResultIdxRef.current) continue;
           if (result.isFinal) {
             // Detectar cancel phrase durante captura ativa
             if (CANCEL_PHRASES.some((p) => norm === p || norm.startsWith(p + " "))) {
@@ -370,6 +384,7 @@ export function useVoiceChat(phoneNumber: string | null) {
       console.log("[STT] Reconhecimento ativo");
       sttFailCountRef.current = 0;
       sttLastErrorRef.current = null;
+      lastWakeResultIdxRef.current = -1;
       setWakeWordActive(true);
     };
 
@@ -489,13 +504,6 @@ export function useVoiceChat(phoneNumber: string | null) {
     sendName,
     onOrbScale,
   };
-}
-
-// ─── Detecção de follow-up ────────────────────────────────────────────────────
-
-function looksLikeFollowUp(text: string): boolean {
-  const cleaned = text.trim().replace(/[\s\u{FE00}-\u{FE0F}\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]+$/u, "");
-  return cleaned.endsWith("?");
 }
 
 // ─── Helpers de áudio ─────────────────────────────────────────────────────────
