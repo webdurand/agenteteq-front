@@ -11,8 +11,8 @@ export function LoginModal({ onLogin }: LoginModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) {
-      setError("Digite um número válido com DDD (ex: 11999999999)");
+    if (cleaned.length < 12) {
+      setError("Digite um número válido com DDI e DDD (ex: 5511999999999)");
       return;
     }
     onLogin(cleaned);
