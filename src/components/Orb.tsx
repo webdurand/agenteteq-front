@@ -32,35 +32,35 @@ function getTargetParams(state: ChatState): WaveParams {
   switch (state) {
     case "listening":
       return {
-        amp1: 9, amp2: 5, freq1: 5, freq2: 8,
-        speed1: 2.5, speed2: 3.5,
-        rotSpeed: 0.3, distortSpan: Math.PI * 1.2,
-        baseAlpha: 0.5, waveAlpha: 0.9,
-        glowBlur: 20, glowAlpha: 0.5,
+        amp1: 4, amp2: 2.5, freq1: 5, freq2: 8,
+        speed1: 1.8, speed2: 2.5,
+        rotSpeed: 0.25, distortSpan: Math.PI * 1.2,
+        baseAlpha: 0.4, waveAlpha: 0.7,
+        glowBlur: 14, glowAlpha: 0.3,
       };
     case "thinking":
       return {
-        amp1: 5, amp2: 3, freq1: 4, freq2: 7,
-        speed1: 2, speed2: 3,
-        rotSpeed: 1.2, distortSpan: Math.PI * 0.6,
-        baseAlpha: 0.35, waveAlpha: 0.7,
-        glowBlur: 25, glowAlpha: 0.4,
+        amp1: 2.5, amp2: 1.5, freq1: 4, freq2: 7,
+        speed1: 1.5, speed2: 2,
+        rotSpeed: 0.8, distortSpan: Math.PI * 0.6,
+        baseAlpha: 0.3, waveAlpha: 0.5,
+        glowBlur: 16, glowAlpha: 0.25,
       };
     case "speaking":
       return {
-        amp1: 11, amp2: 7, freq1: 3, freq2: 6,
-        speed1: 3, speed2: 4,
-        rotSpeed: 0.5, distortSpan: Math.PI * 1.5,
-        baseAlpha: 0.45, waveAlpha: 0.95,
-        glowBlur: 30, glowAlpha: 0.55,
+        amp1: 5, amp2: 3, freq1: 3, freq2: 6,
+        speed1: 2, speed2: 3,
+        rotSpeed: 0.35, distortSpan: Math.PI * 1.5,
+        baseAlpha: 0.35, waveAlpha: 0.75,
+        glowBlur: 18, glowAlpha: 0.35,
       };
     default:
       return {
-        amp1: 4, amp2: 2, freq1: 3, freq2: 5,
-        speed1: 0.8, speed2: 1.2,
-        rotSpeed: 0.05, distortSpan: Math.PI * 0.7,
-        baseAlpha: 0.25, waveAlpha: 0.5,
-        glowBlur: 12, glowAlpha: 0.2,
+        amp1: 2, amp2: 1, freq1: 3, freq2: 5,
+        speed1: 0.6, speed2: 0.9,
+        rotSpeed: 0.04, distortSpan: Math.PI * 0.7,
+        baseAlpha: 0.2, waveAlpha: 0.35,
+        glowBlur: 8, glowAlpha: 0.12,
       };
   }
 }
@@ -127,13 +127,13 @@ export function Orb({ state, onClick }: OrbProps) {
       } else if (currentState === "listening") {
         rawAmp = getMicAmplitude();
       }
-      const targetReact = Math.min(rawAmp * 4, 1);
-      const reactSmooth = targetReact > reactRef.current ? 0.25 : 0.08;
+      const targetReact = Math.min(rawAmp * 3, 1);
+      const reactSmooth = targetReact > reactRef.current ? 0.18 : 0.06;
       reactRef.current += (targetReact - reactRef.current) * reactSmooth;
       const react = reactRef.current;
 
-      const ampBoost = 1 + react * 1.5;
-      const glowBoost = 1 + react * 0.6;
+      const ampBoost = 1 + react * 0.8;
+      const glowBoost = 1 + react * 0.3;
 
       angleRef.current = (angleRef.current + cur.rotSpeed * dt) % (Math.PI * 2);
       const center = angleRef.current;
@@ -147,29 +147,40 @@ export function Orb({ state, onClick }: OrbProps) {
         return Math.cos((delta / halfSpan) * (Math.PI / 2));
       };
 
-      // Wave path
-      drawCtx.save();
-      drawCtx.beginPath();
-      for (let i = 0; i <= SEGMENTS; i++) {
-        const angle = (i / SEGMENTS) * Math.PI * 2;
-        const env = envelope(angle);
-        const wave =
-          env *
-          (Math.sin(angle * cur.freq1 + t * cur.speed1) * cur.amp1 * ampBoost +
-            Math.sin(angle * cur.freq2 - t * cur.speed2) * cur.amp2 * ampBoost);
-        const r = RADIUS + wave;
-        const x = cx + Math.cos(angle) * r;
-        const y = cy + Math.sin(angle) * r;
-        if (i === 0) drawCtx.moveTo(x, y);
-        else drawCtx.lineTo(x, y);
+      const WAVE_LAYERS = [
+        { radiusOff:  0, ampScale: 1.0,  phaseOff: 0,        alpha: 1.0 },
+        { radiusOff:  6, ampScale: 0.6,  phaseOff: 0.9,      alpha: 0.45 },
+        { radiusOff: -6, ampScale: 0.5,  phaseOff: 1.8,      alpha: 0.35 },
+        { radiusOff: 12, ampScale: 0.35, phaseOff: 2.6,      alpha: 0.2 },
+      ];
+
+      for (const layer of WAVE_LAYERS) {
+        const layerR = RADIUS + layer.radiusOff;
+        const lAlpha = cur.waveAlpha * layer.alpha + react * 0.04;
+        drawCtx.save();
+        drawCtx.beginPath();
+        for (let i = 0; i <= SEGMENTS; i++) {
+          const angle = (i / SEGMENTS) * Math.PI * 2;
+          const env = envelope(angle);
+          const wave =
+            env *
+            layer.ampScale *
+            (Math.sin(angle * cur.freq1 + t * cur.speed1 + layer.phaseOff) * cur.amp1 * ampBoost +
+              Math.sin(angle * cur.freq2 - t * cur.speed2 + layer.phaseOff) * cur.amp2 * ampBoost);
+          const r = layerR + wave;
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          if (i === 0) drawCtx.moveTo(x, y);
+          else drawCtx.lineTo(x, y);
+        }
+        drawCtx.closePath();
+        drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(lAlpha, 1)})`;
+        drawCtx.lineWidth = layer.alpha > 0.5 ? 1.0 + react * 0.2 : 0.6;
+        drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * glowBoost * layer.alpha})`;
+        drawCtx.shadowBlur = cur.glowBlur * glowBoost * layer.alpha;
+        drawCtx.stroke();
+        drawCtx.restore();
       }
-      drawCtx.closePath();
-      drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(cur.waveAlpha + react * 0.08, 1)})`;
-      drawCtx.lineWidth = 1.2 + react * 0.3;
-      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * glowBoost})`;
-      drawCtx.shadowBlur = cur.glowBlur * glowBoost;
-      drawCtx.stroke();
-      drawCtx.restore();
 
       // Base circle
       drawCtx.save();
