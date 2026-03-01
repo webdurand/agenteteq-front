@@ -13,6 +13,24 @@ export interface Message {
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
 const WAKE_WORDS = ["teq", "tec", "tech", "tek"];
+const CANCEL_PHRASES = [
+  "para",
+  "parar",
+  "para de falar",
+  "parar de falar",
+  "para falar",
+  "parar falar",
+  "cancelar",
+  "cancela",
+  "pode cancelar",
+  "chega",
+  "silencio",
+  "fica quieto",
+  "encerrar",
+  "encerra",
+  "sai",
+  "sair",
+];
 const SEND_SILENCE_MS = 1800;
 const IDLE_TIMEOUT_MS = 8000;
 
@@ -252,13 +270,38 @@ export function useVoiceChat(phoneNumber: string | null) {
       const busy = stateRef.current === "thinking" || stateRef.current === "speaking";
 
       let interimConcat = "";
+      let wakeWordFound = false;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (wakeWordFound) break;
+
         const result = event.results[i];
         const text = result[0].transcript;
-        const norm = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const norm = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
         if (!isCapturingRef.current) {
+          // Detectar cancel phrase quando Teq está falando/pensando
+          if (busy && result.isFinal && CANCEL_PHRASES.some((p) => norm === p || norm.startsWith(p + " "))) {
+            console.log(`[STT] Cancel phrase detectada durante ${stateRef.current}: "${text}"`);
+            stopPlayback();
+            requestGenRef.current++;
+            console.log(`[STT] Geração incrementada para ${requestGenRef.current}`);
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: "cancel" }));
+              console.log("[WS] Cancelamento enviado ao backend");
+            }
+            clearSendTimer();
+            clearIdleTimer();
+            isCapturingRef.current = false;
+            transcriptBufRef.current = "";
+            setInterimText("");
+            sfx.micClose();
+            setStateSync("idle");
+            setStatusText("Diga \"E aí Teq\" ou clique para falar");
+            wakeWordFound = true;
+            break;
+          }
+
           if (WAKE_WORDS.some((w) => norm.includes(w))) {
             console.log(`[STT] Wake word detectada (interrompendo ${stateRef.current}): "${text}"`);
             if (busy) {
@@ -279,14 +322,32 @@ export function useVoiceChat(phoneNumber: string | null) {
             startIdleTimer();
 
             const wakeEnd = WAKE_WORDS.reduce((idx, w) => {
-              const i = norm.indexOf(w);
-              return i !== -1 ? Math.max(idx, i + w.length) : idx;
+              const wIdx = norm.indexOf(w);
+              return wIdx !== -1 ? Math.max(idx, wIdx + w.length) : idx;
             }, 0);
             const afterWake = text.slice(wakeEnd).trim();
             if (afterWake) transcriptBufRef.current = afterWake;
+
+            wakeWordFound = true;
+            break;
           }
         } else if (!busy) {
           if (result.isFinal) {
+            // Detectar cancel phrase durante captura ativa
+            if (CANCEL_PHRASES.some((p) => norm === p || norm.startsWith(p + " "))) {
+              console.log(`[STT] Cancel phrase detectada durante escuta: "${text}"`);
+              clearSendTimer();
+              clearIdleTimer();
+              isCapturingRef.current = false;
+              transcriptBufRef.current = "";
+              setInterimText("");
+              sfx.micClose();
+              setStateSync("idle");
+              setStatusText("Diga \"E aí Teq\" ou clique para falar");
+              wakeWordFound = true;
+              break;
+            }
+
             transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + text;
             clearSendTimer();
             clearIdleTimer();
