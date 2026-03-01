@@ -11,7 +11,7 @@ export interface Message {
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
 const WAKE_WORDS = ["teq", "tec", "tech", "tek"];
-const SEND_SILENCE_MS = 1800; // tempo de silêncio após fala para enviar
+const SEND_SILENCE_MS = 1800;
 
 declare global {
   interface Window {
@@ -21,6 +21,32 @@ declare global {
     webkitSpeechRecognition: any;
   }
 }
+
+// ─── AudioContext singleton — resumed on first user gesture ───────────────────
+let _audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext {
+  if (!_audioCtx || _audioCtx.state === "closed") {
+    _audioCtx = new AudioContext();
+  }
+  return _audioCtx;
+}
+
+export function ensureAudioResumed(): void {
+  const ctx = getAudioCtx();
+  if (ctx.state === "suspended") {
+    ctx.resume().then(() => console.log("[AUDIO] AudioContext resumed"));
+  }
+}
+
+// Auto-resume on first interaction anywhere on the page
+const _resumeOnGesture = () => {
+  ensureAudioResumed();
+  document.removeEventListener("click", _resumeOnGesture);
+  document.removeEventListener("touchstart", _resumeOnGesture);
+};
+document.addEventListener("click", _resumeOnGesture, { capture: true });
+document.addEventListener("touchstart", _resumeOnGesture, { capture: true });
 
 export function useVoiceChat(phoneNumber: string | null) {
   const [state, setState] = useState<ChatState>("idle");
@@ -89,14 +115,13 @@ export function useVoiceChat(phoneNumber: string | null) {
           addMessage("agent", msg.text);
           console.log(`[AUDIO] mime=${msg.mime_type} | b64 length=${msg.audio_b64?.length ?? 0}`);
 
+          setStateSync("speaking");
+          setStatusText("Falando...");
+
           if (msg.mime_type === "browser" || !msg.audio_b64) {
-            setStateSync("speaking");
-            setStatusText("Falando...");
             await speakBrowser(msg.text, "pt-BR");
           } else {
-            setStateSync("speaking");
-            setStatusText("Falando...");
-            await playAudio(msg.audio_b64);
+            await playAudio(msg.audio_b64, msg.mime_type ?? "audio/wav");
           }
 
           setStateSync("idle");
@@ -279,22 +304,41 @@ export function useVoiceChat(phoneNumber: string | null) {
     setTimeout(() => startRecognition(), 300);
   }, [startRecognition, stopRecognition]);
 
+  // ─── Visibility change — retoma WS e recognition ao voltar à aba ───────────
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible" || !phoneNumber) return;
+
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        connectWS();
+      }
+      if (
+        (stateRef.current === "idle" || stateRef.current === "listening") &&
+        !recognitionRef.current
+      ) {
+        startRecognition();
+      }
+      ensureAudioResumed();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [phoneNumber, connectWS, startRecognition]);
+
   // ─── Ação do orb (clique = ativar/cancelar manualmente) ───────────────────
 
   const toggleListening = useCallback(() => {
+    ensureAudioResumed();
+
     if (stateRef.current === "thinking" || stateRef.current === "speaking") return;
 
     if (stateRef.current === "listening") {
-      // Força envio imediato do que foi capturado até agora
       sendTranscript();
     } else {
-      // Ativa captura manual (sem precisar da wake word)
       isCapturingRef.current = true;
       transcriptBufRef.current = "";
       setStateSync("listening");
       setStatusText("Pode falar...");
       setInterimText("");
-      // Garante que o recognition está rodando
       if (!recognitionRef.current) startRecognition();
     }
   }, [sendTranscript, startRecognition]);
@@ -319,41 +363,73 @@ export function useVoiceChat(phoneNumber: string | null) {
 
 // ─── Helpers de áudio ─────────────────────────────────────────────────────────
 
-async function playAudio(base64: string) {
-  return new Promise<void>((resolve) => {
-    try {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+function b64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 
-      const ctx = new AudioContext();
+function playWithElement(bytes: Uint8Array, mimeType: string): Promise<void> {
+  return new Promise((resolve) => {
+    const blob = new Blob([bytes], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+    audio.onerror = (e) => {
+      console.error("[AUDIO] <audio> element error:", e);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    audio.play()
+      .then(() => console.log("[AUDIO] Reprodução iniciada via <audio>"))
+      .catch((err) => {
+        console.warn("[AUDIO] <audio>.play() bloqueado:", err.message);
+        URL.revokeObjectURL(url);
+        resolve();
+      });
+  });
+}
+
+function playWithAudioContext(bytes: Uint8Array): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const ctx = getAudioCtx();
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
       ctx.decodeAudioData(
         bytes.buffer.slice(0),
         (buffer) => {
-          console.log(`[AUDIO] Decodificado | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
+          console.log(`[AUDIO] AudioContext | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(ctx.destination);
-          src.onended = () => { ctx.close(); resolve(); };
+          src.onended = () => resolve();
           src.start(0);
-          console.log("[AUDIO] Reprodução iniciada");
         },
         (err) => {
-          console.error("[AUDIO] decodeAudioData falhou:", err, "— fallback <audio>");
-          ctx.close();
-          const blob = new Blob([bytes], { type: "audio/wav" });
-          const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.play().catch(() => resolve());
-        }
+          console.error("[AUDIO] decodeAudioData falhou:", err);
+          resolve();
+        },
       );
     } catch (err) {
-      console.error("[AUDIO] Erro:", err);
+      console.error("[AUDIO] AudioContext erro:", err);
       resolve();
     }
   });
+}
+
+async function playAudio(base64: string, mimeType: string = "audio/wav") {
+  const bytes = b64ToBytes(base64);
+  console.log(`[AUDIO] Tentando reproduzir ${bytes.length} bytes (${mimeType})`);
+
+  try {
+    await playWithElement(bytes, mimeType);
+  } catch {
+    console.warn("[AUDIO] Fallback para AudioContext");
+    await playWithAudioContext(bytes);
+  }
 }
 
 function speakBrowser(text: string, lang: string): Promise<void> {

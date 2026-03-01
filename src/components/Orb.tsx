@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { ChatState } from "../hooks/useVoiceChat";
 
 interface OrbProps {
@@ -7,165 +7,153 @@ interface OrbProps {
   onClick: () => void;
 }
 
-export function Orb({ state, onOrbScale, onClick }: OrbProps) {
-  const [dynamicScale, setDynamicScale] = useState(1);
-  const orbRef = useRef<HTMLButtonElement>(null);
+interface WaveParams {
+  amp1: number;
+  amp2: number;
+  freq1: number;
+  freq2: number;
+  speed1: number;
+  speed2: number;
+  distortCenter: number | null;
+  distortSpan: number;
+  baseAlpha: number;
+  waveAlpha: number;
+  glowBlur: number;
+  glowAlpha: number;
+}
+
+function getParams(state: ChatState, t: number): WaveParams {
+  switch (state) {
+    case "listening":
+      return {
+        amp1: 9, amp2: 5, freq1: 5, freq2: 8,
+        speed1: 2.5, speed2: 3.5,
+        distortCenter: t * 0.3, distortSpan: Math.PI * 1.2,
+        baseAlpha: 0.45, waveAlpha: 0.85,
+        glowBlur: 22, glowAlpha: 0.55,
+      };
+    case "thinking":
+      return {
+        amp1: 5, amp2: 3, freq1: 4, freq2: 7,
+        speed1: 2, speed2: 3,
+        distortCenter: t * 1.2, distortSpan: Math.PI * 0.6,
+        baseAlpha: 0.35, waveAlpha: 0.75,
+        glowBlur: 28, glowAlpha: 0.45,
+      };
+    case "speaking":
+      return {
+        amp1: 11, amp2: 7, freq1: 3, freq2: 6,
+        speed1: 3, speed2: 4,
+        distortCenter: t * 0.5, distortSpan: Math.PI * 1.5,
+        baseAlpha: 0.4, waveAlpha: 0.9,
+        glowBlur: 32, glowAlpha: 0.6,
+      };
+    default:
+      return {
+        amp1: 4, amp2: 2, freq1: 3, freq2: 5,
+        speed1: 0.8, speed2: 1.2,
+        distortCenter: null, distortSpan: Math.PI * 0.7,
+        baseAlpha: 0.3, waveAlpha: 0.55,
+        glowBlur: 14, glowAlpha: 0.25,
+      };
+  }
+}
+
+const SIZE = 256;
+const RADIUS = 90;
+const SEGMENTS = 512;
+const IDLE_DISTORT_CENTER = Math.PI * 1.15;
+
+export function Orb({ state, onClick }: OrbProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const isClickable = state === "idle" || state === "listening";
 
   useEffect(() => {
-    if (state !== "listening") {
-      setDynamicScale(1);
-      return;
-    }
-    return onOrbScale((scale) => setDynamicScale(scale));
-  }, [state, onOrbScale]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-  const glowClass = {
-    idle: "orb-glow-idle",
-    listening: "orb-glow-listen",
-    thinking: "orb-glow-think",
-    speaking: "orb-glow-speak",
-  }[state];
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = SIZE * dpr;
+    canvas.height = SIZE * dpr;
+    ctx.scale(dpr, dpr);
 
-  const animClass = {
-    idle: "animate-orb-idle",
-    listening: "",
-    thinking: "animate-orb-think",
-    speaking: "animate-orb-idle",
-  }[state];
+    const cx = SIZE / 2;
+    const cy = SIZE / 2;
 
-  const isClickable = state === "idle" || state === "listening";
+    const draw = (now: number) => {
+      const t = now / 1000;
+      ctx.clearRect(0, 0, SIZE, SIZE);
+
+      const p = getParams(state, t);
+      const center = p.distortCenter ?? IDLE_DISTORT_CENTER;
+      const halfSpan = p.distortSpan / 2;
+
+      const envelope = (angle: number): number => {
+        const delta =
+          ((angle - center) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) -
+          Math.PI;
+        if (Math.abs(delta) > halfSpan) return 0;
+        const x = delta / halfSpan;
+        return Math.cos(x * (Math.PI / 2));
+      };
+
+      // Wave path
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i <= SEGMENTS; i++) {
+        const angle = (i / SEGMENTS) * Math.PI * 2;
+        const env = envelope(angle);
+        const wave =
+          env *
+          (Math.sin(angle * p.freq1 + t * p.speed1) * p.amp1 +
+            Math.sin(angle * p.freq2 - t * p.speed2) * p.amp2);
+        const r = RADIUS + wave;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(190, 215, 255, ${p.waveAlpha})`;
+      ctx.lineWidth = 1.2;
+      ctx.shadowColor = `rgba(110, 175, 255, ${p.glowAlpha})`;
+      ctx.shadowBlur = p.glowBlur;
+      ctx.stroke();
+      ctx.restore();
+
+      // Base circle
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, RADIUS, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(190, 215, 255, ${p.baseAlpha})`;
+      ctx.lineWidth = 0.8;
+      ctx.shadowColor = `rgba(110, 175, 255, ${p.glowAlpha * 0.4})`;
+      ctx.shadowBlur = p.glowBlur * 0.4;
+      ctx.stroke();
+      ctx.restore();
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    animRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [state]);
 
   return (
     <div className="relative flex items-center justify-center w-64 h-64">
-      {/* Ondas de fundo — visíveis só no estado listening */}
-      {state === "listening" && (
-        <>
-          <span className="absolute inset-0 rounded-full bg-navy-400 opacity-20 animate-wave-out" />
-          <span
-            className="absolute inset-0 rounded-full bg-navy-400 opacity-15 animate-wave-out"
-            style={{ animationDelay: "0.5s" }}
-          />
-          <span
-            className="absolute inset-0 rounded-full bg-navy-400 opacity-10 animate-wave-out"
-            style={{ animationDelay: "1s" }}
-          />
-        </>
-      )}
-
-      {/* Orb principal */}
       <button
-        ref={orbRef}
         onClick={isClickable ? onClick : undefined}
-        className={[
-          "relative w-48 h-48 rounded-full transition-all duration-300",
-          glowClass,
-          animClass,
-          isClickable ? "cursor-pointer active:scale-95" : "cursor-default",
-        ].join(" ")}
-        style={{
-          background:
-            "radial-gradient(circle at 38% 35%, #1e40af 0%, #1e3a8a 40%, #0a1628 75%, #030712 100%)",
-          transform:
-            state === "listening"
-              ? `scale(${dynamicScale})`
-              : undefined,
-        }}
+        className={`flex items-center justify-center ${isClickable ? "cursor-pointer active:opacity-80" : "cursor-default"}`}
         aria-label={state === "listening" ? "Parar de ouvir" : "Falar com Teq"}
       >
-        {/* Reflexo interno */}
-        <span
-          className="absolute top-6 left-8 w-16 h-10 rounded-full opacity-20"
-          style={{
-            background:
-              "radial-gradient(ellipse, rgba(147,197,253,0.6) 0%, transparent 70%)",
-          }}
+        <canvas
+          ref={canvasRef}
+          style={{ width: SIZE, height: SIZE }}
         />
-
-        {/* Ícone central contextual */}
-        <span className="absolute inset-0 flex items-center justify-center">
-          {state === "thinking" ? (
-            <ThinkingDots />
-          ) : state === "speaking" ? (
-            <SpeakingBars />
-          ) : state === "listening" ? (
-            <MicIcon active />
-          ) : (
-            <MicIcon active={false} />
-          )}
-        </span>
       </button>
-    </div>
-  );
-}
-
-function MicIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="32"
-      height="32"
-      viewBox="0 0 24 24"
-      fill="none"
-      className={`transition-opacity duration-300 ${active ? "opacity-90" : "opacity-40"}`}
-    >
-      <rect x="9" y="2" width="6" height="11" rx="3" fill="currentColor" className="text-navy-200" />
-      <path
-        d="M5 10a7 7 0 0 0 14 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="text-navy-200"
-      />
-      <line
-        x1="12"
-        y1="19"
-        x2="12"
-        y2="22"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="text-navy-200"
-      />
-      <line
-        x1="9"
-        y1="22"
-        x2="15"
-        y2="22"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="text-navy-200"
-      />
-    </svg>
-  );
-}
-
-function ThinkingDots() {
-  return (
-    <div className="flex gap-1.5 items-center">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="w-2 h-2 rounded-full bg-navy-300 animate-bounce"
-          style={{ animationDelay: `${i * 0.15}s` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SpeakingBars() {
-  return (
-    <div className="flex gap-1 items-end h-8">
-      {[0.6, 1, 0.7, 0.9, 0.5].map((h, i) => (
-        <span
-          key={i}
-          className="w-1.5 rounded-sm bg-navy-300 animate-bounce"
-          style={{
-            height: `${h * 24}px`,
-            animationDelay: `${i * 0.1}s`,
-          }}
-        />
-      ))}
     </div>
   );
 }
