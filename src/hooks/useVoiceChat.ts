@@ -31,7 +31,7 @@ const CANCEL_PHRASES = [
   "sai",
   "sair",
 ];
-const SEND_SILENCE_MS = 2500;
+const SEND_SILENCE_MS = 1000;
 const IDLE_TIMEOUT_MS = 10000;
 
 /**
