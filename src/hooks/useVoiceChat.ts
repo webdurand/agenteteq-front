@@ -31,8 +31,8 @@ const CANCEL_PHRASES = [
   "sai",
   "sair",
 ];
-const SEND_SILENCE_MS = 2200;
-const IDLE_TIMEOUT_MS = 8000;
+const SEND_SILENCE_MS = 2500;
+const IDLE_TIMEOUT_MS = 10000;
 
 /**
  * Verifica se um segmento de fala é uma intenção de cancelar.
@@ -86,6 +86,7 @@ export function useVoiceChat(phoneNumber: string | null) {
   const lastWakeResultIdxRef = useRef(-1);
   const wakeCooldownRef = useRef(0);
   const recognitionPausedRef = useRef(false);
+  const lastSpeechActivityRef = useRef(0);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -179,7 +180,7 @@ export function useVoiceChat(phoneNumber: string | null) {
           }
           
           recognitionPausedRef.current = false;
-          setTimeout(() => startRecognition(), 1200);
+          setTimeout(() => startRecognition(), 400);
           
           break;
         }
@@ -249,6 +250,15 @@ export function useVoiceChat(phoneNumber: string | null) {
   }, [cancelCapture]);
 
   const sendTranscript = useCallback(() => {
+    const elapsed = Date.now() - lastSpeechActivityRef.current;
+    console.log(`[STT sendTranscript] checando envio... tempo sem fala: ${elapsed}ms`);
+    if (elapsed < SEND_SILENCE_MS) {
+      console.log(`[STT sendTranscript] ADIADO! Fala detectada recentemente. Faltam ${SEND_SILENCE_MS - elapsed}ms`);
+      clearSendTimer();
+      sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS - elapsed);
+      return;
+    }
+
     clearSendTimer();
     clearIdleTimer();
     const text = transcriptBufRef.current.trim();
@@ -299,16 +309,18 @@ export function useVoiceChat(phoneNumber: string | null) {
     r.onresult = (event: any) => {
       if (recognitionPausedRef.current) return;
 
+      lastSpeechActivityRef.current = Date.now();
+
       const busy = stateRef.current === "thinking" || stateRef.current === "speaking";
 
       let interimConcat = "";
-      let wakeWordFound = false;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (wakeWordFound) break;
-
         const result = event.results[i];
         const text = result[0].transcript;
+        
+        console.log(`[STT onresult] idx=${i} | isFinal=${result.isFinal} | texto="${text}"`);
+
         // normForPos preserva espacos para calcular offset corretamente em text.slice()
         const normForPos = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const norm = normForPos.trim();
@@ -332,7 +344,6 @@ export function useVoiceChat(phoneNumber: string | null) {
             sfx.micClose();
             setStateSync("idle");
             setStatusText("Diga \"E aí Teq\" ou clique para falar");
-            wakeWordFound = true;
             break;
           }
 
@@ -359,27 +370,31 @@ export function useVoiceChat(phoneNumber: string | null) {
             setWakeWordActive(false);
             startIdleTimer();
 
-            // Usar normForPos (sem trim) para alinhar offset com text original
+            lastWakeResultIdxRef.current = i;
+            wakeCooldownRef.current = Date.now();
+          }
+        }
+        
+        if (isCapturingRef.current && !busy) {
+          let segText = text;
+          if (i === lastWakeResultIdxRef.current) {
             const wakeEnd = WAKE_WORDS.reduce((idx, w) => {
               const wIdx = normForPos.indexOf(w);
               return wIdx !== -1 ? Math.max(idx, wIdx + w.length) : idx;
             }, 0);
-            const afterWake = text.slice(wakeEnd).trim();
-            if (afterWake) transcriptBufRef.current = afterWake;
-
-            lastWakeResultIdxRef.current = i;
-            wakeCooldownRef.current = Date.now();
-
-            wakeWordFound = true;
-            break;
+            segText = text.slice(wakeEnd).trim();
+          } else if (i < lastWakeResultIdxRef.current) {
+            continue;
           }
-        } else if (!busy) {
-          // Pular resultados do mesmo segmento onde a wake word foi detectada
-          if (i <= lastWakeResultIdxRef.current) continue;
+
+          if (!segText && !result.isFinal) continue;
+
+          const segNorm = segText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
           if (result.isFinal) {
             // Detectar cancel phrase durante captura ativa
-            if (matchesCancelPhrase(norm)) {
-              console.log(`[STT] Cancel phrase detectada durante escuta: "${text}"`);
+            if (segNorm && matchesCancelPhrase(segNorm)) {
+              console.log(`[STT] Cancel phrase detectada durante escuta: "${segText}"`);
               clearSendTimer();
               clearIdleTimer();
               isCapturingRef.current = false;
@@ -388,17 +403,22 @@ export function useVoiceChat(phoneNumber: string | null) {
               sfx.micClose();
               setStateSync("idle");
               setStatusText("Diga \"E aí Teq\" ou clique para falar");
-              wakeWordFound = true;
               break;
             }
 
-            transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + text;
+            if (segText) {
+              transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + segText.trim();
+            }
             clearSendTimer();
             clearIdleTimer();
             sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS);
           } else {
             startIdleTimer();
-            interimConcat += text;
+            interimConcat += segText;
+            if (sendTimerRef.current) {
+              clearSendTimer();
+              sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS);
+            }
           }
         }
       }
@@ -436,7 +456,7 @@ export function useVoiceChat(phoneNumber: string | null) {
 
       const delay = sttLastErrorRef.current === "aborted"
         ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000)
-        : 500;
+        : 150;
 
       console.log(`[STT] Reconhecimento encerrou (state=${stateRef.current}), reiniciando em ${delay}ms...`);
       setTimeout(() => startRecognition(), delay);
