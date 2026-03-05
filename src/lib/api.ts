@@ -81,6 +81,58 @@ export async function getMe(token: string) {
   });
 }
 
+export async function getBillingOverview(token: string) {
+  return fetchApi("/billing/subscription", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getBillingPlans(token: string) {
+  return fetchApi("/billing/plans", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function openBillingPortal(token: string) {
+  return fetchApi("/billing/portal", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function cancelBilling(token: string) {
+  return fetchApi("/billing/cancel", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function subscribeBilling(token: string, priceId?: string) {
+  return fetchApi("/billing/subscribe", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(priceId ? { price_id: priceId } : {}),
+  });
+}
+
+export async function requestPhoneChange(token: string, newPhone: string) {
+  return fetchApi("/auth/change-phone/request", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ new_phone: newPhone }),
+  });
+}
+
+export async function verifyPhoneChange(token: string, newPhone: string, code: string) {
+  return fetchApi("/auth/change-phone/verify", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ new_phone: newPhone, code }),
+  });
+}
+
 // --- Tasks ---
 
 export async function fetchWithAuth(endpoint: string, options: { token: string; method?: string; body?: any }) {

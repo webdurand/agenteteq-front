@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import * as api from "../lib/api";
 import { useTheme } from "../hooks/useTheme";
+import { useToast } from "../contexts/ToastContext";
+
+const formatBRL = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+const centsToDisplay = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
+
+const displayToCents = (display: string) => {
+  const digits = display.replace(/\D/g, "");
+  return parseInt(digits || "0", 10);
+};
 
 interface AdminDashboardProps {
   token: string;
@@ -31,12 +42,24 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
 
 export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardProps) {
   const { dark, toggle } = useTheme();
-  const [tab, setTab] = useState<"negocio" | "saude" | "admins">("negocio");
+  const { showToast } = useToast();
+  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas">("negocio");
 
   const [businessData, setBusinessData] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [usersData, setUsersData] = useState<any[]>([]);
   const [toolsData, setToolsData] = useState<any[]>([]);
+  const [plansData, setPlansData] = useState<any[]>([]);
+  const [subsData, setSubsData] = useState<any[]>([]);
+  const [planForm, setPlanForm] = useState({
+    code: "pro_mensal",
+    name: "Plano Pro Mensal",
+    description: "Acesso completo ao Teq com 7 dias gratis.",
+    amount_cents: 4990,
+    trial_days: 7,
+    stripe_price_id: "",
+    features_json: '["Acesso completo","WhatsApp","Tarefas","Lembretes","Chat por voz"]',
+  });
 
   useEffect(() => {
     fetchAdminData();
@@ -59,6 +82,25 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       } else if (tab === "admins") {
         const usrs = await api.fetchWithAuth("/admin/business/users", { token });
         setUsersData(usrs);
+      } else if (tab === "planos") {
+        const p = await api.fetchWithAuth("/admin/billing/plans", { token });
+        setPlansData(p);
+        if (p.length > 0) {
+          const first = p[0];
+          setPlanForm((prev) => ({
+            ...prev,
+            code: first.code,
+            name: first.name,
+            description: first.description || "",
+            amount_cents: first.amount_cents,
+            trial_days: first.trial_days,
+            stripe_price_id: first.stripe_price_id || "",
+            features_json: first.features_json || prev.features_json,
+          }));
+        }
+      } else if (tab === "assinaturas") {
+        const s = await api.fetchWithAuth("/admin/billing/subscriptions", { token });
+        setSubsData(s);
       }
     } catch (e) {
       console.error("Erro ao buscar dados do admin:", e);
@@ -73,9 +115,46 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         token,
         body: JSON.stringify({ phone_number: phone })
       });
+      showToast("Admin promovido com sucesso", "success");
       fetchAdminData();
-    } catch (e) {
-      alert("Erro ao promover admin");
+    } catch (e: any) {
+      showToast(e.message || "Erro ao promover admin", "error");
+    }
+  };
+
+  const handleCreatePlan = async () => {
+    try {
+      await api.fetchWithAuth("/admin/billing/plans", {
+        token,
+        method: "POST",
+        body: JSON.stringify(planForm),
+      });
+      showToast("Plano criado com sucesso", "success");
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao criar plano", "error");
+    }
+  };
+
+  const handleUpdatePlan = async (code: string) => {
+    try {
+      await api.fetchWithAuth(`/admin/billing/plans/${code}`, {
+        token,
+        method: "PUT",
+        body: JSON.stringify({
+          name: planForm.name,
+          description: planForm.description,
+          amount_cents: planForm.amount_cents,
+          trial_days: planForm.trial_days,
+          stripe_price_id: planForm.stripe_price_id,
+          features_json: planForm.features_json,
+          is_active: true,
+        }),
+      });
+      showToast("Plano atualizado com sucesso", "success");
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao atualizar plano", "error");
     }
   };
 
@@ -125,6 +204,18 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "admins" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
           >
             Admins
+          </button>
+          <button 
+            onClick={() => setTab("planos")}
+            className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "planos" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
+          >
+            Planos
+          </button>
+          <button 
+            onClick={() => setTab("assinaturas")}
+            className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "assinaturas" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
+          >
+            Assinaturas
           </button>
         </div>
 
@@ -223,6 +314,84 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === "planos" && (
+            <div className="max-w-4xl mx-auto space-y-8">
+              <h2 className="text-xl font-light text-content">Planos</h2>
+              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input value={planForm.code} onChange={(e) => setPlanForm((prev) => ({ ...prev, code: e.target.value }))} placeholder="codigo" className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
+                  <input value={planForm.name} onChange={(e) => setPlanForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="nome" className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
+                  <div className="relative">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-content-3 text-sm">R$</span>
+                    <input
+                      value={centsToDisplay(planForm.amount_cents)}
+                      onChange={(e) => setPlanForm((prev) => ({ ...prev, amount_cents: displayToCents(e.target.value) }))}
+                      placeholder="0,00"
+                      className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 pl-8 text-content placeholder-content-4 focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <input value={planForm.trial_days} onChange={(e) => setPlanForm((prev) => ({ ...prev, trial_days: Number(e.target.value) || 0 }))} placeholder="trial em dias" className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
+                  <input value={planForm.stripe_price_id} onChange={(e) => setPlanForm((prev) => ({ ...prev, stripe_price_id: e.target.value }))} placeholder="stripe price id" className="md:col-span-2 w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
+                  <input value={planForm.description} onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="descricao" className="md:col-span-2 w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleCreatePlan} className="px-4 py-2 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">Criar plano</button>
+                  <button onClick={() => handleUpdatePlan(planForm.code)} className="px-4 py-2 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface transition-colors">Salvar alterações</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plansData.map((p, i) => (
+                  <div key={i} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xl text-content">{p.name}</span>
+                    <span className="text-sm text-content-3">{p.description}</span>
+                    <span className="text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
+                    <span className="text-xs uppercase tracking-wider text-content-3">Trial: {p.trial_days} dias</span>
+                    <button onClick={() => setPlanForm((prev) => ({ ...prev, ...p }))} className="mt-2 text-left text-xs text-accent hover:underline">
+                      Editar este plano
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === "assinaturas" && (
+            <div className="max-w-4xl mx-auto space-y-8">
+              <h2 className="text-xl font-light text-content">Assinaturas</h2>
+              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-line bg-surface-up text-xs uppercase tracking-wider text-content-3">
+                      <th className="p-4 font-medium">Usuário</th>
+                      <th className="p-4 font-medium">Plano</th>
+                      <th className="p-4 font-medium">Status</th>
+                      <th className="p-4 font-medium">Vencimento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subsData.map((s, i) => (
+                      <tr key={i} className="border-b border-line/50 last:border-0 hover:bg-surface transition-colors">
+                        <td className="p-4 text-sm font-mono text-content-2">{s.user_id}</td>
+                        <td className="p-4 text-sm text-content">{s.plan_code}</td>
+                        <td className="p-4">
+                          <span className={`text-xs px-2 py-1 rounded-full border ${s.status === 'active' ? 'border-green-500 text-green-500 bg-green-500/10' : 'border-line text-content-3 bg-surface'}`}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-content-3">
+                          {s.current_period_end ? new Date(s.current_period_end).toLocaleDateString() : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {subsData.length === 0 && (
+                      <tr><td colSpan={4} className="p-4 text-center text-sm text-content-3">Nenhuma assinatura encontrada</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

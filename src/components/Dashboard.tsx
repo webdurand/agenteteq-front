@@ -5,10 +5,16 @@ import { Sidebar } from "./Sidebar";
 import { ChatPanel } from "./ChatPanel";
 import { BlogPreviewModal } from "./BlogPreviewModal";
 import { OnboardingModal } from "./OnboardingModal";
-
+import { useState } from "react";
+import { SubscriptionStatus } from "./SubscriptionStatus";
+import { SubscriptionBanner } from "./SubscriptionBanner";
+import { AccountSettingsModal } from "./AccountSettingsModal";
+import { CheckoutModal } from "./CheckoutModal";
+import type { UserInfo } from "../hooks/useAuth";
 
 interface DashboardProps {
   token: string;
+  user: UserInfo;
   onLogout: () => void;
   onOpenAdmin?: () => void;
 }
@@ -34,7 +40,16 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   );
 }
 
-export function Dashboard({ token, onLogout, onOpenAdmin }: DashboardProps) {
+export function Dashboard({ token, user, onLogout, onOpenAdmin }: DashboardProps) {
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPriceId, setCheckoutPriceId] = useState<string | undefined>(undefined);
+
+  const openCheckout = (priceId?: string) => {
+    setAccountOpen(false);
+    setCheckoutPriceId(priceId);
+    setCheckoutOpen(true);
+  };
   const { 
     state, messages, statusText, interimText, needsOnboarding, onboardingPrompt, 
     wakeWordActive, toggleListening, sendName, sendMessageText, onOrbScale 
@@ -57,10 +72,17 @@ export function Dashboard({ token, onLogout, onOpenAdmin }: DashboardProps) {
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content">TEQ</h1>
           <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block">Dashboard</span>
+          <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} onSubscribeClick={() => openCheckout()} />
         </div>
         
         <div className="flex items-center gap-2 lg:gap-4">
           <ThemeToggle dark={dark} toggle={toggle} />
+          <button
+            onClick={() => setAccountOpen(true)}
+            className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
+          >
+            Conta
+          </button>
           {onOpenAdmin && (
             <button 
               onClick={onOpenAdmin}
@@ -79,12 +101,15 @@ export function Dashboard({ token, onLogout, onOpenAdmin }: DashboardProps) {
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex flex-col lg:flex-row px-4 lg:px-8 pb-4 lg:pb-8 gap-4 lg:gap-8 overflow-y-auto lg:overflow-hidden z-10">
+      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-4 lg:pb-8 overflow-y-auto lg:overflow-hidden z-10">
         
-        {/* Left Sidebar */}
-        <Sidebar token={token} />
-        
-        {/* Center Canvas (Orb) */}
+        <SubscriptionBanner token={token} planActive={user.plan_active} status={user.subscription_status || 'unknown'} />
+
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-8 min-h-0">
+          {/* Left Sidebar */}
+          <Sidebar token={token} />
+          
+          {/* Center Canvas (Orb) */}
         <div className="flex flex-col h-[400px] lg:h-auto lg:flex-1 min-h-0 relative rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line flex-shrink-0">
           {/* Subtle gradient background based on state */}
           <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
@@ -121,12 +146,14 @@ export function Dashboard({ token, onLogout, onOpenAdmin }: DashboardProps) {
         {/* Right Sidebar (Chat) */}
         <ChatPanel messages={messages} onSendMessage={sendMessageText} statusText={statusText} />
 
+        </div>
       </main>
 
       {needsOnboarding && (
         <OnboardingModal prompt={onboardingPrompt} onSubmit={sendName} />
       )}
-      
+      <AccountSettingsModal token={token} user={user} open={accountOpen} onClose={() => setAccountOpen(false)} onOpenCheckout={openCheckout} />
+      <CheckoutModal token={token} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} priceId={checkoutPriceId} />
       <BlogPreviewModal />
     </div>
   );

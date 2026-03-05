@@ -23,7 +23,13 @@ export interface UserInfo {
   username: string;
   email: string;
   whatsapp_verified: boolean;
+  plan_active: boolean;
   role?: string;
+  subscription_status?: string;
+  trial_end?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end?: boolean;
+  plan_code?: string | null;
 }
 
 const TOKEN_KEY = "teq_token";

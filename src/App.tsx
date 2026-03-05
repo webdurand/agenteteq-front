@@ -9,6 +9,7 @@ import { ConfirmPhone } from "./components/ConfirmPhone";
 import { Dashboard } from "./components/Dashboard";
 
 import { AdminDashboard } from "./components/AdminDashboard";
+import { SubscriptionPage } from "./components/SubscriptionPage";
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   return (
@@ -146,31 +147,12 @@ export default function App() {
 
   if (auth.screen === "trial_expired") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-surface p-6">
+      <>
         <ThemeToggle dark={dark} toggle={toggle} />
-        <div className="max-w-md w-full text-center bg-surface-card border border-line rounded-2xl p-8">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-light text-content mb-4">Trial Expirado</h2>
-          <p className="text-content-3 text-sm leading-relaxed mb-8">
-            Seu período de testes gratuitos do Teq chegou ao fim. Para continuar usando o assistente e acessando seu histórico, assine um de nossos planos.
-          </p>
-          <button className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity mb-4">
-            Ver Planos (Em breve)
-          </button>
-          <button 
-            onClick={auth.logout}
-            className="text-content-4 hover:text-content text-xs uppercase tracking-wider transition-colors"
-          >
-            Sair da conta
-          </button>
-        </div>
-      </div>
+        <AuthLayout>
+          <SubscriptionPage token={auth.token || ''} onLogout={auth.logout} />
+        </AuthLayout>
+      </>
     );
   }
 
@@ -178,7 +160,10 @@ export default function App() {
     if (isAdminView && auth.user?.role === "admin") {
       return <AdminDashboard token={auth.token} onLogout={auth.logout} onExitAdmin={() => setIsAdminView(false)} />;
     }
-    return <Dashboard token={auth.token} onLogout={auth.logout} onOpenAdmin={auth.user?.role === "admin" ? () => setIsAdminView(true) : undefined} />;
+    if (!auth.user) {
+      return null;
+    }
+    return <Dashboard token={auth.token} user={auth.user} onLogout={auth.logout} onOpenAdmin={auth.user.role === "admin" ? () => setIsAdminView(true) : undefined} />;
   }
 
   return null;
