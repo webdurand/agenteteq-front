@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTasks, type Task } from "../hooks/useTasks";
 
-export function TasksPanel({ token }: { token: string }) {
+export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: string, isMinimized: boolean, onToggleMinimize: () => void }) {
   const { tasks, loading, addTask, toggleTask, removeTask } = useTasks(token);
   const [newTaskTitle, setNewTaskTitle] = useState("");
 
@@ -16,35 +16,50 @@ export function TasksPanel({ token }: { token: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 text-content">
-      <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2 mb-6">Tarefas</h2>
-      
-      <form onSubmit={handleAdd} className="mb-6">
-        <input
-          type="text"
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          placeholder="Nova tarefa..."
-          className="w-full bg-surface-card border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-content transition-colors placeholder:text-content-3"
-        />
-      </form>
-
-      <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4">
-        {loading && tasks.length === 0 ? (
-          <p className="text-xs text-content-3">Carregando...</p>
-        ) : (
-          <>
-            <TaskList items={pendingTasks} onToggle={toggleTask} onRemove={removeTask} />
-            
-            {doneTasks.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-xs font-medium tracking-wider uppercase text-content-3 mb-4">Concluídas</h3>
-                <TaskList items={doneTasks} onToggle={toggleTask} onRemove={removeTask} />
-              </div>
-            )}
-          </>
-        )}
+    <div className={`flex flex-col p-6 text-content ${isMinimized ? "" : "h-full"}`}>
+      <div className={`flex items-center justify-between ${isMinimized ? "" : "mb-6"}`}>
+        <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Tarefas</h2>
+        <button 
+          onClick={onToggleMinimize}
+          className="w-6 h-6 flex items-center justify-center text-content-3 hover:text-content transition-colors"
+          title={isMinimized ? "Maximizar" : "Minimizar"}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {isMinimized ? <polyline points="6 9 12 15 18 9"></polyline> : <polyline points="18 15 12 9 6 15"></polyline>}
+          </svg>
+        </button>
       </div>
+      
+      {!isMinimized && (
+        <>
+          <form onSubmit={handleAdd} className="mb-6">
+            <input
+              type="text"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="Nova tarefa..."
+              className="w-full bg-surface-card border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-content transition-colors placeholder:text-content-3"
+            />
+          </form>
+
+          <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4">
+            {loading && tasks.length === 0 ? (
+              <p className="text-xs text-content-3">Carregando...</p>
+            ) : (
+              <>
+                <TaskList items={pendingTasks} onToggle={toggleTask} onRemove={removeTask} />
+                
+                {doneTasks.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-xs font-medium tracking-wider uppercase text-content-3 mb-4">Concluídas</h3>
+                    <TaskList items={doneTasks} onToggle={toggleTask} onRemove={removeTask} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
