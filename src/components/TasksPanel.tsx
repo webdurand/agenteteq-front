@@ -44,7 +44,14 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
 
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4">
             {loading && tasks.length === 0 ? (
-              <p className="text-xs text-content-3">Carregando...</p>
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <div className="w-4 h-4 rounded bg-line/30 animate-pulse shrink-0" />
+                    <div className="h-4 bg-line/20 rounded animate-pulse" style={{ width: ['70%', '40%', '90%'][i] }} />
+                  </div>
+                ))}
+              </div>
             ) : (
               <>
                 <TaskList items={pendingTasks} onToggle={toggleTask} onRemove={removeTask} />

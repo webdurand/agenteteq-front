@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { Spinner } from "./ui/Spinner";
 
 declare global {
   interface Window {
@@ -111,8 +112,9 @@ export function LoginForm({ auth }: LoginFormProps) {
         <button
           type="submit"
           disabled={auth.loading}
-          className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Aguarde..." : "Entrar"}
         </button>
       </form>

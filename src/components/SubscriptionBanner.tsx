@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fetchWithAuth } from '../lib/api';
+import { Spinner } from './ui/Spinner';
 
 export const SubscriptionBanner = ({ token, planActive, status }: { token: string, planActive: boolean, status: string }) => {
   const [loading, setLoading] = useState(false);
@@ -36,9 +37,10 @@ export const SubscriptionBanner = ({ token, planActive, status }: { token: strin
             <button
               onClick={handlePortal}
               disabled={loading}
-              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded transition-colors"
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded transition-colors flex items-center gap-2"
             >
-              Atualizar Cartão
+              {loading && <Spinner size="sm" colorClass="border-white/30 border-t-white" />}
+              {loading ? 'Aguarde...' : 'Atualizar Cartão'}
             </button>
           ) : (
             <button

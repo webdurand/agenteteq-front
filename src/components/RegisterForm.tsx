@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { Spinner } from "./ui/Spinner";
 
 interface RegisterFormProps {
   auth: ReturnType<typeof useAuth>;
@@ -195,8 +196,9 @@ export function RegisterForm({ auth }: RegisterFormProps) {
         <button
           type="submit"
           disabled={auth.loading}
-          className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Aguarde..." : (isGoogle ? "Finalizar" : "Cadastrar")}
         </button>
       </form>

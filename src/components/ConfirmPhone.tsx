@@ -1,4 +1,5 @@
 import { useAuth } from "../hooks/useAuth";
+import { Spinner } from "./ui/Spinner";
 
 interface ConfirmPhoneProps {
   auth: ReturnType<typeof useAuth>;
@@ -43,8 +44,9 @@ export function ConfirmPhone({ auth }: ConfirmPhoneProps) {
         <button
           onClick={auth.confirmRegistration}
           disabled={auth.loading}
-          className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Enviando..." : "Confirmar e Enviar Código"}
         </button>
 

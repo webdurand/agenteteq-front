@@ -10,6 +10,7 @@ import { Dashboard } from "./components/Dashboard";
 
 import { AdminDashboard } from "./components/AdminDashboard";
 import { SubscriptionPage } from "./components/SubscriptionPage";
+import { Spinner } from "./components/ui/Spinner";
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   return (
@@ -58,8 +59,9 @@ function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof u
         <button 
           onClick={auth.startVerification}
           disabled={auth.loading}
-          className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 mb-4"
+          className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 mb-4 flex items-center justify-center gap-2"
         >
+          {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Enviando..." : "Verificar WhatsApp"}
         </button>
         <button 
@@ -81,7 +83,7 @@ export default function App() {
   if (auth.loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="w-10 h-10 border-4 border-line border-t-content rounded-full animate-spin"></div>
+        <Spinner size="lg" label="Iniciando..." />
       </div>
     );
   }

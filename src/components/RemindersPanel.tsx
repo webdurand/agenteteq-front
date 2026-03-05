@@ -85,7 +85,18 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
 
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4">
             {loading && reminders.length === 0 ? (
-              <p className="text-xs text-content-3">Carregando...</p>
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="p-4 rounded-xl bg-surface-card border border-line space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-line/30 animate-pulse" />
+                      <div className="w-16 h-3 bg-line/30 rounded animate-pulse" />
+                    </div>
+                    <div className="w-full h-4 bg-line/20 rounded animate-pulse" />
+                    <div className="w-24 h-3 bg-line/20 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
             ) : reminders.length === 0 ? (
               <p className="text-sm text-content-3 italic">Nenhum aviso programado.</p>
             ) : (

@@ -144,8 +144,32 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
             </div>
           </div>
 
-          <div className="bg-glass backdrop-blur-xl border border-glass-border rounded-3xl p-6 space-y-5">
-            {billing?.has_stripe_subscription ? (
+          <div className="bg-glass backdrop-blur-xl border border-glass-border rounded-3xl p-6 relative min-h-[400px]">
+            {/* Skeleton Overlay */}
+            <div className={`absolute inset-6 z-10 transition-opacity duration-500 flex flex-col space-y-5 ${
+              billing ? "opacity-0 pointer-events-none" : "opacity-100"
+            }`}>
+              <div>
+                <div className="w-24 h-4 bg-line/30 rounded animate-pulse mb-3"></div>
+                <div className="space-y-2">
+                  <div className="w-48 h-6 bg-line/30 rounded animate-pulse"></div>
+                  <div className="w-full h-4 bg-line/20 rounded animate-pulse"></div>
+                  <div className="w-32 h-8 bg-line/30 rounded animate-pulse mt-2"></div>
+                  <div className="w-40 h-3 bg-line/20 rounded animate-pulse"></div>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-line">
+                <div className="w-32 h-4 bg-line/30 rounded animate-pulse mb-3"></div>
+                <div className="space-y-3">
+                  <div className="w-full h-32 bg-line/20 rounded-2xl animate-pulse"></div>
+                  <div className="w-full h-32 bg-line/20 rounded-2xl animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            <div className={`transition-opacity duration-500 space-y-5 ${billing ? "opacity-100" : "opacity-0"}`}>
+              {billing && (
+                billing.has_stripe_subscription ? (
               <>
                 <div>
                   <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Meu plano</h3>
@@ -246,12 +270,12 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                   </div>
                 </div>
               </>
-            )}
+            ))}
+            </div>
           </div>
         </div>
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
-        {loading && <div className="px-6 pb-6 text-sm text-content-3">Carregando...</div>}
       </div>
     </div>
   );

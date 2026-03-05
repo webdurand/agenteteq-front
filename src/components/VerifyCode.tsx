@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { Spinner } from "./ui/Spinner";
 
 interface VerifyCodeProps {
   auth: ReturnType<typeof useAuth>;
@@ -121,8 +122,9 @@ export function VerifyCode({ auth, purpose }: VerifyCodeProps) {
         <button
           type="submit"
           disabled={auth.loading || code.join("").length < 6}
-          className="w-full max-w-[200px] py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full max-w-[200px] py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Verificando..." : "Confirmar"}
         </button>
       </form>

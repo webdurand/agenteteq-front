@@ -51,6 +51,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const [toolsData, setToolsData] = useState<any[]>([]);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [subsData, setSubsData] = useState<any[]>([]);
+  const [manualSubPhone, setManualSubPhone] = useState("");
+  const [manualSubPlan, setManualSubPlan] = useState("pro_mensal");
+  const [manualSubDays, setManualSubDays] = useState(30);
+
   const [planForm, setPlanForm] = useState({
     code: "pro_mensal",
     name: "Plano Pro Mensal",
@@ -174,6 +178,29 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       fetchAdminData();
     } catch (e: any) {
       showToast(e.message || "Erro ao apagar plano", "error");
+    }
+  };
+
+  const handleAddManualSubscription = async () => {
+    if (!manualSubPhone) {
+      showToast("Preencha o telefone do usuario", "error");
+      return;
+    }
+    try {
+      await api.fetchWithAuth("/admin/billing/subscriptions/manual", {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          phone_number: manualSubPhone.replace(/\D/g, ""),
+          plan_code: manualSubPlan,
+          days: manualSubDays,
+        }),
+      });
+      showToast("Assinatura manual adicionada com sucesso", "success");
+      setManualSubPhone("");
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao adicionar assinatura manual", "error");
     }
   };
 
@@ -388,6 +415,41 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           {tab === "assinaturas" && (
             <div className="max-w-4xl mx-auto space-y-8">
               <h2 className="text-xl font-light text-content">Assinaturas</h2>
+
+              {/* Manual Subscription Form */}
+              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+                <h3 className="text-sm font-medium text-content uppercase tracking-wider">Adicionar Assinatura Manual</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input 
+                    value={manualSubPhone} 
+                    onChange={(e) => setManualSubPhone(e.target.value)} 
+                    placeholder="Telefone (ex: 55219...)" 
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" 
+                  />
+                  <select 
+                    value={manualSubPlan} 
+                    onChange={(e) => setManualSubPlan(e.target.value)} 
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content focus:outline-none transition-colors"
+                  >
+                    {plansData.map(p => (
+                      <option key={p.code} value={p.code} className="bg-surface-up text-content">{p.name}</option>
+                    ))}
+                  </select>
+                  <input 
+                    type="number"
+                    value={manualSubDays} 
+                    onChange={(e) => setManualSubDays(Number(e.target.value))} 
+                    placeholder="Dias de acesso" 
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" 
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={handleAddManualSubscription} className="px-4 py-2 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">
+                    Conceder Acesso
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
