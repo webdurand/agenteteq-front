@@ -21,7 +21,7 @@ function maskPhone(value: string): string {
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout }: AccountSettingsModalProps) {
   const [billing, setBilling] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [code, setCode] = useState("");
