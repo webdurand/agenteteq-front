@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
 
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 interface LoginFormProps {
   auth: ReturnType<typeof useAuth>;
 }
