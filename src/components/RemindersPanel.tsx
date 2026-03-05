@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useReminders, type Reminder } from "../hooks/useReminders";
+import { useReminders } from "../hooks/useReminders";
 
 export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token: string, isMinimized: boolean, onToggleMinimize: () => void }) {
   const { reminders, loading, addReminder, removeReminder } = useReminders(token);

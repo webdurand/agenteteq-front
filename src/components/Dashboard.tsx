@@ -5,7 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { ChatPanel } from "./ChatPanel";
 import { BlogPreviewModal } from "./BlogPreviewModal";
 import { OnboardingModal } from "./OnboardingModal";
-import { GlassCard } from "./GlassCard";
+
 
 interface DashboardProps {
   token: string;
