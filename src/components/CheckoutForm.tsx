@@ -20,9 +20,9 @@ const ELEMENT_OPTIONS = {
       fontSmoothing: 'antialiased',
       fontSize: '15px',
       '::placeholder': {
-        color: '#475569', // Corresponde ao text-content-4
+        color: '#666666', // Corresponde ao text-content-3
       },
-      iconColor: '#94a3b8',
+      iconColor: '#666666',
     },
     invalid: {
       color: '#ef4444',
@@ -38,6 +38,7 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
   const [loading, setLoading] = useState(false);
   const [cardholderName, setCardholderName] = useState("");
   const [cpf, setCpf] = useState("");
+  const [hasExpressCheckout, setHasExpressCheckout] = useState(false);
 
   const formatCpf = (val: string) => {
     return val.replace(/\D/g, '')
@@ -77,22 +78,29 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
     <div className="w-full flex flex-col gap-6">
       
       {/* Express Checkout (Apple Pay, Google Pay) */}
-      <div className="w-full">
+      <div className={`w-full ${!hasExpressCheckout ? 'hidden' : ''}`}>
         <ExpressCheckoutElement 
+          onReady={(e) => {
+            if (e.availablePaymentMethods) {
+              setHasExpressCheckout(true);
+            }
+          }}
           onConfirm={() => {
             // ExpressCheckout handles confirmation automatically
           }}
         />
       </div>
 
-      <div className="relative flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-line"></div>
+      {hasExpressCheckout && (
+        <div className="relative flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-line"></div>
+          </div>
+          <div className="relative bg-surface-up px-4 text-xs tracking-widest uppercase text-content-4">
+            Ou pague com cartão
+          </div>
         </div>
-        <div className="relative bg-surface-up px-4 text-xs tracking-widest uppercase text-content-4">
-          Ou pague com cartão
-        </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="space-y-4">
@@ -105,7 +113,7 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
                 value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)}
                 placeholder="Como impresso no cartão"
-                className="w-full bg-transparent text-[#ffffff] placeholder-[#475569] text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-[#ffffff] placeholder-[#666666] text-[15px] focus:outline-none"
                 required
               />
             </div>
@@ -120,7 +128,7 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
                 value={cpf}
                 onChange={(e) => setCpf(formatCpf(e.target.value))}
                 placeholder="000.000.000-00"
-                className="w-full bg-transparent text-[#ffffff] placeholder-[#475569] text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-[#ffffff] placeholder-[#666666] text-[15px] focus:outline-none"
                 required
               />
             </div>
