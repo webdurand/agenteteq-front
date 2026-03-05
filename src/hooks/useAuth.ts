@@ -23,6 +23,7 @@ export interface UserInfo {
   username: string;
   email: string;
   whatsapp_verified: boolean;
+  role?: string;
 }
 
 const TOKEN_KEY = "teq_token";

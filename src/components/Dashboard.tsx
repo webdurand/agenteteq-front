@@ -10,6 +10,7 @@ import { OnboardingModal } from "./OnboardingModal";
 interface DashboardProps {
   token: string;
   onLogout: () => void;
+  onOpenAdmin?: () => void;
 }
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
@@ -33,7 +34,7 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   );
 }
 
-export function Dashboard({ token, onLogout }: DashboardProps) {
+export function Dashboard({ token, onLogout, onOpenAdmin }: DashboardProps) {
   const { 
     state, messages, statusText, interimText, needsOnboarding, onboardingPrompt, 
     wakeWordActive, toggleListening, sendName, sendMessageText, onOrbScale 
@@ -60,6 +61,14 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         
         <div className="flex items-center gap-2 lg:gap-4">
           <ThemeToggle dark={dark} toggle={toggle} />
+          {onOpenAdmin && (
+            <button 
+              onClick={onOpenAdmin}
+              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 text-xs font-medium tracking-wider uppercase transition-colors"
+            >
+              Admin
+            </button>
+          )}
           <button 
             onClick={onLogout}
             className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"

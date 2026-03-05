@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { AuthLayout } from "./components/AuthLayout";
@@ -6,6 +7,8 @@ import { RegisterForm } from "./components/RegisterForm";
 import { VerifyCode } from "./components/VerifyCode";
 import { ConfirmPhone } from "./components/ConfirmPhone";
 import { Dashboard } from "./components/Dashboard";
+
+import { AdminDashboard } from "./components/AdminDashboard";
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   return (
@@ -72,6 +75,7 @@ function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof u
 export default function App() {
   const auth = useAuth();
   const { dark, toggle } = useTheme();
+  const [isAdminView, setIsAdminView] = useState(false);
 
   if (auth.loading) {
     return (
@@ -171,7 +175,10 @@ export default function App() {
   }
 
   if (auth.screen === "authenticated" && auth.token) {
-    return <Dashboard token={auth.token} onLogout={auth.logout} />;
+    if (isAdminView && auth.user?.role === "admin") {
+      return <AdminDashboard token={auth.token} onLogout={auth.logout} onExitAdmin={() => setIsAdminView(false)} />;
+    }
+    return <Dashboard token={auth.token} onLogout={auth.logout} onOpenAdmin={auth.user?.role === "admin" ? () => setIsAdminView(true) : undefined} />;
   }
 
   return null;

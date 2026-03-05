@@ -83,6 +83,17 @@ export async function getMe(token: string) {
 
 // --- Tasks ---
 
+export async function fetchWithAuth(endpoint: string, options: { token: string; method?: string; body?: any }) {
+  const reqOptions: RequestInit = {
+    method: options.method || "GET",
+    headers: { Authorization: `Bearer ${options.token}` },
+  };
+  if (options.body) {
+    reqOptions.body = options.body;
+  }
+  return fetchApi(endpoint, reqOptions);
+}
+
 export async function fetchTasks(token: string, status?: string) {
   const url = status ? `/api/tasks?status=${status}` : "/api/tasks";
   return fetchApi(url, {
