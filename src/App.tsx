@@ -1,12 +1,14 @@
-import { useState } from "react";
 import { Orb } from "./components/Orb";
 import { ChatHistory } from "./components/ChatHistory";
-import { LoginModal } from "./components/LoginModal";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { useVoiceChat } from "./hooks/useVoiceChat";
 import { useTheme } from "./hooks/useTheme";
-
-const PHONE_KEY = "teq_phone_number";
+import { useAuth } from "./hooks/useAuth";
+import { AuthLayout } from "./components/AuthLayout";
+import { LoginForm } from "./components/LoginForm";
+import { RegisterForm } from "./components/RegisterForm";
+import { VerifyCode } from "./components/VerifyCode";
+import { ConfirmPhone } from "./components/ConfirmPhone";
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   return (
@@ -31,9 +33,48 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   );
 }
 
-function VoiceInterface({ phone }: { phone: string }) {
+function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof useAuth>; dark: boolean; toggle: () => void }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-surface p-6">
+      <ThemeToggle dark={dark} toggle={toggle} />
+      <div className="max-w-md w-full text-center bg-surface-card border border-line rounded-2xl p-8">
+        <div className="w-16 h-16 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 flex items-center justify-center mx-auto mb-6">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-light text-content mb-3">Verificação Pendente</h2>
+        <p className="text-content-3 text-sm leading-relaxed mb-8">
+          Para usar o Teq, você precisa verificar seu WhatsApp. Clique abaixo para receber o código de verificação.
+        </p>
+
+        {auth.error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-3 rounded-xl text-center mb-4">
+            {auth.error}
+          </div>
+        )}
+
+        <button 
+          onClick={auth.startVerification}
+          disabled={auth.loading}
+          className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 mb-4"
+        >
+          {auth.loading ? "Enviando..." : "Verificar WhatsApp"}
+        </button>
+        <button 
+          onClick={auth.logout}
+          className="text-content-4 hover:text-content text-xs uppercase tracking-wider transition-colors"
+        >
+          Sair da conta
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VoiceInterface({ token, onLogout }: { token: string; onLogout: () => void }) {
   const { state, messages, statusText, interimText, needsOnboarding, onboardingPrompt, wakeWordActive, toggleListening, sendName, onOrbScale } =
-    useVoiceChat(phone);
+    useVoiceChat(token);
   const { dark, toggle } = useTheme();
 
   const stateLabel = {
@@ -46,6 +87,13 @@ function VoiceInterface({ phone }: { phone: string }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden select-none transition-colors duration-300">
       <ThemeToggle dark={dark} toggle={toggle} />
+      
+      <button 
+        onClick={onLogout}
+        className="fixed top-5 left-5 z-50 px-4 py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
+      >
+        Sair
+      </button>
 
       <h1 className="text-xs font-light tracking-[0.6em] text-content-3 uppercase mb-10">
         T E Q
@@ -94,18 +142,109 @@ function VoiceInterface({ phone }: { phone: string }) {
 }
 
 export default function App() {
-  const [phone, setPhone] = useState<string | null>(() => {
-    return localStorage.getItem(PHONE_KEY);
-  });
+  const auth = useAuth();
+  const { dark, toggle } = useTheme();
 
-  const handleLogin = (p: string) => {
-    localStorage.setItem(PHONE_KEY, p);
-    setPhone(p);
-  };
-
-  if (!phone) {
-    return <LoginModal onLogin={handleLogin} />;
+  if (auth.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="w-10 h-10 border-4 border-line border-t-content rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
-  return <VoiceInterface phone={phone} />;
+  if (auth.screen === "login") {
+    return (
+      <>
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <AuthLayout>
+          <LoginForm auth={auth} />
+        </AuthLayout>
+      </>
+    );
+  }
+
+  if (auth.screen === "register") {
+    return (
+      <>
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <AuthLayout>
+          <RegisterForm auth={auth} />
+        </AuthLayout>
+      </>
+    );
+  }
+
+  if (auth.screen === "confirm_phone") {
+    return (
+      <>
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <AuthLayout>
+          <ConfirmPhone auth={auth} />
+        </AuthLayout>
+      </>
+    );
+  }
+
+  if (auth.screen === "verify_whatsapp") {
+    return (
+      <>
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <AuthLayout>
+          <VerifyCode auth={auth} purpose="register" />
+        </AuthLayout>
+      </>
+    );
+  }
+
+  if (auth.screen === "verify_2fa") {
+    return (
+      <>
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <AuthLayout>
+          <VerifyCode auth={auth} purpose="login_2fa" />
+        </AuthLayout>
+      </>
+    );
+  }
+
+  if (auth.screen === "pending_verification") {
+    return <PendingVerification auth={auth} dark={dark} toggle={toggle} />;
+  }
+
+  if (auth.screen === "trial_expired") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface p-6">
+        <ThemeToggle dark={dark} toggle={toggle} />
+        <div className="max-w-md w-full text-center bg-surface-card border border-line rounded-2xl p-8">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-light text-content mb-4">Trial Expirado</h2>
+          <p className="text-content-3 text-sm leading-relaxed mb-8">
+            Seu período de testes gratuitos do Teq chegou ao fim. Para continuar usando o assistente e acessando seu histórico, assine um de nossos planos.
+          </p>
+          <button className="w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity mb-4">
+            Ver Planos (Em breve)
+          </button>
+          <button 
+            onClick={auth.logout}
+            className="text-content-4 hover:text-content text-xs uppercase tracking-wider transition-colors"
+          >
+            Sair da conta
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (auth.screen === "authenticated" && auth.token) {
+    return <VoiceInterface token={auth.token} onLogout={auth.logout} />;
+  }
+
+  return null;
 }

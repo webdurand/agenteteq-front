@@ -62,7 +62,7 @@ declare global {
   }
 }
 
-export function useVoiceChat(phoneNumber: string | null) {
+export function useVoiceChat(token: string | null) {
   const [state, setState] = useState<ChatState>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [statusText, setStatusText] = useState("Diga \"E aí Teq\" ou clique para falar");
@@ -105,10 +105,10 @@ export function useVoiceChat(phoneNumber: string | null) {
   // ─── WebSocket ─────────────────────────────────────────────────────────────
 
   const connectWS = useCallback(() => {
-    if (!phoneNumber) return;
+    if (!token) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(`${WS_URL}/ws/voice/${phoneNumber}`);
+    const ws = new WebSocket(`${WS_URL}/ws/voice?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => console.log("[WS] Conectado");
@@ -208,10 +208,10 @@ export function useVoiceChat(phoneNumber: string | null) {
           break;
       }
     };
-  }, [phoneNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (phoneNumber) {
+    if (token) {
       connectWS();
       startRecognition();
       startMicAnalysis();
@@ -220,7 +220,7 @@ export function useVoiceChat(phoneNumber: string | null) {
       wsRef.current?.close();
       stopRecognition();
     };
-  }, [phoneNumber, connectWS]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, connectWS]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Speech Recognition ────────────────────────────────────────────────────
 
@@ -498,7 +498,7 @@ export function useVoiceChat(phoneNumber: string | null) {
   // ─── Visibility change ─────────────────────────────────────────────────────
   useEffect(() => {
     const onVisibility = () => {
-      if (document.visibilityState !== "visible" || !phoneNumber) return;
+      if (document.visibilityState !== "visible" || !token) return;
 
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         connectWS();
@@ -513,7 +513,7 @@ export function useVoiceChat(phoneNumber: string | null) {
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [phoneNumber, connectWS, startRecognition]);
+  }, [token, connectWS, startRecognition]);
 
   // ─── Ação do orb ───────────────────────────────────────────────────────────
 
