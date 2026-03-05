@@ -10,6 +10,8 @@ import {
 
 interface CheckoutFormProps {
   onCancel: () => void;
+  clientSecret: string;
+  onSuccess?: () => void;
 }
 
 const ELEMENT_OPTIONS = {
@@ -31,7 +33,7 @@ const ELEMENT_OPTIONS = {
   },
 };
 
-export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
+export const CheckoutForm = ({ onCancel, clientSecret, onSuccess }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -56,22 +58,56 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
     setLoading(true);
     setError(null);
 
-    const { error: confirmError } = await stripe.confirmSetup({
-      elements,
-      confirmParams: {
-        return_url: window.location.origin + '/dashboard?checkout=success',
-        payment_method_data: {
+    const cardElement = elements.getElement(CardNumberElement);
+    if (!cardElement) return;
+
+    let confirmError;
+    let setupIntent;
+    let paymentIntent;
+
+    if (clientSecret.startsWith('pi_')) {
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
           billing_details: {
             name: cardholderName,
           }
         }
-      },
-    });
+      });
+      confirmError = result.error;
+      paymentIntent = result.paymentIntent;
+    } else {
+      const result = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: cardholderName,
+          }
+        }
+      });
+      confirmError = result.error;
+      setupIntent = result.setupIntent;
+    }
 
     if (confirmError) {
       setError(confirmError.message || 'Ocorreu um erro ao processar o pagamento.');
+      setLoading(false);
+    } else if (
+      (setupIntent && setupIntent.status === 'succeeded') || 
+      (paymentIntent && paymentIntent.status === 'succeeded') ||
+      (paymentIntent && paymentIntent.status === 'requires_capture') ||
+      (paymentIntent && paymentIntent.status === 'processing')
+    ) {
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        window.location.href = '/dashboard?checkout=success';
+      }
+    } else {
+      // Any other unexpected status
+      setError('Ocorreu um status inesperado no pagamento. Tente novamente.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

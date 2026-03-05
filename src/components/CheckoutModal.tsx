@@ -19,10 +19,13 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<any>(null);
 
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+
   useEffect(() => {
     if (!open) {
       setClientSecret("");
       setError(null);
+      setPaymentStatus('idle');
       return;
     }
     
@@ -58,6 +61,30 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
     };
   }, [open, token, priceId]);
 
+  useEffect(() => {
+    if (paymentStatus !== 'processing') return;
+
+    let isPolling = true;
+    const pollStatus = async () => {
+      try {
+        const data = await api.getBillingOverview(token);
+        if ((data.status === 'active' || data.status === 'trialing') && isPolling) {
+          setPaymentStatus('success');
+        }
+      } catch (err) {
+        // ignore errors
+      }
+    };
+
+    const interval = setInterval(pollStatus, 3000);
+    pollStatus(); // initial call
+
+    return () => {
+      isPolling = false;
+      clearInterval(interval);
+    };
+  }, [paymentStatus, token]);
+
   if (!open) return null;
 
   return (
@@ -77,6 +104,34 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
           {error ? (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-4 rounded-xl">
               {error}
+            </div>
+          ) : paymentStatus === 'processing' ? (
+            <div className="relative w-full min-h-[400px] flex flex-col items-center justify-center gap-6 text-center animate-in fade-in duration-500">
+              <div className="w-16 h-16 rounded-full border-4 border-line border-t-accent animate-spin mb-2"></div>
+              <div>
+                <h3 className="text-2xl font-light text-content mb-2">Processando Pagamento</h3>
+                <p className="text-content-3">Aguarde enquanto confirmamos sua assinatura com a operadora...</p>
+              </div>
+            </div>
+          ) : paymentStatus === 'success' ? (
+            <div className="relative w-full min-h-[400px] flex flex-col items-center justify-center gap-6 text-center animate-in fade-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-2">
+                <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-2xl font-light text-content mb-2">Assinatura Confirmada!</h3>
+                <p className="text-content-3">Seu pagamento foi processado com sucesso.</p>
+              </div>
+              <button
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="mt-4 px-8 py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+              >
+                Utilizar meu agente
+              </button>
             </div>
           ) : (
             <div className="relative w-full min-h-[400px] flex items-center justify-center">
@@ -99,7 +154,11 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
                       theme: 'stripe',
                     },
                   }}>
-                    <CheckoutForm onCancel={onClose} />
+                    <CheckoutForm 
+                      onCancel={onClose} 
+                      clientSecret={clientSecret} 
+                      onSuccess={() => setPaymentStatus('processing')}
+                    />
                   </Elements>
                 )}
               </div>

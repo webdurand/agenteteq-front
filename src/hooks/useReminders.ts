@@ -39,6 +39,12 @@ export function useReminders(token: string | null) {
     loadReminders();
   });
 
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(loadReminders, 60_000);
+    return () => clearInterval(interval);
+  }, [token, loadReminders]);
+
   const addReminder = async (reminder: any) => {
     if (!token) return;
     await createReminder(token, reminder);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { CheckoutForm } from './CheckoutForm';
@@ -16,6 +16,31 @@ export const SubscriptionPage = ({ token, onLogout }: SubscriptionPageProps) => 
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+
+  useEffect(() => {
+    if (paymentStatus !== 'processing') return;
+
+    let isPolling = true;
+    const pollStatus = async () => {
+      try {
+        const data = await api.getBillingOverview(token);
+        if ((data.status === 'active' || data.status === 'trialing') && isPolling) {
+          setPaymentStatus('success');
+        }
+      } catch (err) {
+        // ignore errors
+      }
+    };
+
+    const interval = setInterval(pollStatus, 3000);
+    pollStatus(); // initial call
+
+    return () => {
+      isPolling = false;
+      clearInterval(interval);
+    };
+  }, [paymentStatus, token]);
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -41,7 +66,35 @@ export const SubscriptionPage = ({ token, onLogout }: SubscriptionPageProps) => 
       </div>
 
       <div className="w-full max-w-[300px] flex flex-col gap-5">
-        {!clientSecret ? (
+        {paymentStatus === 'processing' ? (
+          <div className="relative w-full py-12 flex flex-col items-center justify-center gap-6 text-center animate-in fade-in duration-500">
+            <div className="w-16 h-16 rounded-full border-4 border-line border-t-accent animate-spin mb-2"></div>
+            <div>
+              <h3 className="text-2xl font-light text-content mb-2">Processando Pagamento</h3>
+              <p className="text-content-3">Aguarde enquanto confirmamos sua assinatura com a operadora...</p>
+            </div>
+          </div>
+        ) : paymentStatus === 'success' ? (
+          <div className="relative w-full py-12 flex flex-col items-center justify-center gap-6 text-center animate-in fade-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-2">
+              <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-light text-content mb-2">Assinatura Confirmada!</h3>
+              <p className="text-content-3">Seu pagamento foi processado com sucesso.</p>
+            </div>
+            <button
+              onClick={() => {
+                window.location.reload();
+              }}
+              className="mt-4 w-full py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+            >
+              Utilizar meu agente
+            </button>
+          </div>
+        ) : !clientSecret ? (
           <div className="flex flex-col gap-4">
             <div className="bg-surface-card border border-line rounded-2xl p-6 text-left">
               <h3 className="text-lg font-medium text-content mb-4 border-b border-line pb-2">Plano Pro</h3>
@@ -113,7 +166,11 @@ export const SubscriptionPage = ({ token, onLogout }: SubscriptionPageProps) => 
                 }
               }
             }}>
-              <CheckoutForm onCancel={() => setClientSecret('')} />
+              <CheckoutForm 
+                onCancel={() => setClientSecret('')} 
+                clientSecret={clientSecret}
+                onSuccess={() => setPaymentStatus('processing')}
+              />
             </Elements>
           </div>
         )}
