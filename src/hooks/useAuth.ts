@@ -46,10 +46,26 @@ export function useAuth() {
   const [pendingRegistration, setPendingRegistration] = useState<any>(null);
   const initialCheckDone = useRef(false);
 
-  const saveTokenAndAuth = useCallback((newToken: string) => {
+  const saveTokenAndAuth = useCallback(async (newToken: string) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     setToken(newToken);
-    setScreen("authenticated");
+    try {
+      const userData = await api.getMe(newToken);
+      setUser(userData);
+      if (!userData.whatsapp_verified) {
+        setPhone(userData.phone_number);
+        setScreen("pending_verification");
+      } else if (!userData.plan_active) {
+        setScreen("trial_expired");
+      } else {
+        setScreen("authenticated");
+      }
+    } catch (err) {
+      localStorage.removeItem(TOKEN_KEY);
+      setToken(null);
+      setUser(null);
+      setScreen("login");
+    }
   }, []);
 
   const logout = useCallback(() => {
@@ -146,7 +162,7 @@ export function useAuth() {
     setError("");
     try {
       const res = await api.verifyWhatsapp(phone, code);
-      saveTokenAndAuth(res.token);
+      await saveTokenAndAuth(res.token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -159,7 +175,7 @@ export function useAuth() {
     setError("");
     try {
       const res = await api.verify2fa(phone, code);
-      saveTokenAndAuth(res.token);
+      await saveTokenAndAuth(res.token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -184,7 +200,7 @@ export function useAuth() {
         setPhone(res.phone);
         setScreen("verify_whatsapp");
       } else {
-        saveTokenAndAuth(res.token);
+        await saveTokenAndAuth(res.token);
       }
     } catch (err: any) {
       setError(err.message);

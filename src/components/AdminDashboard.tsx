@@ -43,7 +43,7 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
 export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardProps) {
   const { dark, toggle } = useTheme();
   const { showToast } = useToast();
-  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas">("negocio");
+  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios">("negocio");
 
   const [businessData, setBusinessData] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
@@ -51,6 +51,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const [toolsData, setToolsData] = useState<any[]>([]);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [subsData, setSubsData] = useState<any[]>([]);
+  const [searchUser, setSearchUser] = useState("");
+  const [newAdminPhone, setNewAdminPhone] = useState("");
   const [manualSubPhone, setManualSubPhone] = useState("");
   const [manualSubPlan, setManualSubPlan] = useState("pro_mensal");
   const [manualSubDays, setManualSubDays] = useState(30);
@@ -83,7 +85,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       } else if (tab === "saude") {
         const health = await api.fetchWithAuth("/admin/health/summary", { token });
         setHealthData(health);
-      } else if (tab === "admins") {
+      } else if (tab === "admins" || tab === "usuarios") {
         const usrs = await api.fetchWithAuth("/admin/business/users", { token });
         setUsersData(usrs);
       } else if (tab === "planos") {
@@ -123,6 +125,20 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       fetchAdminData();
     } catch (e: any) {
       showToast(e.message || "Erro ao promover admin", "error");
+    }
+  };
+
+  const handleDemoteAdmin = async (phone: string) => {
+    if (!confirm(`Remover acesso de Admin de ${phone}?`)) return;
+    try {
+      await api.fetchWithAuth(`/admin/admins/${phone}`, {
+        method: "DELETE",
+        token
+      });
+      showToast("Admin removido com sucesso", "success");
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao remover admin", "error");
     }
   };
 
@@ -246,6 +262,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             Saúde
           </button>
           <button 
+            onClick={() => setTab("usuarios")}
+            className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "usuarios" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
+          >
+            Usuários
+          </button>
+          <button 
             onClick={() => setTab("admins")}
             className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "admins" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
           >
@@ -324,10 +346,105 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             </div>
           )}
 
+          {tab === "usuarios" && (
+            <div className="max-w-6xl mx-auto space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-light text-content">Gestão de Usuários</h2>
+                <div className="w-72">
+                  <input 
+                    value={searchUser} 
+                    onChange={(e) => setSearchUser(e.target.value)} 
+                    placeholder="Buscar por nome ou telefone..." 
+                    className="w-full bg-surface-card border border-line focus:border-line-strong rounded-full px-4 py-2 text-sm text-content placeholder-content-4 focus:outline-none transition-colors" 
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-line bg-surface-up text-xs uppercase tracking-wider text-content-3">
+                      <th className="p-4 font-medium">Telefone</th>
+                      <th className="p-4 font-medium">Nome</th>
+                      <th className="p-4 font-medium">Status Assinatura</th>
+                      <th className="p-4 font-medium">Conta Criada Em</th>
+                      <th className="p-4 font-medium">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersData
+                      .filter(u => 
+                        (u.name?.toLowerCase() || "").includes(searchUser.toLowerCase()) || 
+                        (u.phone_number?.toLowerCase() || "").includes(searchUser.toLowerCase())
+                      )
+                      .map((u, i) => (
+                      <tr key={i} className="border-b border-line/50 last:border-0 hover:bg-surface transition-colors">
+                        <td className="p-4 text-sm font-mono text-content-2">{u.phone_number}</td>
+                        <td className="p-4 text-sm text-content">{u.name || '-'}</td>
+                        <td className="p-4">
+                          <span className={`text-xs px-2 py-1 rounded-full border ${
+                            u.subscription_status === 'active' ? 'border-green-500 text-green-500 bg-green-500/10' : 
+                            u.subscription_status === 'trialing' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : 
+                            u.subscription_status === 'past_due' ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' : 
+                            'border-line text-content-3 bg-surface'
+                          }`}>
+                            {u.subscription_status === 'trialing' ? 'Trial' : u.subscription_status === 'active' ? 'Ativo' : u.subscription_status || 'Sem Plano'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-content-3">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString("pt-BR") : '-'}
+                        </td>
+                        <td className="p-4">
+                          <button 
+                            onClick={() => {
+                              setManualSubPhone(u.phone_number);
+                              setTab("assinaturas");
+                            }}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            Gerenciar Plano
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {usersData.length === 0 && (
+                      <tr><td colSpan={5} className="p-4 text-center text-sm text-content-3">Nenhum usuário encontrado.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {tab === "admins" && (
             <div className="max-w-4xl mx-auto space-y-8">
-              <h2 className="text-xl font-light text-content">Gestão de Administradores</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-light text-content">Gestão de Administradores</h2>
+              </div>
               
+              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+                <h3 className="text-sm font-medium text-content uppercase tracking-wider">Promover Usuário a Admin</h3>
+                <div className="flex gap-4">
+                  <input 
+                    value={newAdminPhone} 
+                    onChange={(e) => setNewAdminPhone(e.target.value)} 
+                    placeholder="Telefone do usuário (ex: 55219...)" 
+                    className="flex-1 bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" 
+                  />
+                  <button 
+                    onClick={() => {
+                      if (newAdminPhone) {
+                        handlePromoteAdmin(newAdminPhone);
+                        setNewAdminPhone("");
+                      }
+                    }} 
+                    className="px-4 py-2 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+                  >
+                    Promover
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
@@ -339,27 +456,28 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     </tr>
                   </thead>
                   <tbody>
-                    {usersData.map((u, i) => (
+                    {usersData.filter(u => u.role === 'admin').map((u, i) => (
                       <tr key={i} className="border-b border-line/50 last:border-0 hover:bg-surface transition-colors">
                         <td className="p-4 text-sm font-mono text-content-2">{u.phone_number}</td>
-                        <td className="p-4 text-sm text-content">{u.name}</td>
+                        <td className="p-4 text-sm text-content">{u.name || '-'}</td>
                         <td className="p-4">
-                          <span className={`text-xs px-2 py-1 rounded-full border ${u.role === 'admin' ? 'border-accent text-accent bg-accent/10' : 'border-line text-content-3 bg-surface'}`}>
-                            {u.role || 'user'}
+                          <span className="text-xs px-2 py-1 rounded-full border border-accent text-accent bg-accent/10">
+                            {u.role}
                           </span>
                         </td>
                         <td className="p-4">
-                          {u.role !== 'admin' && (
-                            <button 
-                              onClick={() => handlePromoteAdmin(u.phone_number)}
-                              className="text-xs text-accent hover:underline"
-                            >
-                              Promover
-                            </button>
-                          )}
+                          <button 
+                            onClick={() => handleDemoteAdmin(u.phone_number)}
+                            className="text-xs text-red-500 hover:underline"
+                          >
+                            Remover
+                          </button>
                         </td>
                       </tr>
                     ))}
+                    {usersData.filter(u => u.role === 'admin').length === 0 && (
+                      <tr><td colSpan={4} className="p-4 text-center text-sm text-content-3">Nenhum admin encontrado.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
