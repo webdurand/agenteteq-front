@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { CheckoutForm } from './CheckoutForm';
-import { fetchWithAuth } from '../lib/api';
+import * as api from '../lib/api';
 
 // Inicializar stripe fora do render para nao recriar a instancia a cada render
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');

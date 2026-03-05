@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
 import * as api from "../lib/api";
-import { fetchWithAuth } from "../lib/api";
-import { CheckoutForm } from "./CheckoutForm";
 import type { UserInfo } from "../hooks/useAuth";
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
 interface AccountSettingsModalProps {
   token: string;

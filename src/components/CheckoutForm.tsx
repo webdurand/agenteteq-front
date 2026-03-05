@@ -20,7 +20,7 @@ const ELEMENT_OPTIONS = {
       fontSmoothing: 'antialiased',
       fontSize: '15px',
       '::placeholder': {
-        color: '#666666', // Corresponde ao text-content-3
+        color: '#3a3a3a', // Corresponde ao text-content-4
       },
       iconColor: '#666666',
     },
@@ -113,7 +113,7 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
                 value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)}
                 placeholder="Como impresso no cartão"
-                className="w-full bg-transparent text-[#ffffff] placeholder-[#666666] text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-[#ffffff] placeholder-content-4 text-[15px] focus:outline-none"
                 required
               />
             </div>
@@ -128,7 +128,7 @@ export const CheckoutForm = ({ onCancel }: CheckoutFormProps) => {
                 value={cpf}
                 onChange={(e) => setCpf(formatCpf(e.target.value))}
                 placeholder="000.000.000-00"
-                className="w-full bg-transparent text-[#ffffff] placeholder-[#666666] text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-[#ffffff] placeholder-content-4 text-[15px] focus:outline-none"
                 required
               />
             </div>

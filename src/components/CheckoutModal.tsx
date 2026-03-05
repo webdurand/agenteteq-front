@@ -15,7 +15,7 @@ interface CheckoutModalProps {
 
 export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalProps) {
   const [clientSecret, setClientSecret] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<any>(null);
 
@@ -96,7 +96,7 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
                   <Elements stripe={stripePromise} options={{
                     clientSecret,
                     appearance: {
-                      theme: 'none',
+                      theme: 'stripe',
                     },
                   }}>
                     <CheckoutForm onCancel={onClose} />
