@@ -158,6 +158,25 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
     }
   };
 
+  const handleDeletePlan = async (code: string) => {
+    if (!confirm(`Tem certeza que deseja apagar o plano ${code}?`)) return;
+    try {
+      await api.fetchWithAuth(`/admin/billing/plans/${code}`, {
+        token,
+        method: "DELETE",
+      });
+      showToast("Plano apagado com sucesso", "success");
+      if (planForm.code === code) {
+        setPlanForm({
+          code: "", name: "", description: "", amount_cents: 0, trial_days: 0, stripe_price_id: "", features_json: '[]'
+        });
+      }
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao apagar plano", "error");
+    }
+  };
+
   return (
     <div className="h-screen w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
       {/* Topbar */}
@@ -352,9 +371,14 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     <span className="text-sm text-content-3">{p.description}</span>
                     <span className="text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
                     <span className="text-xs uppercase tracking-wider text-content-3">Trial: {p.trial_days} dias</span>
-                    <button onClick={() => setPlanForm((prev) => ({ ...prev, ...p }))} className="mt-2 text-left text-xs text-accent hover:underline">
-                      Editar este plano
-                    </button>
+                    <div className="flex items-center gap-4 mt-2">
+                      <button onClick={() => setPlanForm((prev) => ({ ...prev, ...p }))} className="text-left text-xs text-accent hover:underline">
+                        Editar este plano
+                      </button>
+                      <button onClick={() => handleDeletePlan(p.code)} className="text-left text-xs text-red-500 hover:underline">
+                        Apagar plano
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
