@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
+import { wsClient } from "./useWebSocket";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -11,39 +12,18 @@ export interface Message {
   timestamp: Date;
 }
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
 const WAKE_WORDS = ["teq", "tec", "tech", "tek"];
 const CANCEL_PHRASES = [
-  "para",
-  "parar",
-  "para de falar",
-  "parar de falar",
-  "para falar",
-  "parar falar",
-  "cancelar",
-  "cancela",
-  "pode cancelar",
-  "chega",
-  "silencio",
-  "fica quieto",
-  "encerrar",
-  "encerra",
-  "sai",
-  "sair",
+  "para", "parar", "para de falar", "parar de falar", "para falar", "parar falar", 
+  "cancelar", "cancela", "pode cancelar", "chega", "silencio", "fica quieto", 
+  "encerrar", "encerra", "sai", "sair"
 ];
 const SEND_SILENCE_MS = 1000;
 const IDLE_TIMEOUT_MS = 10000;
 
-/**
- * Verifica se um segmento de fala é uma intenção de cancelar.
- * - Palavra simples: requer match exato (evita "para casa" → cancela por "para")
- * - Frase composta: permite até 2 palavras extras após a frase (ex: "para de falar já")
- */
 function matchesCancelPhrase(norm: string): boolean {
   return CANCEL_PHRASES.some((p) => {
-    if (!p.includes(" ")) {
-      return norm === p;
-    }
+    if (!p.includes(" ")) return norm === p;
     if (norm === p) return true;
     if (norm.startsWith(p + " ")) {
       const extraWords = norm.split(/\s+/).length - p.split(/\s+/).length;
@@ -55,9 +35,7 @@ function matchesCancelPhrase(norm: string): boolean {
 
 declare global {
   interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     SpeechRecognition: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     webkitSpeechRecognition: any;
   }
 }
@@ -71,9 +49,7 @@ export function useVoiceChat(token: string | null) {
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
   const [wakeWordActive, setWakeWordActive] = useState(false);
 
-  const wsRef = useRef<WebSocket | null>(null);
   const stateRef = useRef<ChatState>("idle");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const isCapturingRef = useRef(false);
   const transcriptBufRef = useRef("");
@@ -102,26 +78,16 @@ export function useVoiceChat(token: string | null) {
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text, timestamp: new Date() }]);
   };
 
-  // ─── WebSocket ─────────────────────────────────────────────────────────────
+  // ─── WebSocket Event Handling ──────────────────────────────────────────────
 
-  const connectWS = useCallback(() => {
-    if (!token) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  useEffect(() => {
+    if (token) {
+      wsClient.setToken(token);
+    }
+  }, [token]);
 
-    const ws = new WebSocket(`${WS_URL}/ws/voice?token=${token}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => console.log("[WS] Conectado");
-    ws.onclose = (e) => {
-      console.log(`[WS] Fechado | code=${e.code} | reconnecting in 3s`);
-      setTimeout(() => connectWS(), 3000);
-    };
-    ws.onerror = (e) => console.error("[WS] Erro:", e);
-
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-      console.log(`[WS] ${msg.type}`, msg.type === "response" ? msg.text?.slice(0, 60) : "");
-
+  useEffect(() => {
+    const handleMessage = async (msg: any) => {
       const genAtReceive = requestGenRef.current;
 
       switch (msg.type) {
@@ -144,20 +110,26 @@ export function useVoiceChat(token: string | null) {
             break;
           }
 
-          sfx.messageReceived();
+          if (msg.mime_type !== "none") {
+            sfx.messageReceived();
+          }
           addMessage("agent", msg.text);
-          console.log(`[AUDIO] mime=${msg.mime_type} | b64 length=${msg.audio_b64?.length ?? 0}`);
 
           setStateSync("speaking");
-          setStatusText("Falando...");
+          setStatusText(msg.mime_type !== "none" ? "Falando..." : "Diga \"E aí Teq\" ou clique para falar");
 
           recognitionPausedRef.current = true;
           stopRecognition();
 
-          if (msg.mime_type === "browser" || !msg.audio_b64) {
-            await speakBrowser(msg.text, "pt-BR");
+          if (msg.mime_type !== "none") {
+            if (msg.mime_type === "browser" || !msg.audio_b64) {
+              await speakBrowser(msg.text, "pt-BR");
+            } else {
+              await playAudio(msg.audio_b64, msg.mime_type ?? "audio/wav");
+            }
           } else {
-            await playAudio(msg.audio_b64, msg.mime_type ?? "audio/wav");
+            // Em mode="text", resolve imediatamente
+            await new Promise(r => setTimeout(r, 100));
           }
 
           if (requestGenRef.current !== genAtReceive) {
@@ -167,7 +139,7 @@ export function useVoiceChat(token: string | null) {
 
           setInterimText("");
 
-          if (msg.needs_follow_up) {
+          if (msg.needs_follow_up && msg.mime_type !== "none") {
             sfx.micOpen();
             isCapturingRef.current = true;
             transcriptBufRef.current = "";
@@ -208,19 +180,18 @@ export function useVoiceChat(token: string | null) {
           break;
       }
     };
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const cleanup = wsClient.on("message", handleMessage);
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     if (token) {
-      connectWS();
       startRecognition();
       startMicAnalysis();
     }
-    return () => {
-      wsRef.current?.close();
-      stopRecognition();
-    };
-  }, [token, connectWS]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => stopRecognition();
+  }, [token]);
 
   // ─── Speech Recognition ────────────────────────────────────────────────────
 
@@ -241,8 +212,7 @@ export function useVoiceChat(token: string | null) {
     sfx.micClose();
     setStateSync("idle");
     setStatusText("Diga \"E aí Teq\" ou clique para falar");
-    console.log("[STT] Captura cancelada (inatividade ou vazio)");
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const startIdleTimer = useCallback(() => {
     clearIdleTimer();
@@ -251,9 +221,7 @@ export function useVoiceChat(token: string | null) {
 
   const sendTranscript = useCallback(() => {
     const elapsed = Date.now() - lastSpeechActivityRef.current;
-    console.log(`[STT sendTranscript] checando envio... tempo sem fala: ${elapsed}ms`);
     if (elapsed < SEND_SILENCE_MS) {
-      console.log(`[STT sendTranscript] ADIADO! Fala detectada recentemente. Faltam ${SEND_SILENCE_MS - elapsed}ms`);
       clearSendTimer();
       sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS - elapsed);
       return;
@@ -267,77 +235,52 @@ export function useVoiceChat(token: string | null) {
     setInterimText("");
 
     if (!text || stateRef.current !== "listening") {
-      if (!text && stateRef.current === "listening") {
-        cancelCapture();
-      }
+      if (!text && stateRef.current === "listening") cancelCapture();
       return;
     }
 
     sfx.micClose();
-    console.log(`[STT] Enviando: "${text}"`);
     addMessage("user", text);
     setStateSync("thinking");
     setStatusText("Pensando...");
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "user_message", text }));
-    }
-  }, [cancelCapture]); // eslint-disable-line react-hooks/exhaustive-deps
+    wsClient.send(JSON.stringify({ type: "user_message", text }));
+  }, [cancelCapture]);
 
   const startRecognition = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      console.warn("[STT] SpeechRecognition não suportado neste browser (use Chrome/Edge)");
-      return;
-    }
+    if (!SR) return;
 
     if (recognitionRef.current) {
       try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
     r.continuous = true;
     r.interimResults = true;
     r.lang = "pt-BR";
     r.maxAlternatives = 2;
-
     recognitionRef.current = r;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (event: any) => {
       if (recognitionPausedRef.current) return;
-
       lastSpeechActivityRef.current = Date.now();
-
       const busy = stateRef.current === "thinking" || stateRef.current === "speaking";
-
       let interimConcat = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         const text = result[0].transcript;
-        
-        console.log(`[STT onresult] idx=${i} | isFinal=${result.isFinal} | texto="${text}"`);
-
-        // normForPos preserva espacos para calcular offset corretamente em text.slice()
         const normForPos = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const norm = normForPos.trim();
 
         if (!isCapturingRef.current) {
-          // Detectar cancel phrase quando Teq está falando/pensando
           if (busy && result.isFinal && matchesCancelPhrase(norm)) {
-            console.log(`[STT] Cancel phrase detectada durante ${stateRef.current}: "${text}"`);
             stopPlayback();
             requestGenRef.current++;
-            console.log(`[STT] Geração incrementada para ${requestGenRef.current}`);
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ type: "cancel" }));
-              console.log("[WS] Cancelamento enviado ao backend");
-            }
-            clearSendTimer();
-            clearIdleTimer();
+            wsClient.send(JSON.stringify({ type: "cancel" }));
+            clearSendTimer(); clearIdleTimer();
             isCapturingRef.current = false;
             transcriptBufRef.current = "";
             setInterimText("");
@@ -347,20 +290,14 @@ export function useVoiceChat(token: string | null) {
             break;
           }
 
-          // Guard: cooldown de 2.5s e indice para evitar re-deteccao do mesmo segmento
           const withinCooldown = Date.now() - wakeCooldownRef.current < 2500;
           const alreadyProcessed = i <= lastWakeResultIdxRef.current;
 
           if (!withinCooldown && !alreadyProcessed && WAKE_WORDS.some((w) => norm.includes(w))) {
-            console.log(`[STT] Wake word detectada (interrompendo ${stateRef.current}): "${text}"`);
             if (busy) {
               stopPlayback();
               requestGenRef.current++;
-              console.log(`[STT] Geração incrementada para ${requestGenRef.current}`);
-              if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ type: "cancel" }));
-                console.log("[WS] Cancelamento enviado ao backend");
-              }
+              wsClient.send(JSON.stringify({ type: "cancel" }));
             }
             sfx.micOpen();
             isCapturingRef.current = true;
@@ -369,7 +306,6 @@ export function useVoiceChat(token: string | null) {
             setStatusText("Pode falar...");
             setWakeWordActive(false);
             startIdleTimer();
-
             lastWakeResultIdxRef.current = i;
             wakeCooldownRef.current = Date.now();
           }
@@ -392,11 +328,8 @@ export function useVoiceChat(token: string | null) {
           const segNorm = segText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
           if (result.isFinal) {
-            // Detectar cancel phrase durante captura ativa
             if (segNorm && matchesCancelPhrase(segNorm)) {
-              console.log(`[STT] Cancel phrase detectada durante escuta: "${segText}"`);
-              clearSendTimer();
-              clearIdleTimer();
+              clearSendTimer(); clearIdleTimer();
               isCapturingRef.current = false;
               transcriptBufRef.current = "";
               setInterimText("");
@@ -406,11 +339,8 @@ export function useVoiceChat(token: string | null) {
               break;
             }
 
-            if (segText) {
-              transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + segText.trim();
-            }
-            clearSendTimer();
-            clearIdleTimer();
+            if (segText) transcriptBufRef.current += (transcriptBufRef.current ? " " : "") + segText.trim();
+            clearSendTimer(); clearIdleTimer();
             sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS);
           } else {
             startIdleTimer();
@@ -429,7 +359,6 @@ export function useVoiceChat(token: string | null) {
     };
 
     r.onstart = () => {
-      console.log("[STT] Reconhecimento ativo");
       sttFailCountRef.current = 0;
       sttLastErrorRef.current = null;
       lastWakeResultIdxRef.current = -1;
@@ -444,43 +373,29 @@ export function useVoiceChat(token: string | null) {
       if (recognitionPausedRef.current) return;
 
       const MAX_RETRIES = 10;
-      if (sttLastErrorRef.current === "aborted") {
-        sttFailCountRef.current++;
-      }
+      if (sttLastErrorRef.current === "aborted") sttFailCountRef.current++;
 
       if (sttFailCountRef.current >= MAX_RETRIES) {
-        console.warn(`[STT] ${MAX_RETRIES} falhas consecutivas, parando auto-restart. Clique no orb para reativar.`);
         sttFailCountRef.current = 0;
         return;
       }
 
       const delay = sttLastErrorRef.current === "aborted"
-        ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000)
-        : 150;
+        ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000) : 150;
 
-      console.log(`[STT] Reconhecimento encerrou (state=${stateRef.current}), reiniciando em ${delay}ms...`);
       setTimeout(() => startRecognition(), delay);
     };
 
     r.onerror = (e: Event & { error?: string }) => {
       sttLastErrorRef.current = e.error ?? null;
-
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        console.error("[STT] Permissão de microfone negada");
         recognitionRef.current = null;
         return;
       }
-      if (e.error !== "no-speech" && e.error !== "aborted") {
-        console.error("[STT] Erro:", e.error);
-      }
     };
 
-    try {
-      r.start();
-    } catch {
-      /* já rodando */
-    }
-  }, [sendTranscript]); // eslint-disable-line react-hooks/exhaustive-deps
+    try { r.start(); } catch { /* ignore */ }
+  }, [sendTranscript]);
 
   const stopRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -499,33 +414,25 @@ export function useVoiceChat(token: string | null) {
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== "visible" || !token) return;
-
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        connectWS();
-      }
-      if (
-        (stateRef.current === "idle" || stateRef.current === "listening") &&
-        !recognitionRef.current
-      ) {
+      wsClient.connect();
+      if ((stateRef.current === "idle" || stateRef.current === "listening") && !recognitionRef.current) {
         startRecognition();
       }
       ensureAudioResumed();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [token, connectWS, startRecognition]);
+  }, [token, startRecognition]);
 
   // ─── Ação do orb ───────────────────────────────────────────────────────────
-
   const toggleListening = useCallback(() => {
     ensureAudioResumed();
-
     if (stateRef.current === "thinking") return;
 
     if (stateRef.current === "speaking") {
       stopPlayback();
       requestGenRef.current++;
-      wsRef.current?.send(JSON.stringify({ type: "cancel" }));
+      wsClient.send(JSON.stringify({ type: "cancel" }));
       recognitionPausedRef.current = false;
       setStateSync("idle");
       setStatusText("Diga \"E aí Teq\" ou clique para falar");
@@ -550,7 +457,14 @@ export function useVoiceChat(token: string | null) {
   }, [sendTranscript, startRecognition, startIdleTimer]);
 
   const sendName = useCallback((name: string) => {
-    wsRef.current?.send(JSON.stringify({ type: "name", value: name }));
+    wsClient.send(JSON.stringify({ type: "name", value: name }));
+  }, []);
+
+  const sendMessageText = useCallback((text: string) => {
+    addMessage("user", text);
+    setStateSync("thinking");
+    setStatusText("Pensando...");
+    wsClient.send(JSON.stringify({ type: "user_message", text, mode: "text" }));
   }, []);
 
   return {
@@ -563,12 +477,12 @@ export function useVoiceChat(token: string | null) {
     wakeWordActive,
     toggleListening,
     sendName,
+    sendMessageText,
     onOrbScale,
   };
 }
 
 // ─── Helpers de áudio ─────────────────────────────────────────────────────────
-
 function b64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -581,7 +495,7 @@ let _currentElement: HTMLAudioElement | null = null;
 
 export function stopPlayback() {
   if (_currentSource) {
-    try { _currentSource.stop(); } catch { /* already stopped */ }
+    try { _currentSource.stop(); } catch { /* ignore */ }
     _currentSource = null;
   }
   if (_currentElement) {
@@ -595,17 +509,12 @@ function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
   return new Promise((resolve) => {
     try {
       const ctx = getAudioCtx();
-      if (ctx.state !== "running") {
-        resolve(false);
-        return;
-      }
+      if (ctx.state !== "running") return resolve(false);
 
       const analyser = getPlaybackAnalyser();
-
       ctx.decodeAudioData(
         bytes.buffer.slice(0) as ArrayBuffer,
         (buffer) => {
-          console.log(`[AUDIO] Analyser | ${buffer.duration.toFixed(1)}s | ${buffer.sampleRate}Hz`);
           const src = ctx.createBufferSource();
           src.buffer = buffer;
           src.connect(analyser);
@@ -615,9 +524,7 @@ function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
         },
         () => resolve(false),
       );
-    } catch {
-      resolve(false);
-    }
+    } catch { resolve(false); }
   });
 }
 
@@ -629,26 +536,17 @@ function playWithElement(bytes: Uint8Array, mimeType: string): Promise<void> {
     _currentElement = audio;
     audio.onended = () => { _currentElement = null; URL.revokeObjectURL(url); resolve(); };
     audio.onerror = () => { _currentElement = null; URL.revokeObjectURL(url); resolve(); };
-    audio.play()
-      .then(() => console.log("[AUDIO] Reprodução via <audio> (sem analyser)"))
-      .catch(() => { _currentElement = null; URL.revokeObjectURL(url); resolve(); });
+    audio.play().catch(() => { _currentElement = null; URL.revokeObjectURL(url); resolve(); });
   });
 }
 
 async function playAudio(base64: string, mimeType: string = "audio/wav") {
   const bytes = b64ToBytes(base64);
-  console.log(`[AUDIO] Tentando reproduzir ${bytes.length} bytes (${mimeType})`);
-
   const ctx = getAudioCtx();
-  if (ctx.state === "suspended") {
-    await ctx.resume().catch(() => {});
-  }
+  if (ctx.state === "suspended") await ctx.resume().catch(() => {});
 
   const ok = await playWithAnalyser(bytes);
-  if (!ok) {
-    console.warn("[AUDIO] Fallback para <audio> element");
-    await playWithElement(bytes, mimeType);
-  }
+  if (!ok) await playWithElement(bytes, mimeType);
 }
 
 function speakBrowser(text: string, lang: string): Promise<void> {

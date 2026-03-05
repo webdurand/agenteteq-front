@@ -8,6 +8,10 @@
   --bg-card: rgba(0, 0, 0, 0.03);
   --bg-overlay: rgba(250, 250, 250, 0.95);
 
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --accent: #000000;
+
   --fg: #111111;
   --fg-2: #555555;
   --fg-3: #999999;
@@ -22,6 +26,10 @@
   --bg-up: #141414;
   --bg-card: rgba(255, 255, 255, 0.04);
   --bg-overlay: rgba(10, 10, 10, 0.95);
+
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --accent: #ffffff;
 
   --fg: #ffffff;
   --fg-2: #a0a0a0;

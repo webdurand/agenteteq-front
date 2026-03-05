@@ -80,3 +80,61 @@ export async function getMe(token: string) {
     },
   });
 }
+
+// --- Tasks ---
+
+export async function fetchTasks(token: string, status?: string) {
+  const url = status ? `/api/tasks?status=${status}` : "/api/tasks";
+  return fetchApi(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createTask(token: string, data: any) {
+  return fetchApi("/api/tasks", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTask(token: string, id: number, data: any) {
+  return fetchApi(`/api/tasks/${id}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTask(token: string, id: number) {
+  return fetchApi(`/api/tasks/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// --- Reminders ---
+
+export async function fetchReminders(token: string, status?: string) {
+  const url = status ? `/api/reminders?status=${status}` : "/api/reminders";
+  return fetchApi(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createReminder(token: string, data: any) {
+  return fetchApi("/api/reminders", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function cancelReminder(token: string, id: number) {
+  return fetchApi(`/api/reminders/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}

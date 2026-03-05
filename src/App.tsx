@@ -1,7 +1,3 @@
-import { Orb } from "./components/Orb";
-import { ChatHistory } from "./components/ChatHistory";
-import { OnboardingModal } from "./components/OnboardingModal";
-import { useVoiceChat } from "./hooks/useVoiceChat";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { AuthLayout } from "./components/AuthLayout";
@@ -9,6 +5,7 @@ import { LoginForm } from "./components/LoginForm";
 import { RegisterForm } from "./components/RegisterForm";
 import { VerifyCode } from "./components/VerifyCode";
 import { ConfirmPhone } from "./components/ConfirmPhone";
+import { Dashboard } from "./components/Dashboard";
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   return (
@@ -68,75 +65,6 @@ function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof u
           Sair da conta
         </button>
       </div>
-    </div>
-  );
-}
-
-function VoiceInterface({ token, onLogout }: { token: string; onLogout: () => void }) {
-  const { state, messages, statusText, interimText, needsOnboarding, onboardingPrompt, wakeWordActive, toggleListening, sendName, onOrbScale } =
-    useVoiceChat(token);
-  const { dark, toggle } = useTheme();
-
-  const stateLabel = {
-    idle: "Em espera",
-    listening: "Ouvindo",
-    thinking: "Pensando",
-    speaking: "Falando",
-  }[state];
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden select-none transition-colors duration-300">
-      <ThemeToggle dark={dark} toggle={toggle} />
-      
-      <button 
-        onClick={onLogout}
-        className="fixed top-5 left-5 z-50 px-4 py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
-      >
-        Sair
-      </button>
-
-      <h1 className="text-xs font-light tracking-[0.6em] text-content-3 uppercase mb-10">
-        T E Q
-      </h1>
-
-      <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
-
-      <div className="mt-8 flex flex-col items-center gap-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
-            {stateLabel}
-          </span>
-          {wakeWordActive && state === "idle" && (
-            <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-content-3 animate-pulse" />
-              escuta ativa
-            </span>
-          )}
-        </div>
-        <p className="text-content-3 text-sm text-center max-w-xs leading-relaxed px-4 min-h-[20px]">
-          {statusText}
-        </p>
-      </div>
-
-      {state === "listening" && interimText && (
-        <div className="mt-6 max-w-sm mx-4 px-5 py-3 rounded-xl bg-surface-card border border-line">
-          <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
-        </div>
-      )}
-
-      {messages.length > 0 && state === "idle" && (
-        <div className="mt-6 max-w-sm mx-4 px-5 py-3 rounded-xl bg-surface-card border border-line">
-          <p className="text-content-2 text-sm leading-relaxed line-clamp-3">
-            {[...messages].reverse().find((m) => m.role === "agent")?.text ?? ""}
-          </p>
-        </div>
-      )}
-
-      <ChatHistory messages={messages} />
-
-      {needsOnboarding && (
-        <OnboardingModal prompt={onboardingPrompt} onSubmit={sendName} />
-      )}
     </div>
   );
 }
@@ -243,7 +171,7 @@ export default function App() {
   }
 
   if (auth.screen === "authenticated" && auth.token) {
-    return <VoiceInterface token={auth.token} onLogout={auth.logout} />;
+    return <Dashboard token={auth.token} onLogout={auth.logout} />;
   }
 
   return null;

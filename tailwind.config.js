@@ -11,6 +11,13 @@ export default {
           card: "var(--bg-card)",
           overlay: "var(--bg-overlay)",
         },
+        glass: {
+          DEFAULT: "var(--glass-bg)",
+          border: "var(--glass-border)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+        },
         content: {
           DEFAULT: "var(--fg)",
           2: "var(--fg-2)",
