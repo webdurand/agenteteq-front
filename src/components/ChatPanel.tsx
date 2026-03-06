@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Message } from "../hooks/useVoiceChat";
-import { Skeleton } from "./ui/Skeleton";
+import { ImageGalleryModal } from "./ImageGalleryModal";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -118,6 +119,8 @@ function CarouselGeneratingBubble({ numSlides }: { numSlides: number }) {
 }
 
 function MessageBubble({ msg }: { msg: Message }) {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(CAROUSEL_GENERATING_PREFIX.length));
@@ -129,8 +132,10 @@ function MessageBubble({ msg }: { msg: Message }) {
 
   const isUser = msg.role === "user";
   const parts = parseMessageContent(msg.text);
+  const imageParts = parts.filter(p => p.type === "image");
 
   return (
+    <>
     <div className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">
         {isUser ? "Você" : "Teq"}
@@ -138,8 +143,13 @@ function MessageBubble({ msg }: { msg: Message }) {
       <div className={`flex flex-col gap-2 max-w-[90%] ${isUser ? "items-end" : "items-start"}`}>
         {parts.map((part, i) => {
           if (part.type === "image") {
+            const globalImgIdx = imageParts.indexOf(part);
             return (
-              <a key={i} href={part.content} target="_blank" rel="noopener noreferrer" className="block group">
+              <button 
+                key={i} 
+                onClick={() => setSelectedIdx(globalImgIdx)} 
+                className="block group cursor-pointer text-left"
+              >
                 <div className="relative overflow-hidden rounded-xl border border-line shadow-sm">
                   <img
                     src={part.content}
@@ -148,10 +158,10 @@ function MessageBubble({ msg }: { msg: Message }) {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 flex items-end opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/40 to-transparent rounded-xl">
-                    <span className="text-white text-[10px] p-2 tracking-wide">Abrir original ↗</span>
+                    <span className="text-white text-[10px] p-2 tracking-wide">Visualizar ↗</span>
                   </div>
                 </div>
-              </a>
+              </button>
             );
           }
           if (!part.content) return null;
@@ -170,28 +180,16 @@ function MessageBubble({ msg }: { msg: Message }) {
         })}
       </div>
     </div>
-  );
-}
-
-function ChatSkeletons() {
-  return (
-    <div className="flex flex-col gap-5 py-4">
-      {/* Agent message skeleton */}
-      <div className="flex flex-col gap-1 items-start">
-        <Skeleton className="w-8 h-3 rounded mb-0.5" />
-        <Skeleton className="h-12 w-[70%] rounded-2xl rounded-tl-sm" delay={0} />
-      </div>
-      {/* User message skeleton */}
-      <div className="flex flex-col gap-1 items-end">
-        <Skeleton className="w-8 h-3 rounded mb-0.5" delay={100} />
-        <Skeleton className="h-10 w-[50%] rounded-2xl rounded-tr-sm bg-line/20" delay={100} />
-      </div>
-      {/* Agent message skeleton */}
-      <div className="flex flex-col gap-1 items-start">
-        <Skeleton className="w-8 h-3 rounded mb-0.5" delay={200} />
-        <Skeleton className="h-16 w-[65%] rounded-2xl rounded-tl-sm" delay={200} />
-      </div>
-    </div>
+    {selectedIdx !== null && imageParts.length > 0 && createPortal(
+      <ImageGalleryModal
+        images={imageParts.map(p => ({ url: p.content, title: "Imagem do chat" }))}
+        currentIndex={selectedIdx}
+        onClose={() => setSelectedIdx(null)}
+        onNavigate={setSelectedIdx}
+      />,
+      document.body
+    )}
+    </>
   );
 }
 
@@ -348,7 +346,7 @@ export function ChatPanel({
           }
         }}
       >
-        {isLoadingMore && (
+        {isLoadingMore && !isInitialLoading && (
           <div className="flex justify-center py-2">
             <span className="text-[10px] uppercase tracking-widest text-content-3 animate-pulse flex items-center gap-2">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin">
@@ -360,7 +358,12 @@ export function ChatPanel({
         )}
         
         {isInitialLoading && messages.length === 0 ? (
-          <ChatSkeletons />
+          <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="animate-spin mb-4 text-accent">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            <p className="text-sm italic">Carregando histórico...</p>
+          </div>
         ) : messages.length === 0 && !isLoadingMore ? (
           <div className="flex-1 flex flex-col items-center justify-center opacity-50">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mb-4">
@@ -372,7 +375,7 @@ export function ChatPanel({
           messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
         )}
         
-        {statusText && statusText !== "Diga \"E aí Teq\" ou clique para falar" && statusText !== "Diga 'Teq' ou comece a falar" && (
+        {statusText && !statusText.includes("Teq") && (
           <div className="flex items-start gap-2 opacity-50">
              <div className="px-4 py-2.5 rounded-2xl text-sm bg-surface-card text-content border border-line rounded-tl-sm italic flex items-center gap-2 shadow-sm">
                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>

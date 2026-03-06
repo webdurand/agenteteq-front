@@ -41,15 +41,17 @@ declare global {
   }
 }
 
-export function useVoiceChat(token: string | null) {
+export function useVoiceChat(token: string | null, voiceEnabled = false) {
   const [state, setState] = useState<ChatState>("idle");
   const { messages, setMessages, isLoading: historyLoading, isInitialLoading: historyInitialLoading, hasMore: historyHasMore, loadMore: historyLoadMore } = useHistory(token);
-  const [statusText, setStatusText] = useState("Diga \"E aí Teq\" ou clique para falar");
+  const [statusText, setStatusText] = useState("");
   const [interimText, setInterimText] = useState("");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
   const [imageEditingPrompt, setImageEditingPrompt] = useState<string | null>(null);
   const [wakeWordActive, setWakeWordActive] = useState(false);
+  const voiceEnabledRef = useRef(voiceEnabled);
+  voiceEnabledRef.current = voiceEnabled;
 
   const stateRef = useRef<ChatState>("idle");
   const recognitionRef = useRef<any>(null);
@@ -120,7 +122,7 @@ export function useVoiceChat(token: string | null) {
           addMessage("agent", msg.text);
 
           setStateSync("speaking");
-          setStatusText(msg.mime_type !== "none" ? "Falando..." : "Diga \"E aí Teq\" ou clique para falar");
+          setStatusText(msg.mime_type !== "none" ? "Falando..." : idleStatusText());
 
           recognitionPausedRef.current = true;
           stopRecognition();
@@ -152,11 +154,11 @@ export function useVoiceChat(token: string | null) {
             startIdleTimer();
           } else {
             setStateSync("idle");
-            setStatusText("Diga \"E aí Teq\" ou clique para falar");
+            setStatusText(idleStatusText());
           }
           
           recognitionPausedRef.current = false;
-          setTimeout(() => startRecognition(), 400);
+          if (voiceEnabledRef.current) setTimeout(() => startRecognition(), 400);
           
           break;
         }
@@ -172,15 +174,15 @@ export function useVoiceChat(token: string | null) {
           setNeedsOnboarding(false);
           addMessage("agent", msg.text);
           setStateSync("idle");
-          setStatusText("Diga \"E aí Teq\" ou clique para falar");
-          restartRecognition();
+          setStatusText(idleStatusText());
+          if (voiceEnabledRef.current) restartRecognition();
           break;
 
         case "error":
           setStateSync("idle");
           setStatusText(msg.message ?? "Erro interno.");
           setInterimText("");
-          restartRecognition();
+          if (voiceEnabledRef.current) restartRecognition();
           break;
 
         case "carousel_generating": {
@@ -234,12 +236,25 @@ export function useVoiceChat(token: string | null) {
   }, []);
 
   useEffect(() => {
-    if (token) {
-      startRecognition();
+    if (token && voiceEnabled) {
       startMicAnalysis();
+      startRecognition();
+      setStatusText("Diga \"E aí Teq\" ou clique para falar");
+    } else if (!voiceEnabled) {
+      stopRecognition();
+      isCapturingRef.current = false;
+      transcriptBufRef.current = "";
+      setInterimText("");
+      setWakeWordActive(false);
+      if (stateRef.current === "listening") {
+        setStateSync("idle");
+      }
+      setStatusText("");
     }
-    return () => stopRecognition();
-  }, [token]);
+    return () => {
+      if (!voiceEnabledRef.current) stopRecognition();
+    };
+  }, [token, voiceEnabled]);
 
   // ─── Speech Recognition ────────────────────────────────────────────────────
 
@@ -250,6 +265,10 @@ export function useVoiceChat(token: string | null) {
   const clearIdleTimer = () => {
     if (idleTimerRef.current) { clearTimeout(idleTimerRef.current); idleTimerRef.current = null; }
   };
+
+  const idleStatusText = useCallback(() => 
+    voiceEnabledRef.current ? "Diga \"E aí Teq\" ou clique para falar" : ""
+  , []);
 
   const cancelCapture = useCallback(() => {
     clearSendTimer();
@@ -265,8 +284,8 @@ export function useVoiceChat(token: string | null) {
     
     sfx.micClose();
     setStateSync("idle");
-    setStatusText("Diga \"E aí Teq\" ou clique para falar");
-  }, []);
+    setStatusText(idleStatusText());
+  }, [idleStatusText]);
 
   const startIdleTimer = useCallback(() => {
     clearIdleTimer();
@@ -353,7 +372,7 @@ export function useVoiceChat(token: string | null) {
             setInterimText("");
             sfx.micClose();
             setStateSync("idle");
-            setStatusText("Diga \"E aí Teq\" ou clique para falar");
+            setStatusText(idleStatusText());
             break;
           }
 
@@ -402,7 +421,7 @@ export function useVoiceChat(token: string | null) {
               setInterimText("");
               sfx.micClose();
               setStateSync("idle");
-              setStatusText("Diga \"E aí Teq\" ou clique para falar");
+              setStatusText(idleStatusText());
               break;
             }
 
@@ -450,7 +469,7 @@ export function useVoiceChat(token: string | null) {
       const delay = sttLastErrorRef.current === "aborted"
         ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000) : 150;
 
-      setTimeout(() => startRecognition(), delay);
+      if (voiceEnabledRef.current) setTimeout(() => startRecognition(), delay);
     };
 
     r.onerror = (e: Event & { error?: string }) => {
@@ -482,7 +501,7 @@ export function useVoiceChat(token: string | null) {
     const onVisibility = () => {
       if (document.visibilityState !== "visible" || !token) return;
       wsClient.connect();
-      if ((stateRef.current === "idle" || stateRef.current === "listening") && !recognitionRef.current) {
+      if (voiceEnabledRef.current && (stateRef.current === "idle" || stateRef.current === "listening") && !recognitionRef.current) {
         startRecognition();
       }
       ensureAudioResumed();
@@ -502,7 +521,7 @@ export function useVoiceChat(token: string | null) {
       wsClient.send(JSON.stringify({ type: "cancel" }));
       recognitionPausedRef.current = false;
       setStateSync("idle");
-      setStatusText("Diga \"E aí Teq\" ou clique para falar");
+      setStatusText(idleStatusText());
       setTimeout(() => startRecognition(), 500);
       return;
     }

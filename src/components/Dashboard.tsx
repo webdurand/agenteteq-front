@@ -46,7 +46,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const [accountOpen, setAccountOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<"voice" | "chat" | "tasks">("voice");
+  const [activeTab, setActiveTab] = useState<"voice" | "chat" | "tasks">("chat");
   const [menuOpen, setMenuOpen] = useState(false);
 
   const openCheckout = (priceId?: string) => {
@@ -56,11 +56,13 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   };
   const isLive = import.meta.env.VITE_VOICE_REALTIME === "true";
 
+  const voiceActive = activeTab === "voice";
+
   const { 
     state: classicState, messages, statusText: classicStatus, interimText, needsOnboarding, onboardingPrompt, 
     wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
-  } = useVoiceChat(token);
+  } = useVoiceChat(token, voiceActive);
 
   const {
     state: liveState, statusText: liveStatus, toggleListening: liveToggle, onOrbScale: liveScale
