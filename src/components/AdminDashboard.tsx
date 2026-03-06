@@ -383,20 +383,22 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                         <td className="p-4 text-sm text-content">{u.name || '-'}</td>
                         <td className="p-4">
                           <span className={`text-xs px-2 py-1 rounded-full border ${
-                            u.subscription_status === 'active'   ? 'border-green-500 text-green-500 bg-green-500/10' :
-                            u.subscription_status === 'trialing' ? 'border-blue-500 text-blue-500 bg-blue-500/10' :
-                            u.subscription_status === 'past_due' ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
-                            u.subscription_status === 'canceled' ? 'border-red-500 text-red-500 bg-red-500/10' :
-                            u.subscription_status === 'expired'  ? 'border-orange-500 text-orange-500 bg-orange-500/10' :
+                            u.subscription_status === 'active'    ? 'border-green-500 text-green-500 bg-green-500/10' :
+                            u.subscription_status === 'pro_trial' ? 'border-green-500 text-green-500 bg-green-500/10' :
+                            u.subscription_status === 'trialing'  ? 'border-blue-500 text-blue-500 bg-blue-500/10' :
+                            u.subscription_status === 'past_due'  ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
+                            u.subscription_status === 'canceled'  ? 'border-red-500 text-red-500 bg-red-500/10' :
+                            u.subscription_status === 'expired'   ? 'border-orange-500 text-orange-500 bg-orange-500/10' :
                             'border-line text-content-3 bg-surface'
                           }`}>
                             {{
-                              active:   'Ativo',
-                              trialing: 'Trial',
-                              past_due: 'Pendente',
-                              canceled: 'Cancelado',
-                              expired:  'Expirado',
-                              none:     'Sem plano',
+                              active:    'Pro',
+                              pro_trial: 'Pro',
+                              trialing:  'Trial',
+                              past_due:  'Pendente',
+                              canceled:  'Cancelado',
+                              expired:   'Expirado',
+                              none:      'Sem plano',
                             }[u.subscription_status as string] ?? u.subscription_status ?? 'Sem plano'}
                           </span>
                         </td>
