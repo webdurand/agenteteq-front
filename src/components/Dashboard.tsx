@@ -163,7 +163,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex flex-col px-4 lg:px-8 lg:pb-8 overflow-hidden min-h-0 z-10">
+      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-2 lg:pb-8 overflow-hidden min-h-0 z-10">
         
         <SubscriptionBanner token={token} planActive={user.plan_active} status={user.subscription_status || 'unknown'} />
 
@@ -180,6 +180,15 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             <div className="hidden lg:flex absolute top-4 left-1/2 -translate-x-1/2 z-20 justify-center">
               <div className="bg-surface/80 backdrop-blur-md rounded-full p-1.5 border border-line flex items-center gap-1 shadow-sm">
                 <button 
+                  onClick={() => setActiveTab('chat')}
+                  title="Modo Texto"
+                  className={`p-2 rounded-full transition-colors ${activeTab === 'chat' ? 'bg-accent/10 text-accent shadow-sm' : 'text-content-3 hover:text-content-2'}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </button>
+                <button 
                   onClick={() => setActiveTab('voice')}
                   title="Modo Voz"
                   className={`p-2 rounded-full transition-colors ${activeTab === 'voice' ? 'bg-accent/10 text-accent shadow-sm' : 'text-content-3 hover:text-content-2'}`}
@@ -188,15 +197,6 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                     <line x1="12" y1="19" x2="12" y2="22"></line>
-                  </svg>
-                </button>
-                <button 
-                  onClick={() => setActiveTab('chat')}
-                  title="Modo Texto"
-                  className={`p-2 rounded-full transition-colors ${activeTab === 'chat' ? 'bg-accent/10 text-accent shadow-sm' : 'text-content-3 hover:text-content-2'}`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                   </svg>
                 </button>
               </div>
@@ -269,6 +269,16 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             </svg>
             <span className="text-[10px] font-medium tracking-wider uppercase">Painéis</span>
           </button>
+
+          <button 
+            onClick={() => setActiveTab("chat")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'chat' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span className="text-[10px] font-medium tracking-wider uppercase">Chat</span>
+          </button>
           
           <button 
             onClick={() => setActiveTab("voice")}
@@ -281,16 +291,6 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 <line x1="12" y1="19" x2="12" y2="22"></line>
               </svg>
             </div>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab("chat")}
-            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'chat' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span className="text-[10px] font-medium tracking-wider uppercase">Chat</span>
           </button>
         </div>
       </div>

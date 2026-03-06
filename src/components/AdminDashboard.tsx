@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as api from "../lib/api";
 import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../contexts/ToastContext";
+import { LineChart, BarChart, PieChart } from "./MetricsCharts";
 
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -80,10 +81,9 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const { showToast } = useToast();
   const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios" | "sistema">("negocio");
 
-  const [businessData, setBusinessData] = useState<any>(null);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [usersData, setUsersData] = useState<any[]>([]);
-  const [toolsData, setToolsData] = useState<any[]>([]);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [subsData, setSubsData] = useState<any[]>([]);
   
@@ -138,14 +138,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const fetchAdminData = async () => {
     try {
       if (tab === "negocio") {
-        const [sum, usrs, tls] = await Promise.all([
-          api.fetchWithAuth("/admin/business/summary", { token }),
-          api.fetchWithAuth("/admin/business/users", { token }),
-          api.fetchWithAuth("/admin/business/tools", { token }),
-        ]);
-        setBusinessData(sum);
-        setUsersData(usrs);
-        setToolsData(tls);
+        const analytics = await api.fetchWithAuth(`/admin/business/analytics?days=${metricsDays}`, { token });
+        setAnalyticsData(analytics);
       } else if (tab === "saude") {
         const health = await api.fetchWithAuth("/admin/health/summary", { token });
         setHealthData(health);
@@ -371,35 +365,134 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 bg-surface">
           {tab === "negocio" && (
-            <div className="max-w-4xl mx-auto space-y-8">
-              <h2 className="text-xl font-light text-content">Métricas de Negócio</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                  <span className="text-xs uppercase tracking-wider text-content-3">Total Usuários</span>
-                  <span className="text-3xl font-light text-content">{businessData?.total_users || 0}</span>
-                </div>
-                <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                  <span className="text-xs uppercase tracking-wider text-content-3">Usuários Verificados</span>
-                  <span className="text-3xl font-light text-accent">{businessData?.verified_users || 0}</span>
-                </div>
-                <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                  <span className="text-xs uppercase tracking-wider text-content-3">Total Mensagens</span>
-                  <span className="text-3xl font-light text-content">{businessData?.total_messages || 0}</span>
+            <div className="max-w-6xl mx-auto space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-light text-content">Métricas de Negócio</h2>
+                <div className="flex gap-2 items-center">
+                  <span className="text-xs text-content-4">Período:</span>
+                  <select 
+                    className="bg-surface-card border border-line text-sm rounded-lg px-3 py-1 text-content"
+                    value={metricsDays}
+                    onChange={e => setMetricsDays(parseInt(e.target.value))}
+                  >
+                    <option value={7}>Últimos 7 dias</option>
+                    <option value={30}>Últimos 30 dias</option>
+                    <option value={90}>Últimos 90 dias</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium tracking-wide text-content-2">Top Tools</h3>
-                  <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
-                    {toolsData.map((t, i) => (
-                      <div key={i} className="flex justify-between items-center p-4 border-b border-line/50 last:border-0">
-                        <span className="text-sm text-content">{t.name}</span>
-                        <span className="text-sm font-mono text-content-3 bg-surface px-2 py-1 rounded-md">{t.calls}</span>
-                      </div>
-                    ))}
-                    {toolsData.length === 0 && <div className="p-4 text-sm text-content-4">Sem dados de tools</div>}
+              {/* Financeiro */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Financeiro</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">MRR (Receita Recorrente)</span>
+                    <span className="text-3xl font-light text-green-500">{formatBRL(analyticsData?.financial?.mrr_cents || 0)}</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Assinantes Ativos</span>
+                    <span className="text-3xl font-light text-accent">{analyticsData?.financial?.active_subs || 0}</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Status de Assinaturas</span>
+                    <div className="flex-1 -mx-4">
+                      {analyticsData?.financial?.status_distribution?.length > 0 ? (
+                        <PieChart data={analyticsData.financial.status_distribution} height={100} />
+                      ) : (
+                        <div className="h-[100px] flex items-center justify-center text-xs text-content-4">Sem dados</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Engajamento */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Engajamento de Usuários</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Usuários Ativos por Dia (DAU)</span>
+                    {analyticsData?.engagement?.dau?.length > 0 ? (
+                      <BarChart data={analyticsData.engagement.dau} xKey="date" barKey="users" barName="Usuários" color="#3b82f6" height={250} />
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                    )}
+                  </div>
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Mensagens por Dia</span>
+                    {analyticsData?.engagement?.messages_by_day?.length > 0 ? (
+                      <LineChart 
+                        data={analyticsData.engagement.messages_by_day} 
+                        xKey="date" 
+                        lines={[
+                          { key: 'received', name: 'Recebidas (Usuário)', color: '#8b5cf6' },
+                          { key: 'sent', name: 'Enviadas (Agente)', color: '#10b981' }
+                        ]} 
+                        height={250} 
+                      />
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Uso de Features</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Top Tools (Chamadas)</span>
+                    {analyticsData?.features?.tools_ranking?.length > 0 ? (
+                      <BarChart data={analyticsData.features.tools_ranking.slice(0, 5)} xKey="name" barKey="calls" barName="Chamadas" color="#f59e0b" height={250} />
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                    )}
+                  </div>
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Tendência de Tools</span>
+                    {analyticsData?.features?.tools_trend_by_day?.length > 0 ? (
+                      <LineChart 
+                        data={analyticsData.features.tools_trend_by_day} 
+                        xKey="date" 
+                        lines={
+                          Object.keys(analyticsData.features.tools_trend_by_day[0] || {})
+                            .filter(k => k !== 'date')
+                            .map((k, i) => ({ key: k, name: k, color: ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'][i % 5] }))
+                        }
+                        height={250} 
+                      />
+                    ) : (
+                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Operacional */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Operacional ({metricsDays} dias)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Taxa de Erro (Tools)</span>
+                    <span className={`text-3xl font-light ${analyticsData?.operational?.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
+                      {analyticsData?.operational?.error_rate || 0}%
+                    </span>
+                  </div>
+                  <div className="md:col-span-2 p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-4">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Latência Média por Tool (ms)</span>
+                    <div className="flex flex-wrap gap-2">
+                      {analyticsData?.operational?.latency_by_tool?.map((l: any, i: number) => (
+                        <div key={i} className="px-3 py-1.5 bg-surface border border-line rounded-lg text-xs flex gap-2 items-center">
+                          <span className="text-content-2 font-mono">{l.name}</span>
+                          <span className={`font-medium ${l.avg_ms > 3000 ? 'text-red-500' : l.avg_ms > 1000 ? 'text-orange-500' : 'text-green-500'}`}>{l.avg_ms}ms</span>
+                        </div>
+                      ))}
+                      {!analyticsData?.operational?.latency_by_tool?.length && (
+                        <span className="text-sm text-content-4">Sem dados de latência</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
