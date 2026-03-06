@@ -11,7 +11,8 @@ import {
 interface CheckoutFormProps {
   onCancel: () => void;
   clientSecret: string;
-  onSuccess?: () => void;
+  onSuccess?: (paymentMethodId?: string) => void;
+  submitLabel?: string;
 }
 
 const ELEMENT_OPTIONS = {
@@ -33,7 +34,7 @@ const ELEMENT_OPTIONS = {
   },
 };
 
-export const CheckoutForm = ({ onCancel, clientSecret, onSuccess }: CheckoutFormProps) => {
+export const CheckoutForm = ({ onCancel, clientSecret, onSuccess, submitLabel }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +100,8 @@ export const CheckoutForm = ({ onCancel, clientSecret, onSuccess }: CheckoutForm
       (paymentIntent && paymentIntent.status === 'processing')
     ) {
       if (onSuccess) {
-        onSuccess();
+        const pmId = setupIntent?.payment_method as string | undefined;
+        onSuccess(pmId);
       } else {
         window.location.href = '/dashboard?checkout=success';
       }
@@ -209,7 +211,7 @@ export const CheckoutForm = ({ onCancel, clientSecret, onSuccess }: CheckoutForm
             disabled={!stripe || loading}
             className="w-full py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading ? 'Processando...' : 'Confirmar Assinatura'}
+            {loading ? 'Processando...' : (submitLabel || 'Confirmar Assinatura')}
           </button>
           
           <button

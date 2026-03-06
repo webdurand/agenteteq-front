@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../lib/api";
 import type { UserInfo } from "../hooks/useAuth";
+import { UpdatePaymentModal } from "./UpdatePaymentModal";
 
 interface AccountSettingsModalProps {
   token: string;
@@ -20,6 +21,7 @@ function maskPhone(value: string): string {
 
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout }: AccountSettingsModalProps) {
   const [billing, setBilling] = useState<any>(null);
+  const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -58,9 +60,10 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
 
   if (!open) return null;
 
-  const handlePortal = async () => {
-    const data = await api.openBillingPortal(token);
-    window.location.href = data.url;
+  const refreshBilling = () => {
+    api.getBillingOverview(token)
+      .then((data) => setBilling(data))
+      .catch(() => {});
   };
 
   const handleCancelSubscription = async () => {
@@ -290,8 +293,11 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                     )}
                   </div>
                   <div className="flex flex-wrap gap-3 mt-4">
-                    <button onClick={handlePortal} className="px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">
-                      Gerenciar pagamento
+                    <button
+                      onClick={() => setShowUpdatePayment(true)}
+                      className="px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+                    >
+                      Atualizar cartão
                     </button>
                     {!billing.cancel_at_period_end && billing.status !== "canceled" && (
                       <button onClick={handleCancelSubscription} className="px-4 py-3 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface-card transition-colors">
@@ -363,6 +369,13 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
       </div>
+
+      <UpdatePaymentModal
+        token={token}
+        open={showUpdatePayment}
+        onClose={() => setShowUpdatePayment(false)}
+        onSuccess={refreshBilling}
+      />
 
       {/* Popup de confirmação de número */}
       {phoneStep === "confirming" && (

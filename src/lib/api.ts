@@ -109,6 +109,21 @@ export async function cancelBilling(token: string) {
   });
 }
 
+export async function setupPaymentMethod(token: string) {
+  return fetchApi("/billing/setup-payment-method", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function updateDefaultPayment(token: string, paymentMethodId: string) {
+  return fetchApi("/billing/update-default-payment", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ payment_method_id: paymentMethodId }),
+  });
+}
+
 export async function subscribeBilling(token: string, priceId?: string) {
   return fetchApi("/billing/subscribe", {
     method: "POST",
