@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
 import { wsClient } from "./useWebSocket";
+import { useHistory } from "./useHistory";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -42,7 +43,7 @@ declare global {
 
 export function useVoiceChat(token: string | null) {
   const [state, setState] = useState<ChatState>("idle");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { messages, setMessages, isLoading: historyLoading, hasMore: historyHasMore, loadMore: historyLoadMore } = useHistory(token);
   const [statusText, setStatusText] = useState("Diga \"E aí Teq\" ou clique para falar");
   const [interimText, setInterimText] = useState("");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -180,6 +181,19 @@ export function useVoiceChat(token: string | null) {
           setInterimText("");
           restartRecognition();
           break;
+
+        case "carousel_ready": {
+          // Monta uma mensagem formatada com os slides prontos
+          const slides = msg.slides ?? [];
+          const lines = slides.map((s: any, i: number) => {
+            const num = s.slide_number ?? (i + 1);
+            const style = s.style ? ` — ${s.style}` : "";
+            return `**Slide ${num}${style}**\n${s.image_url}`;
+          });
+          const formatted = `🎨 Carrossel pronto! Confira os ${slides.length} slides:\n\n${lines.join("\n\n")}`;
+          addMessage("agent", formatted);
+          break;
+        }
       }
     };
 
@@ -545,6 +559,9 @@ export function useVoiceChat(token: string | null) {
     sendName,
     sendMessageText,
     onOrbScale,
+    historyLoading,
+    historyHasMore,
+    historyLoadMore,
   };
 }
 

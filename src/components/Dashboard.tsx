@@ -1,4 +1,5 @@
 import { useVoiceChat } from "../hooks/useVoiceChat";
+import { useVoiceLive } from "../hooks/useVoiceLive";
 import { useTheme } from "../hooks/useTheme";
 import { Orb } from "./Orb";
 import { Sidebar } from "./Sidebar";
@@ -53,10 +54,22 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     setCheckoutPriceId(priceId);
     setCheckoutOpen(true);
   };
+  const isLive = import.meta.env.VITE_VOICE_REALTIME === "true";
+
   const { 
-    state, messages, statusText, interimText, needsOnboarding, onboardingPrompt, 
-    wakeWordActive, toggleListening, sendName, sendMessageText, onOrbScale 
+    state: classicState, messages, statusText: classicStatus, interimText, needsOnboarding, onboardingPrompt, 
+    wakeWordActive, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
+    historyLoading, historyHasMore, historyLoadMore
   } = useVoiceChat(token);
+
+  const {
+    state: liveState, statusText: liveStatus, toggleListening: liveToggle, onOrbScale: liveScale
+  } = useVoiceLive(isLive ? token : null);
+
+  const state = isLive ? liveState : classicState;
+  const statusText = isLive ? liveStatus : classicStatus;
+  const toggleListening = isLive ? liveToggle : classicToggle;
+  const onOrbScale = isLive ? liveScale : classicScale;
   
   const { dark, toggle } = useTheme();
 
@@ -158,45 +171,83 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             <Sidebar token={token} />
           </div>
           
-          {/* Center Canvas (Orb) - Voice (Hidden on mobile if not active tab) */}
-          <div className={`flex-col lg:flex lg:flex-1 h-full relative rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line flex-shrink-0 ${activeTab === 'voice' ? 'flex' : 'hidden'}`}>
-            {/* Subtle gradient background based on state */}
-            <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
-              state === 'listening' ? 'bg-gradient-to-tr from-accent/20 to-transparent' :
-              state === 'speaking' ? 'bg-gradient-to-tr from-accent/10 via-transparent to-accent/10' :
-              'bg-gradient-to-b from-transparent to-black/5'
-            }`} />
-
-            <div className="flex-1 flex items-center justify-center relative z-10">
-              <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
-            </div>
+          {/* Center Area: Voice OR Chat */}
+          <div className={`flex-col lg:flex lg:flex-1 h-full relative flex-shrink-0 rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line ${(activeTab === 'voice' || activeTab === 'chat') ? 'flex' : 'hidden'}`}>
             
-            <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 z-10 pointer-events-none">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
-                  {stateLabel}
-                </span>
-                {wakeWordActive && state === "idle" && (
-                  <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                    escuta ativa
-                  </span>
-                )}
+            {/* Desktop Mode Toggle inside the box */}
+            <div className="hidden lg:flex absolute top-4 left-1/2 -translate-x-1/2 z-20 justify-center">
+              <div className="bg-surface/80 backdrop-blur-md rounded-full p-1.5 border border-line flex items-center gap-1 shadow-sm">
+                <button 
+                  onClick={() => setActiveTab('voice')}
+                  title="Modo Voz"
+                  className={`p-2 rounded-full transition-colors ${activeTab === 'voice' ? 'bg-accent/10 text-accent shadow-sm' : 'text-content-3 hover:text-content-2'}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                  </svg>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('chat')}
+                  title="Modo Texto"
+                  className={`p-2 rounded-full transition-colors ${activeTab === 'chat' ? 'bg-accent/10 text-accent shadow-sm' : 'text-content-3 hover:text-content-2'}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </button>
               </div>
-              
-              {state === "listening" && interimText ? (
-                <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
-                  <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
-                </div>
-              ) : null}
             </div>
-          </div>
 
-          {/* Right Sidebar (Chat) (Hidden on mobile if not active tab) */}
-          <div className={`lg:flex lg:w-96 flex-shrink-0 flex-col h-full ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
-            <ChatPanel messages={messages} onSendMessage={sendMessageText} statusText={statusText} />
-          </div>
+            {/* Content Area - Render only the active one */}
+            {activeTab === 'voice' ? (
+              <div className="flex-col flex-1 relative flex">
+                {/* Subtle gradient background based on state */}
+                <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
+                  state === 'listening' ? 'bg-gradient-to-tr from-accent/20 to-transparent' :
+                  state === 'speaking' ? 'bg-gradient-to-tr from-accent/10 via-transparent to-accent/10' :
+                  'bg-gradient-to-b from-transparent to-black/5'
+                }`} />
 
+                <div className="flex-1 flex items-center justify-center relative z-10">
+                  <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
+                </div>
+                
+                <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 z-10 pointer-events-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
+                      {stateLabel}
+                    </span>
+                    {wakeWordActive && state === "idle" && (
+                      <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                        escuta ativa
+                      </span>
+                    )}
+                  </div>
+                  
+                  {state === "listening" && interimText ? (
+                    <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
+                      <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : activeTab === 'chat' ? (
+              <div className="flex-col flex-1 flex bg-surface">
+                <ChatPanel 
+                  messages={messages} 
+                  onSendMessage={sendMessageText} 
+                  statusText={statusText} 
+                  className="lg:max-w-none rounded-none border-none shadow-none bg-transparent" 
+                  onLoadMore={historyLoadMore}
+                  isLoadingMore={historyLoading}
+                  hasMore={historyHasMore}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       </main>
 
@@ -208,10 +259,11 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'tasks' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 11l3 3L22 4"></path>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
             </svg>
-            <span className="text-[10px] font-medium tracking-wider uppercase">Tarefas</span>
+            <span className="text-[10px] font-medium tracking-wider uppercase">Painéis</span>
           </button>
           
           <button 

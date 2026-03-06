@@ -52,14 +52,25 @@
 }
 
 @layer utilities {
+  /* Scroll estilo macOS: track fino e suave, thumb arredondado */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--fg-4) transparent;
+  }
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+    margin: 8px 0;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: var(--fg-4);
     border-radius: 9999px;
+    min-height: 32px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-3);
   }
 }
