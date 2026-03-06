@@ -104,7 +104,7 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
                 <div key={r.id} className="p-4 rounded-xl bg-surface-card border border-line group relative">
                   <button 
                     onClick={() => removeReminder(r.id)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1 text-content-3 hover:text-red-500 transition-all bg-surface rounded-md border border-line"
+                    className="absolute top-3 right-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-content-3 hover:text-red-500 transition-all bg-surface rounded-md border border-line"
                     title="Cancelar aviso"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

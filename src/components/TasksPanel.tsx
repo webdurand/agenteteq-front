@@ -106,7 +106,7 @@ function TaskList({ items, onToggle, onRemove }: { items: Task[], onToggle: (id:
 
           <button 
             onClick={() => onRemove(task.id)}
-            className="opacity-0 group-hover:opacity-100 p-1 text-content-3 hover:text-red-500 transition-all"
+            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-content-3 hover:text-red-500 transition-all"
             title="Excluir tarefa"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

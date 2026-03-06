@@ -66,6 +66,9 @@ export function getMicAmplitude(): number {
 }
 
 let _micStream: MediaStream | null = null;
+export function getMicStream(): MediaStream | null {
+  return _micStream;
+}
 
 export async function startMicAnalysis(): Promise<void> {
   if (_micAnalyser) return;

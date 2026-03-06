@@ -45,6 +45,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const [accountOpen, setAccountOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<"voice" | "chat" | "tasks">("voice");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const openCheckout = (priceId?: string) => {
     setAccountOpen(false);
@@ -69,14 +71,58 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     <div className="h-screen w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300 relative">
       
       {/* Topbar */}
-      <header className="flex-shrink-0 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between z-10">
-        <div className="flex items-center gap-4">
+      <header className="flex-shrink-0 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between z-20 bg-surface">
+        <div className="flex items-center gap-2 sm:gap-4">
           <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content">TEQ</h1>
           <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block">Dashboard</span>
           <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
         </div>
         
-        <div className="flex items-center gap-2 lg:gap-4">
+        {/* Mobile Menu Toggle */}
+        <div className="lg:hidden relative">
+          <button 
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-line text-content-3 hover:text-content"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </button>
+          
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-surface-up border border-line rounded-2xl shadow-xl flex flex-col p-2 z-50">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-line mb-1">
+                <span className="text-xs text-content-3 uppercase tracking-wider">Tema</span>
+                <ThemeToggle dark={dark} toggle={toggle} />
+              </div>
+              <button
+                onClick={() => { setAccountOpen(true); setMenuOpen(false); }}
+                className="text-left px-3 py-2.5 text-sm text-content hover:bg-surface-card rounded-xl transition-colors"
+              >
+                Conta
+              </button>
+              {onOpenAdmin && (
+                <button 
+                  onClick={() => { onOpenAdmin(); setMenuOpen(false); }}
+                  className="text-left px-3 py-2.5 text-sm text-accent hover:bg-accent/10 rounded-xl transition-colors"
+                >
+                  Admin
+                </button>
+              )}
+              <button 
+                onClick={onLogout}
+                className="text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+              >
+                Sair
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Menu */}
+        <div className="hidden lg:flex items-center gap-2 lg:gap-4">
           <ThemeToggle dark={dark} toggle={toggle} />
           <button
             onClick={() => setAccountOpen(true)}
@@ -102,53 +148,96 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-4 lg:pb-8 overflow-y-auto lg:overflow-hidden z-10">
+      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-20 lg:pb-8 overflow-y-auto lg:overflow-hidden z-10">
         
         <SubscriptionBanner token={token} planActive={user.plan_active} status={user.subscription_status || 'unknown'} />
 
         <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-8 min-h-0">
-          {/* Left Sidebar */}
-          <Sidebar token={token} />
-          
-          {/* Center Canvas (Orb) */}
-        <div className="flex flex-col h-[400px] lg:h-auto lg:flex-1 min-h-0 relative rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line flex-shrink-0">
-          {/* Subtle gradient background based on state */}
-          <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
-            state === 'listening' ? 'bg-gradient-to-tr from-accent/20 to-transparent' :
-            state === 'speaking' ? 'bg-gradient-to-tr from-accent/10 via-transparent to-accent/10' :
-            'bg-gradient-to-b from-transparent to-black/5'
-          }`} />
-
-          <div className="flex-1 flex items-center justify-center relative z-10">
-            <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
+          {/* Left Sidebar - Tasks (Hidden on mobile if not active tab) */}
+          <div className={`lg:flex lg:w-80 flex-shrink-0 flex-col h-full ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
+            <Sidebar token={token} />
           </div>
           
-          <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 z-10 pointer-events-none">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
-                {stateLabel}
-              </span>
-              {wakeWordActive && state === "idle" && (
-                <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                  escuta ativa
-                </span>
-              )}
+          {/* Center Canvas (Orb) - Voice (Hidden on mobile if not active tab) */}
+          <div className={`flex-col lg:flex lg:flex-1 h-full relative rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line flex-shrink-0 ${activeTab === 'voice' ? 'flex' : 'hidden'}`}>
+            {/* Subtle gradient background based on state */}
+            <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
+              state === 'listening' ? 'bg-gradient-to-tr from-accent/20 to-transparent' :
+              state === 'speaking' ? 'bg-gradient-to-tr from-accent/10 via-transparent to-accent/10' :
+              'bg-gradient-to-b from-transparent to-black/5'
+            }`} />
+
+            <div className="flex-1 flex items-center justify-center relative z-10">
+              <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
             </div>
             
-            {state === "listening" && interimText ? (
-              <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
-                <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
+            <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 z-10 pointer-events-none">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
+                  {stateLabel}
+                </span>
+                {wakeWordActive && state === "idle" && (
+                  <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                    escuta ativa
+                  </span>
+                )}
               </div>
-            ) : null}
+              
+              {state === "listening" && interimText ? (
+                <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
+                  <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        {/* Right Sidebar (Chat) */}
-        <ChatPanel messages={messages} onSendMessage={sendMessageText} statusText={statusText} />
+          {/* Right Sidebar (Chat) (Hidden on mobile if not active tab) */}
+          <div className={`lg:flex lg:w-96 flex-shrink-0 flex-col h-full ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
+            <ChatPanel messages={messages} onSendMessage={sendMessageText} statusText={statusText} />
+          </div>
 
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)] z-20">
+        <div className="flex justify-around items-center h-16 px-2">
+          <button 
+            onClick={() => setActiveTab("tasks")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'tasks' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            <span className="text-[10px] font-medium tracking-wider uppercase">Tarefas</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab("voice")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'voice' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeTab === 'voice' ? 'bg-accent/10 border border-accent/20' : 'bg-transparent'}`}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab("chat")}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'chat' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span className="text-[10px] font-medium tracking-wider uppercase">Chat</span>
+          </button>
+        </div>
+      </div>
 
       {needsOnboarding && (
         <OnboardingModal prompt={onboardingPrompt} onSubmit={sendName} />

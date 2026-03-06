@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis } from "../lib/audioCtx";
+import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
 import { wsClient } from "./useWebSocket";
 
@@ -63,6 +63,8 @@ export function useVoiceChat(token: string | null) {
   const wakeCooldownRef = useRef(0);
   const recognitionPausedRef = useRef(false);
   const lastSpeechActivityRef = useRef(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -209,6 +211,12 @@ export function useVoiceChat(token: string | null) {
     isCapturingRef.current = false;
     transcriptBufRef.current = "";
     setInterimText("");
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    audioChunksRef.current = [];
+    
     sfx.micClose();
     setStateSync("idle");
     setStatusText("Diga \"E aí Teq\" ou clique para falar");
@@ -219,11 +227,24 @@ export function useVoiceChat(token: string | null) {
     idleTimerRef.current = setTimeout(cancelCapture, IDLE_TIMEOUT_MS);
   }, [cancelCapture]);
 
-  const sendTranscript = useCallback(() => {
+  const sendTranscript = useCallback((blob?: Blob) => {
+    if (blob instanceof Blob) {
+      clearSendTimer();
+      clearIdleTimer();
+      isCapturingRef.current = false;
+      transcriptBufRef.current = "";
+      setInterimText("");
+      sfx.micClose();
+      setStateSync("thinking");
+      setStatusText("Pensando...");
+      wsClient.send(blob);
+      return;
+    }
+
     const elapsed = Date.now() - lastSpeechActivityRef.current;
     if (elapsed < SEND_SILENCE_MS) {
       clearSendTimer();
-      sendTimerRef.current = setTimeout(sendTranscript, SEND_SILENCE_MS - elapsed);
+      sendTimerRef.current = setTimeout(() => sendTranscript(), SEND_SILENCE_MS - elapsed);
       return;
     }
 
@@ -440,8 +461,14 @@ export function useVoiceChat(token: string | null) {
       return;
     }
 
+    const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
     if (stateRef.current === "listening") {
-      sendTranscript();
+      if (!hasSpeechRecognition && mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      } else {
+        sendTranscript();
+      }
     } else {
       sttFailCountRef.current = 0;
       sttLastErrorRef.current = null;
@@ -452,7 +479,46 @@ export function useVoiceChat(token: string | null) {
       setStatusText("Pode falar...");
       setInterimText("");
       startIdleTimer();
-      if (!recognitionRef.current) startRecognition();
+      
+      if (hasSpeechRecognition) {
+        if (!recognitionRef.current) startRecognition();
+      } else {
+        const stream = getMicStream();
+        if (stream) {
+          try {
+            audioChunksRef.current = [];
+            const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+            mr.ondataavailable = (e) => {
+              if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+            mr.onstop = () => {
+              if (audioChunksRef.current.length > 0) {
+                const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                sendTranscript(blob);
+              }
+              audioChunksRef.current = [];
+            };
+            mediaRecorderRef.current = mr;
+            mr.start();
+          } catch (e) {
+            console.error("Erro ao iniciar MediaRecorder", e);
+            setStateSync("idle");
+            setStatusText("Erro ao acessar microfone.");
+            isCapturingRef.current = false;
+          }
+        } else {
+          startMicAnalysis().then(() => {
+            const newStream = getMicStream();
+            if (newStream) {
+              toggleListening();
+            } else {
+              setStateSync("idle");
+              setStatusText("Microfone não disponível.");
+              isCapturingRef.current = false;
+            }
+          });
+        }
+      }
     }
   }, [sendTranscript, startRecognition, startIdleTimer]);
 

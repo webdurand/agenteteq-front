@@ -27,7 +27,7 @@ export function ChatPanel({ messages, onSendMessage, statusText }: ChatPanelProp
   };
 
   return (
-    <GlassCard className={`transition-all duration-300 flex flex-col ${isMinimized ? "h-auto" : "h-[500px] lg:h-full lg:flex-1 min-h-0"} w-full lg:max-w-[360px] flex-shrink-0`}>
+    <GlassCard className={`transition-all duration-300 flex flex-col ${isMinimized ? "h-auto" : "h-full lg:flex-1 min-h-0"} w-full lg:max-w-[360px] flex-shrink-0`}>
       <div className="p-4 border-b border-line flex items-center justify-between">
         <h2 className="text-xs font-medium tracking-[0.2em] uppercase text-content-2">Terminal</h2>
         <div className="flex items-center gap-3">

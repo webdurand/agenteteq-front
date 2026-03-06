@@ -221,7 +221,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                       </span>
                       <button
                         onClick={handleStartEdit}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-content-4 hover:text-content text-xs underline underline-offset-2"
+                        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity ml-1 text-content-4 hover:text-content text-xs underline underline-offset-2"
                       >
                         Editar
                       </button>

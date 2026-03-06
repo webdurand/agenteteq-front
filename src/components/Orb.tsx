@@ -201,15 +201,15 @@ export function Orb({ state, onClick }: OrbProps) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="relative flex items-center justify-center w-64 h-64">
+    <div className="relative flex items-center justify-center w-full max-w-[256px] aspect-square">
       <button
         onClick={isClickable ? onClick : undefined}
-        className={`flex items-center justify-center ${isClickable ? "cursor-pointer active:opacity-80" : "cursor-default"}`}
+        className={`w-full h-full flex items-center justify-center ${isClickable ? "cursor-pointer active:opacity-80" : "cursor-default"}`}
         aria-label={state === "listening" ? "Parar de ouvir" : "Falar com Teq"}
       >
         <canvas
           ref={canvasRef}
-          style={{ width: SIZE, height: SIZE }}
+          style={{ width: "100%", height: "100%", maxWidth: SIZE, maxHeight: SIZE }}
         />
       </button>
     </div>
