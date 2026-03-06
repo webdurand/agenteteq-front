@@ -21,15 +21,25 @@ function maskPhone(value: string): string {
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout }: AccountSettingsModalProps) {
   const [billing, setBilling] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"idle" | "verify">("idle");
+  const [phoneStep, setPhoneStep] = useState<"idle" | "editing" | "confirming" | "verify">("idle");
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setBilling(null);
+      setPlans([]);
+      setMessage("");
+      setPhoneStep("idle");
+      setNewPhone("");
+      setCode("");
+      return;
+    }
     setLoading(true);
+    setBilling(null);
     Promise.all([api.getBillingOverview(token), api.getBillingPlans(token)])
       .then(([billingData, plansData]) => {
         setBilling(billingData);
@@ -59,28 +69,59 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
     setMessage(data.status === "canceled_at_period_end" ? "Assinatura configurada para cancelamento no fim do período." : "Assinatura atualizada.");
   };
 
-  const handleRequestPhoneChange = async () => {
+  const handleStartEdit = () => {
+    setNewPhone(user.phone_number || "");
     setMessage("");
-    const cleanedPhone = newPhone.replace(/\D/g, "");
-    const data = await api.requestPhoneChange(token, cleanedPhone);
-    setMessage(data.message);
-    setStep("verify");
+    setPhoneStep("editing");
+  };
+
+  const handleSavePhone = () => {
+    if (!newPhone.trim()) return;
+    setPhoneStep("confirming");
+  };
+
+  const handleConfirmPhone = async () => {
+    setPhoneLoading(true);
+    setMessage("");
+    try {
+      const cleanedPhone = newPhone.replace(/\D/g, "");
+      const data = await api.requestPhoneChange(token, cleanedPhone);
+      setMessage(data.message || "Código enviado para o novo número.");
+      setPhoneStep("verify");
+    } catch (err: any) {
+      setMessage(err.message || "Erro ao enviar código.");
+      setPhoneStep("editing");
+    } finally {
+      setPhoneLoading(false);
+    }
   };
 
   const handleVerifyPhoneChange = async () => {
-    const cleanedPhone = newPhone.replace(/\D/g, "");
-    const data = await api.verifyPhoneChange(token, cleanedPhone, code);
-    localStorage.setItem("teq_token", data.token);
-    window.location.reload();
+    setPhoneLoading(true);
+    try {
+      const cleanedPhone = newPhone.replace(/\D/g, "");
+      const data = await api.verifyPhoneChange(token, cleanedPhone, code);
+      localStorage.setItem("teq_token", data.token);
+      window.location.reload();
+    } catch (err: any) {
+      setMessage(err.message || "Código inválido.");
+    } finally {
+      setPhoneLoading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl bg-surface-up border border-line shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-line">
-          <div>
-            <h2 className="text-xl font-light text-content">Conta e Assinatura</h2>
-            <p className="text-sm text-content-3">Perfil, plano, pagamento e segurança</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-xl font-light text-content">Conta e Assinatura</h2>
+              <p className="text-sm text-content-3">Perfil, plano, pagamento e segurança</p>
+            </div>
+            {loading && (
+              <div className="w-4 h-4 rounded-full border-2 border-line border-t-content-3 animate-spin ml-1" />
+            )}
           </div>
           <button onClick={onClose} className="px-4 py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium uppercase tracking-wider">
             Fechar
@@ -91,6 +132,16 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
           <div className="bg-glass backdrop-blur-xl border border-glass-border rounded-3xl p-6 space-y-5">
             <div>
               <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Perfil</h3>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="space-y-1.5">
+                      <div className="w-16 h-3 bg-line/30 rounded animate-pulse" />
+                      <div className="w-40 h-4 bg-line/20 rounded animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="space-y-3 text-sm">
                 <div>
                   <div className="text-content-4 uppercase tracking-wider text-xs">Nome</div>
@@ -105,42 +156,77 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                   <div className="text-content">{user.email || "-"}</div>
                 </div>
                 <div>
-                  <div className="text-content-4 uppercase tracking-wider text-xs">WhatsApp</div>
-                  <div className="text-content">{user.phone_number || "-"}</div>
-                  <div className="text-xs text-content-3 mt-1">{user.whatsapp_verified ? "Validado" : "Pendente de validação"}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-line">
-              <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Trocar telefone</h3>
-              <div className="space-y-3">
-                <input
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(maskPhone(e.target.value))}
-                  placeholder="+55 (21) 99999-9999"
-                  className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
-                />
-                {step === "verify" && (
-                  <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="Código recebido no novo WhatsApp"
-                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
-                  />
-                )}
-                <div className="flex gap-3">
-                  {step === "idle" ? (
-                    <button onClick={handleRequestPhoneChange} className="px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">
-                      Enviar código
-                    </button>
+                  <div className="text-content-4 uppercase tracking-wider text-xs mb-1">WhatsApp</div>
+                  {phoneStep === "editing" ? (
+                    <div className="space-y-2">
+                      <input
+                        autoFocus
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(maskPhone(e.target.value))}
+                        placeholder="+55 (21) 99999-9999"
+                        className="w-full bg-transparent border-b border-line-strong focus:border-content py-1.5 text-content placeholder-content-4 focus:outline-none transition-colors text-sm"
+                      />
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={handleSavePhone}
+                          disabled={!newPhone.trim()}
+                          className="px-3 py-1.5 rounded-lg bg-content text-surface text-xs font-medium uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          onClick={() => { setPhoneStep("idle"); setNewPhone(""); setMessage(""); }}
+                          className="px-3 py-1.5 rounded-lg border border-line text-content-3 text-xs font-medium uppercase tracking-wider hover:text-content transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : phoneStep === "verify" ? (
+                    <div className="space-y-2">
+                      <div className="text-content text-sm">{newPhone}</div>
+                      <div className="text-xs text-content-3">Código enviado para o novo número</div>
+                      <input
+                        autoFocus
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Código de verificação"
+                        className="w-full bg-transparent border-b border-line-strong focus:border-content py-1.5 text-content placeholder-content-4 focus:outline-none transition-colors text-sm"
+                      />
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={handleVerifyPhoneChange}
+                          disabled={!code.trim() || phoneLoading}
+                          className="px-3 py-1.5 rounded-lg bg-content text-surface text-xs font-medium uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-2"
+                        >
+                          {phoneLoading && <span className="w-3 h-3 rounded-full border-2 border-surface/40 border-t-surface animate-spin" />}
+                          Confirmar
+                        </button>
+                        <button
+                          onClick={() => { setPhoneStep("idle"); setNewPhone(""); setCode(""); setMessage(""); }}
+                          className="px-3 py-1.5 rounded-lg border border-line text-content-3 text-xs font-medium uppercase tracking-wider hover:text-content transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <button onClick={handleVerifyPhoneChange} className="px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">
-                      Confirmar troca
-                    </button>
+                    <div className="flex items-center gap-2 group">
+                      <span className="text-content text-sm">{user.phone_number || "-"}</span>
+                      <span className={`text-xs ${user.whatsapp_verified ? "text-green-500" : "text-yellow-500"}`}>
+                        {user.whatsapp_verified ? "✓" : "pendente"}
+                      </span>
+                      <button
+                        onClick={handleStartEdit}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-content-4 hover:text-content text-xs underline underline-offset-2"
+                      >
+                        Editar
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -277,6 +363,38 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
       </div>
+
+      {/* Popup de confirmação de número */}
+      {phoneStep === "confirming" && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-up border border-line rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="text-base font-medium text-content">Confirmar novo número</h3>
+            <p className="text-sm text-content-3">
+              Vamos enviar um código de verificação para:
+            </p>
+            <div className="bg-surface-card border border-line rounded-xl px-4 py-3 text-content font-medium tracking-wide">
+              {newPhone}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleConfirmPhone}
+                disabled={phoneLoading}
+                className="flex-1 px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {phoneLoading && <span className="w-3.5 h-3.5 rounded-full border-2 border-surface/40 border-t-surface animate-spin" />}
+                Sim, enviar código
+              </button>
+              <button
+                onClick={() => setPhoneStep("editing")}
+                disabled={phoneLoading}
+                className="flex-1 px-4 py-3 rounded-xl border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface-card transition-colors"
+              >
+                Corrigir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

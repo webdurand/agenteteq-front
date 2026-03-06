@@ -1,26 +1,33 @@
-export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, onSubscribeClick?: () => void }) => {
+export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, isAdmin, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, isAdmin?: boolean, onSubscribeClick?: () => void }) => {
   
   let label = 'Desconhecido';
   let color = 'bg-gray-100 text-gray-800';
+
+  if (isAdmin) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-medium bg-accent/10 border border-accent/20 text-accent">
+        Admin
+      </span>
+    );
+  }
 
   if ((!status || status === 'unknown' || status === 'incomplete') && planActive) {
     status = trialEnd ? 'trialing' : 'active';
   }
 
-  const isTrial = status === 'trialing';
+  // Se tem assinatura Stripe ativa (mesmo em trial pago), é Pro
+  const isPro = hasStripeSubscription && (status === 'trialing' || status === 'active');
+  const isFreeTrial = !hasStripeSubscription && status === 'trialing';
 
-  if (status === 'active') {
-    label = 'Ativo';
-    color = 'bg-green-100 text-green-800 border-transparent';
-  } else if (status === 'trialing') {
+  if (isPro || status === 'active') {
+    label = 'Pro';
+    color = 'bg-green-500/15 border border-green-500/30 text-green-500';
+  } else if (isFreeTrial) {
     label = 'Trial';
     color = 'bg-surface border border-line text-content-2';
-    if (hasStripeSubscription) {
-      label = 'Pro (Trial)';
-      color = 'bg-green-100 text-green-800 border-transparent';
-    } else if (trialEnd) {
+    if (trialEnd) {
       const days = Math.ceil((new Date(trialEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      if (days > 0) label = `Trial (${days} dias restantes)`;
+      if (days > 0) label = `Trial (${days}d)`;
     }
   } else if (status === 'past_due') {
     label = 'Pagamento Pendente';
@@ -35,7 +42,7 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-medium ${color}`}>
         {label}
       </span>
-      {isTrial && !hasStripeSubscription && onSubscribeClick && (
+      {isFreeTrial && onSubscribeClick && (
         <button 
           onClick={onSubscribeClick}
           className="text-[10px] font-bold tracking-wider uppercase text-surface bg-accent hover:bg-accent/90 transition-colors px-2 py-0.5 rounded-full"
