@@ -4,7 +4,7 @@ import { Skeleton } from "./ui/Skeleton";
 
 interface ChatPanelProps {
   messages: Message[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, images?: string[]) => void;
   statusText: string;
   className?: string;
   onLoadMore?: () => void;
@@ -13,7 +13,7 @@ interface ChatPanelProps {
   isInitialLoading?: boolean;
 }
 
-// Detecta linhas com URL de imagem do Cloudinary/https e separa texto de imagens
+// Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
 function parseMessageContent(text: string) {
   const lines = text.split("\n");
   const parts: Array<{ type: "text" | "image"; content: string }> = [];
@@ -21,13 +21,17 @@ function parseMessageContent(text: string) {
 
   for (const line of lines) {
     const isImageUrl = /https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)/i.test(line) ||
-      /res\.cloudinary\.com/.test(line);
+      /res\.cloudinary\.com/.test(line) ||
+      line.trim().startsWith("data:image/");
+      
     if (isImageUrl) {
       if (textBuf.length > 0) {
         parts.push({ type: "text", content: textBuf.join("\n").trim() });
         textBuf = [];
       }
-      const url = line.match(/https?:\/\/\S+/)?.[0] ?? line.trim();
+      const url = line.trim().startsWith("data:image/") 
+        ? line.trim() 
+        : (line.match(/https?:\/\/\S+/)?.[0] ?? line.trim());
       parts.push({ type: "image", content: url });
     } else {
       textBuf.push(line);
@@ -117,6 +121,7 @@ export function ChatPanel({
   isInitialLoading
 }: ChatPanelProps) {
   const [text, setText] = useState("");
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -146,9 +151,10 @@ export function ChatPanel({
   }, [text]);
 
   const handleSubmit = () => {
-    if (!text.trim()) return;
-    onSendMessage(text.trim());
+    if (!text.trim() && pendingImages.length === 0) return;
+    onSendMessage(text.trim(), pendingImages.length > 0 ? pendingImages : undefined);
     setText("");
+    setPendingImages([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
 
@@ -159,23 +165,82 @@ export function ChatPanel({
     }
   };
 
+  const processFiles = (files: File[]) => {
+    const available = 10 - pendingImages.length;
+    if (available <= 0) {
+      alert("Máximo de 10 imagens permitidas.");
+      return;
+    }
+    
+    const filesToProcess = files.slice(0, available);
+    if (files.length > available) {
+      alert(`Apenas ${available} imagem(ns) adicionada(s). Limite de 10 atingido.`);
+    }
+    
+    filesToProcess.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        if (!result) return;
+        
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.naturalWidth || img.width || 800;
+          let height = img.naturalHeight || img.height || 800;
+          
+          const MAX_SIZE = 1600;
+          if (width > MAX_SIZE || height > MAX_SIZE) {
+            const ratio = Math.min(MAX_SIZE / width, MAX_SIZE / height);
+            width = width * ratio;
+            height = height * ratio;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            const webpDataUrl = canvas.toDataURL("image/webp", 0.85);
+            
+            setPendingImages(current => {
+              if (current.length >= 10) return current;
+              return [...current, webpDataUrl];
+            });
+          }
+        };
+        img.src = result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
+    
+    const imageFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
-        if (file) {
-          alert("Envio de imagem via paste será implementado em breve!");
-        }
+        if (file) imageFiles.push(file);
       }
+    }
+    
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      processFiles(imageFiles);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      alert("Upload de arquivo será implementado em breve!");
+    const files = e.target.files;
+    if (!files) return;
+    processFiles(Array.from(files));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -234,61 +299,87 @@ export function ChatPanel({
       </div>
 
       <div className="flex-shrink-0 p-4 border-t border-line bg-surface/30 backdrop-blur-md">
-        <div className="relative flex items-end gap-2 max-w-4xl mx-auto w-full">
-          <button 
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-content-3 hover:text-content transition-colors rounded-full hover:bg-surface-card mb-0.5"
-            title="Anexar arquivo/imagem"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-            </svg>
-          </button>
+        <div className="relative max-w-4xl mx-auto w-full">
           <input 
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileChange} 
             className="hidden" 
             accept="image/*"
+            multiple
           />
 
-          <div className="relative flex-1">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder="Digite algo... (Shift+Enter para nova linha)"
-              className="w-full bg-surface border border-line rounded-2xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-content transition-all placeholder:text-content-4 shadow-inner resize-none overflow-hidden leading-relaxed"
-            />
-            {text.trim() ? (
-              <button 
-                type="button"
-                onClick={handleSubmit}
-                className="absolute right-2 bottom-2 w-8 h-8 flex items-center justify-center text-accent hover:text-accent/80 transition-colors bg-accent/10 rounded-full"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
-            ) : (
-              <button 
-                type="button"
-                onClick={toggleRecording}
-                className={`absolute right-2 bottom-2 w-8 h-8 flex items-center justify-center transition-colors rounded-full ${isRecording ? "text-red-500 bg-red-500/10 animate-pulse" : "text-content-3 hover:text-content hover:bg-surface-card"}`}
-                title="Gravar áudio"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                  <line x1="12" y1="19" x2="12" y2="22"></line>
-                </svg>
-              </button>
+          <div className="relative flex flex-col bg-surface border border-line rounded-2xl shadow-inner overflow-hidden focus-within:border-content transition-all">
+            {pendingImages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 p-3 border-b border-line bg-surface-card max-h-40 overflow-y-auto scrollbar-thin">
+                {pendingImages.map((img, i) => (
+                  <div key={i} className="relative group flex-shrink-0">
+                    <img src={img} alt="Preview" className="w-16 h-16 object-contain bg-black/5 rounded-xl shadow-sm border border-line" />
+                    <button 
+                      onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-2 -right-2 bg-content text-surface rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
+            
+            <div className="flex items-end">
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center text-content-4 hover:text-content transition-colors"
+                title="Anexar arquivo/imagem"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+              </button>
+
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                placeholder="Pergunte alguma coisa (Shift+Enter para nova linha)"
+                className="flex-1 bg-transparent py-[13px] text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-hidden leading-relaxed"
+              />
+              
+              <div className="flex items-center pr-2 pb-2">
+                {text.trim() || pendingImages.length > 0 ? (
+                  <button 
+                    type="button"
+                    onClick={handleSubmit}
+                    className="w-8 h-8 flex items-center justify-center text-surface bg-content hover:bg-content/80 transition-colors rounded-full"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </button>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={toggleRecording}
+                    className={`w-8 h-8 flex items-center justify-center transition-colors rounded-full ${isRecording ? "text-surface bg-red-500 animate-pulse" : "text-content-4 hover:text-content"}`}
+                    title="Gravar áudio"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <line x1="12" y1="19" x2="12" y2="22"></line>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

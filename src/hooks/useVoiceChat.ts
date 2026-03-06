@@ -540,11 +540,22 @@ export function useVoiceChat(token: string | null) {
     wsClient.send(JSON.stringify({ type: "name", value: name }));
   }, []);
 
-  const sendMessageText = useCallback((text: string) => {
-    addMessage("user", text);
+  const sendMessageText = useCallback((text: string, images?: string[]) => {
+    const messageParts = [text];
+    if (images && images.length > 0) {
+      images.forEach((img, i) => messageParts.push(img));
+    }
+    const displayMessage = messageParts.filter(Boolean).join("\n");
+    
+    addMessage("user", displayMessage || "[Imagem anexada]");
     setStateSync("thinking");
     setStatusText("Pensando...");
-    wsClient.send(JSON.stringify({ type: "user_message", text, mode: "text" }));
+    
+    const payload: any = { type: "user_message", text, mode: "text" };
+    if (images && images.length > 0) {
+      payload.images = images;
+    }
+    wsClient.send(JSON.stringify(payload));
   }, []);
 
   return {
