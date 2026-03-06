@@ -30,6 +30,7 @@ export interface UserInfo {
   current_period_end?: string | null;
   cancel_at_period_end?: boolean;
   plan_code?: string | null;
+  has_stripe_subscription?: boolean;
 }
 
 const TOKEN_KEY = "teq_token";
@@ -67,6 +68,25 @@ export function useAuth() {
       setScreen("login");
     }
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    const storedToken = token || localStorage.getItem(TOKEN_KEY);
+    if (!storedToken) return;
+    try {
+      const userData = await api.getMe(storedToken);
+      setUser(userData);
+      if (!userData.whatsapp_verified) {
+        setPhone(userData.phone_number);
+        setScreen("pending_verification");
+      } else if (!userData.plan_active) {
+        setScreen("trial_expired");
+      } else {
+        setScreen("authenticated");
+      }
+    } catch (err) {
+      // silently fail
+    }
+  }, [token]);
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
@@ -258,5 +278,6 @@ export function useAuth() {
     handleResendCode,
     startVerification,
     logout,
+    refreshUser,
   };
 }

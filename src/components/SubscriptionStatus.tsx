@@ -1,4 +1,4 @@
-export const SubscriptionStatus = ({ status, trialEnd, planActive, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, onSubscribeClick?: () => void }) => {
+export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, onSubscribeClick?: () => void }) => {
   
   let label = 'Desconhecido';
   let color = 'bg-gray-100 text-gray-800';
@@ -15,7 +15,10 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, onSubscribeCl
   } else if (status === 'trialing') {
     label = 'Trial';
     color = 'bg-surface border border-line text-content-2';
-    if (trialEnd) {
+    if (hasStripeSubscription) {
+      label = 'Pro (Trial)';
+      color = 'bg-green-100 text-green-800 border-transparent';
+    } else if (trialEnd) {
       const days = Math.ceil((new Date(trialEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
       if (days > 0) label = `Trial (${days} dias restantes)`;
     }
@@ -32,7 +35,7 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, onSubscribeCl
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-medium ${color}`}>
         {label}
       </span>
-      {isTrial && onSubscribeClick && (
+      {isTrial && !hasStripeSubscription && onSubscribeClick && (
         <button 
           onClick={onSubscribeClick}
           className="text-[10px] font-bold tracking-wider uppercase text-surface bg-accent hover:bg-accent/90 transition-colors px-2 py-0.5 rounded-full"

@@ -11,9 +11,10 @@ interface CheckoutModalProps {
   open: boolean;
   onClose: () => void;
   priceId?: string;
+  onPaymentSuccess?: () => void;
 }
 
-export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalProps) {
+export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess }: CheckoutModalProps) {
   const [clientSecret, setClientSecret] = useState("");
   const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +127,8 @@ export function CheckoutModal({ token, open, onClose, priceId }: CheckoutModalPr
               </div>
               <button
                 onClick={() => {
-                  window.location.reload();
+                  onClose();
+                  if (onPaymentSuccess) onPaymentSuccess();
                 }}
                 className="mt-4 px-8 py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
               >

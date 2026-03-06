@@ -152,7 +152,7 @@ export default function App() {
       <>
         <ThemeToggle dark={dark} toggle={toggle} />
         <AuthLayout>
-          <SubscriptionPage token={auth.token || ''} onLogout={auth.logout} />
+          <SubscriptionPage token={auth.token || ''} onLogout={auth.logout} onPaymentSuccess={auth.refreshUser} />
         </AuthLayout>
       </>
     );
@@ -165,7 +165,7 @@ export default function App() {
     if (!auth.user) {
       return null;
     }
-    return <Dashboard token={auth.token} user={auth.user} onLogout={auth.logout} onOpenAdmin={auth.user.role === "admin" ? () => setIsAdminView(true) : undefined} />;
+    return <Dashboard token={auth.token} user={auth.user} onLogout={auth.logout} onOpenAdmin={auth.user.role === "admin" ? () => setIsAdminView(true) : undefined} onRefreshUser={auth.refreshUser} />;
   }
 
   return null;

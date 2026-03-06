@@ -10,9 +10,10 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
 interface SubscriptionPageProps {
   token: string;
   onLogout?: () => void;
+  onPaymentSuccess?: () => void;
 }
 
-export const SubscriptionPage = ({ token, onLogout }: SubscriptionPageProps) => {
+export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: SubscriptionPageProps) => {
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export const SubscriptionPage = ({ token, onLogout }: SubscriptionPageProps) => 
             </div>
             <button
               onClick={() => {
-                window.location.reload();
+                if (onPaymentSuccess) onPaymentSuccess();
               }}
               className="mt-4 w-full py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
             >

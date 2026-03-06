@@ -17,6 +17,7 @@ interface DashboardProps {
   user: UserInfo;
   onLogout: () => void;
   onOpenAdmin?: () => void;
+  onRefreshUser?: () => void;
 }
 
 function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
@@ -40,7 +41,7 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   );
 }
 
-export function Dashboard({ token, user, onLogout, onOpenAdmin }: DashboardProps) {
+export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }: DashboardProps) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | undefined>(undefined);
@@ -72,7 +73,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin }: DashboardProps
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content">TEQ</h1>
           <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block">Dashboard</span>
-          <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} onSubscribeClick={() => openCheckout()} />
+          <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
         </div>
         
         <div className="flex items-center gap-2 lg:gap-4">
@@ -153,7 +154,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin }: DashboardProps
         <OnboardingModal prompt={onboardingPrompt} onSubmit={sendName} />
       )}
       <AccountSettingsModal token={token} user={user} open={accountOpen} onClose={() => setAccountOpen(false)} onOpenCheckout={openCheckout} />
-      <CheckoutModal token={token} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} priceId={checkoutPriceId} />
+      <CheckoutModal token={token} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} priceId={checkoutPriceId} onPaymentSuccess={onRefreshUser} />
       <BlogPreviewModal />
     </div>
   );
