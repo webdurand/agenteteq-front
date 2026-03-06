@@ -235,7 +235,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 </div>
               </div>
             ) : activeTab === 'chat' ? (
-              <div className="flex-col flex-1 flex bg-surface">
+              <div className="flex-1 flex flex-col min-h-0 bg-surface">
                 <ChatPanel 
                   messages={messages} 
                   onSendMessage={sendMessageText} 
