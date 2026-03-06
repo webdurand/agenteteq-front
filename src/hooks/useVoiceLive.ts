@@ -196,7 +196,7 @@ export function useVoiceLive(token: string | null) {
 
         // Converte pra base64
         const buffer = new ArrayBuffer(pcmData.length * 2);
-        new DataView(buffer).set(pcmData);
+        new Int16Array(buffer).set(pcmData);
         // Base64 em JS precisa de strings chars
         let binary = '';
         const bytes = new Uint8Array(buffer);

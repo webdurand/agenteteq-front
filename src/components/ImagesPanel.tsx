@@ -150,7 +150,7 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
               ))}
               {/* Placeholders para slides ainda sendo gerados */}
               {pendingCarousels.flatMap((c) =>
-                (c.slides ?? []).filter((s) => !s.image_url).map((s, i) => (
+                (c.slides ?? []).filter((s) => !s.image_url).map((_s, i) => (
                   <div key={`pending-${c.id}-${i}`} className="aspect-[4/3] rounded-xl border border-line/50 border-dashed flex items-center justify-center text-content-3 text-xs animate-pulse">
                     Gerando...
                   </div>
