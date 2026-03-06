@@ -1,15 +1,7 @@
-export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, isAdmin, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, isAdmin?: boolean, onSubscribeClick?: () => void }) => {
+export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, onSubscribeClick?: () => void }) => {
   
   let label = 'Desconhecido';
   let color = 'bg-gray-100 text-gray-800';
-
-  if (isAdmin) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-medium bg-accent/10 border border-accent/20 text-accent">
-        Admin
-      </span>
-    );
-  }
 
   if ((!status || status === 'unknown' || status === 'incomplete') && planActive) {
     status = trialEnd ? 'trialing' : 'active';
