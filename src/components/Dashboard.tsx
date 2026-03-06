@@ -59,7 +59,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const voiceActive = activeTab === "voice";
 
   const { 
-    state: classicState, messages, setMessages, statusText: classicStatus, interimText, voiceResponse,
+    state: classicState, messages, statusText: classicStatus, interimText, voiceResponse,
     needsOnboarding, onboardingPrompt, 
     wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore

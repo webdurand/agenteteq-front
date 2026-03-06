@@ -107,7 +107,7 @@ export function PieChart({ data, nameKey = "name", dataKey = "value", height = 3
             stroke="none"
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell key={`cell-${index + entry}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
           <Tooltip 
