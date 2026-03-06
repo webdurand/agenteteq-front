@@ -8,7 +8,7 @@ export type ChatState = "idle" | "listening" | "thinking" | "speaking";
 
 export interface Message {
   id: string;
-  role: "user" | "agent";
+  role: "user" | "agent" | "system";
   text: string;
   timestamp: Date;
 }
@@ -46,6 +46,7 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
   const { messages, setMessages, isLoading: historyLoading, isInitialLoading: historyInitialLoading, hasMore: historyHasMore, loadMore: historyLoadMore } = useHistory(token);
   const [statusText, setStatusText] = useState("");
   const [interimText, setInterimText] = useState("");
+  const [voiceResponse, setVoiceResponse] = useState("");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
   const [imageEditingPrompt, setImageEditingPrompt] = useState<string | null>(null);
@@ -103,7 +104,6 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
         case "transcript":
           if (requestGenRef.current !== genAtReceive) break;
-          if (msg.text && msg.text !== "...") addMessage("user", msg.text);
           sfx.thinking();
           setStateSync("thinking");
           setStatusText("Pensando...");
@@ -112,14 +112,18 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
         case "response": {
           if (requestGenRef.current !== genAtReceive) {
             console.log("[WS] Resposta descartada (geração antiga)");
-            addMessage("agent", msg.text);
+            if (msg.mime_type === "none") addMessage("agent", msg.text);
             break;
           }
 
-          if (msg.mime_type !== "none") {
+          const isVoiceResponse = msg.mime_type !== "none";
+
+          if (isVoiceResponse) {
             sfx.messageReceived();
+            setVoiceResponse(msg.text);
+          } else {
+            addMessage("agent", msg.text);
           }
-          addMessage("agent", msg.text);
 
           setStateSync("speaking");
           setStatusText(msg.mime_type !== "none" ? "Falando..." : idleStatusText());
@@ -145,7 +149,7 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
           setInterimText("");
 
-          if (msg.needs_follow_up && msg.mime_type !== "none") {
+          if (msg.needs_follow_up && isVoiceResponse) {
             sfx.micOpen();
             isCapturingRef.current = true;
             transcriptBufRef.current = "";
@@ -242,12 +246,16 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
         case "image_edit_ready": {
           setImageEditingPrompt(null);
-          const url = msg.image_url;
-          const error = msg.error;
-          const resultText = url
-            ? `Pronto! Aqui está a imagem editada:\n${url}`
-            : `Não consegui editar a imagem: ${error || "erro desconhecido"}`;
-          addMessage("agent", resultText);
+          if (msg.image_url) {
+            addMessage("agent", `Pronto! Aqui está a imagem editada:\n${msg.image_url}`);
+          }
+          break;
+        }
+
+        case "action_log": {
+          const channel = msg.channel || "unknown";
+          const text = `[${channel}] ${msg.action}: ${msg.summary}`;
+          setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "system", text, timestamp: new Date() }]);
           break;
         }
       }
@@ -348,7 +356,6 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
     }
 
     sfx.micClose();
-    addMessage("user", text);
     setStateSync("thinking");
     setStatusText("Pensando...");
 
@@ -634,8 +641,10 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
   return {
     state,
     messages,
+    setMessages,
     statusText,
     interimText,
+    voiceResponse,
     needsOnboarding,
     onboardingPrompt,
     wakeWordActive,

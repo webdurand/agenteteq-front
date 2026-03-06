@@ -59,7 +59,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const voiceActive = activeTab === "voice";
 
   const { 
-    state: classicState, messages, statusText: classicStatus, interimText, needsOnboarding, onboardingPrompt, 
+    state: classicState, messages, setMessages, statusText: classicStatus, interimText, voiceResponse,
+    needsOnboarding, onboardingPrompt, 
     wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
   } = useVoiceChat(token, voiceActive);
@@ -232,6 +233,10 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   {state === "listening" && interimText ? (
                     <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
                       <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
+                    </div>
+                  ) : voiceResponse && state !== "listening" ? (
+                    <div className="mt-2 max-w-lg mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
+                      <p className="text-content-2 text-sm leading-relaxed">{voiceResponse}</p>
                     </div>
                   ) : null}
                 </div>

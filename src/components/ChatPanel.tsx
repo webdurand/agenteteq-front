@@ -130,8 +130,27 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: nu
   );
 }
 
+function SystemNotification({ msg }: { msg: Message }) {
+  return (
+    <div className="flex justify-center py-1">
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-card/60 border border-line/50 max-w-[85%]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-content-3 flex-shrink-0">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        <span className="text-[11px] text-content-3 leading-snug">{msg.text}</span>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ msg }: { msg: Message }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+  if (msg.role === "system") {
+    return <SystemNotification msg={msg} />;
+  }
 
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
     try {
