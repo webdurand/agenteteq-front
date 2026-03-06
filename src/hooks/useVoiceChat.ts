@@ -43,7 +43,7 @@ declare global {
 
 export function useVoiceChat(token: string | null) {
   const [state, setState] = useState<ChatState>("idle");
-  const { messages, setMessages, isLoading: historyLoading, hasMore: historyHasMore, loadMore: historyLoadMore } = useHistory(token);
+  const { messages, setMessages, isLoading: historyLoading, isInitialLoading: historyInitialLoading, hasMore: historyHasMore, loadMore: historyLoadMore } = useHistory(token);
   const [statusText, setStatusText] = useState("Diga \"E aí Teq\" ou clique para falar");
   const [interimText, setInterimText] = useState("");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -560,6 +560,7 @@ export function useVoiceChat(token: string | null) {
     sendMessageText,
     onOrbScale,
     historyLoading,
+    historyInitialLoading,
     historyHasMore,
     historyLoadMore,
   };

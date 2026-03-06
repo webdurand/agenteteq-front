@@ -6,30 +6,41 @@ export interface Reminder {
   id: number;
   title: string;
   task_instructions: string;
-  trigger_type: string;
-  trigger_config: any;
-  status: string;
+  trigger_type: "date" | "cron" | "interval";
+  trigger_config: {
+    minutes_from_now?: number;
+    run_date?: string;
+    cron_expression?: string;
+    interval_minutes?: number;
+    timezone?: string;
+  };
+  notification_channel: string;
+  status: "active" | "fired" | "cancelled";
   apscheduler_job_id: string;
   created_at: string;
-  next_run_str?: string;
+  updated_at?: string;
+  next_run_str?: string | null;
 }
+
+export type ReminderFilter = "active" | "fired" | "all";
 
 export function useReminders(token: string | null) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<ReminderFilter>("active");
 
   const loadReminders = useCallback(async () => {
     if (!token) return;
     try {
       setLoading(true);
-      const data = await fetchReminders(token, "active");
+      const data = await fetchReminders(token, filter);
       setReminders(data.reminders || []);
     } catch (e) {
       console.error("Erro ao carregar lembretes:", e);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, filter]);
 
   useEffect(() => {
     loadReminders();
@@ -64,6 +75,8 @@ export function useReminders(token: string | null) {
   return {
     reminders,
     loading,
+    filter,
+    setFilter,
     loadReminders,
     addReminder,
     removeReminder

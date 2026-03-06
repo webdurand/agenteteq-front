@@ -6,7 +6,7 @@ import { GlassCard } from "./GlassCard";
 
 export function Sidebar({ token }: { token: string }) {
   const [tasksMinimized, setTasksMinimized] = useState(false);
-  const [remindersMinimized, setRemindersMinimized] = useState(true);
+  const [remindersMinimized, setRemindersMinimized] = useState(false);
   const [imagesMinimized, setImagesMinimized] = useState(false);
 
   return (

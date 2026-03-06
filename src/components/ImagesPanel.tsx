@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCarousels, type Carousel, type Slide } from "../hooks/useCarousels";
 import { useWSEvent } from "../hooks/useWebSocket";
+import { Skeleton } from "./ui/Skeleton";
 
 function GalleryImage({ slide, carousel, onClick }: {
   slide: Slide;
@@ -132,8 +133,8 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           {loading && allSlides.length === 0 ? (
             <div className="grid grid-cols-2 gap-2">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-[4/3] rounded-xl bg-line/20 animate-pulse" />
+              {[0, 1, 2, 3].map(i => (
+                <Skeleton key={i} className="aspect-[4/3] rounded-xl" delay={i * 100} />
               ))}
             </div>
           ) : allSlides.length === 0 && pendingCarousels.length === 0 ? (

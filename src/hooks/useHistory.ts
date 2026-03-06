@@ -5,10 +5,12 @@ import type { Message } from "./useVoiceChat";
 export function useHistory(token: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
 
   const loadInitial = useCallback(async () => {
     if (!token) return;
+    setIsInitialLoading(true);
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/api/chat/history?limit=20", { token });
@@ -24,6 +26,7 @@ export function useHistory(token: string | null) {
       console.error("Erro ao carregar histórico:", err);
     } finally {
       setIsLoading(false);
+      setIsInitialLoading(false);
     }
   }, [token]);
 
@@ -56,6 +59,7 @@ export function useHistory(token: string | null) {
     messages,
     setMessages,
     isLoading,
+    isInitialLoading,
     hasMore,
     loadMore,
   };
