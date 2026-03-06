@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useCarousels, type Carousel, type Slide } from "../hooks/useCarousels";
 import { useWSEvent } from "../hooks/useWebSocket";
 import { Skeleton } from "./ui/Skeleton";
@@ -242,13 +243,14 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
         </div>
       )}
 
-      {selectedIdx !== null && viewableSlides.length > 0 && (
+      {selectedIdx !== null && viewableSlides.length > 0 && createPortal(
         <SlideModal
           slides={viewableSlides}
           currentIndex={selectedIdx}
           onClose={() => setSelectedIdx(null)}
           onNavigate={setSelectedIdx}
-        />
+        />,
+        document.body
       )}
     </div>
   );
