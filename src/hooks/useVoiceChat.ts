@@ -18,7 +18,7 @@ const CANCEL_PHRASES = [
   "cancelar", "cancela", "pode cancelar", "chega", "silencio", "fica quieto", 
   "encerrar", "encerra", "sai", "sair"
 ];
-const SEND_SILENCE_MS = 1000;
+const SEND_SILENCE_MS = 600;
 const IDLE_TIMEOUT_MS = 10000;
 
 function matchesCancelPhrase(norm: string): boolean {
@@ -102,6 +102,70 @@ export function useVoiceChat(token: string | null) {
           setStateSync("thinking");
           setStatusText("Pensando...");
           break;
+
+        case "audio_chunk": {
+          if (requestGenRef.current !== genAtReceive) break;
+          
+          if (stateRef.current !== "speaking") {
+            sfx.messageReceived();
+            setStateSync("speaking");
+            setStatusText("Falando...");
+            recognitionPausedRef.current = true;
+            stopRecognition();
+          }
+          
+          queueAudio(msg.audio_b64, msg.mime_type, msg.text);
+          break;
+        }
+
+        case "text_chunk": {
+          if (requestGenRef.current !== genAtReceive) break;
+          // Em mode text podemos não precisar de queue, mas apenas transicionar de estado
+          if (stateRef.current !== "speaking") {
+            sfx.messageReceived();
+            setStateSync("speaking");
+            setStatusText("Digitando...");
+          }
+          break;
+        }
+
+        case "response_complete": {
+          if (requestGenRef.current !== genAtReceive) {
+            console.log("[WS] Resposta descartada (geração antiga)");
+            break;
+          }
+
+          addMessage("agent", msg.full_text);
+
+          // Wait for audio queue to finish playing if there is one
+          const checkQueueAndFinish = () => {
+            if (_isPlayingQueue) {
+              setTimeout(checkQueueAndFinish, 200);
+              return;
+            }
+            
+            setInterimText("");
+
+            if (msg.needs_follow_up) {
+              sfx.micOpen();
+              isCapturingRef.current = true;
+              transcriptBufRef.current = "";
+              setStateSync("listening");
+              setStatusText("Pode falar...");
+              startIdleTimer();
+            } else {
+              setStateSync("idle");
+              setStatusText("Diga \"E aí Teq\" ou clique para falar");
+            }
+            
+            recognitionPausedRef.current = false;
+            setTimeout(() => startRecognition(), 400);
+          };
+          
+          checkQueueAndFinish();
+          
+          break;
+        }
 
         case "response": {
           if (requestGenRef.current !== genAtReceive) {
@@ -492,8 +556,13 @@ function b64ToBytes(base64: string): Uint8Array {
 
 let _currentSource: AudioBufferSourceNode | null = null;
 let _currentElement: HTMLAudioElement | null = null;
+let _audioQueue: { base64: string, mimeType: string, text: string }[] = [];
+let _isPlayingQueue = false;
 
 export function stopPlayback() {
+  _audioQueue = [];
+  _isPlayingQueue = false;
+  
   if (_currentSource) {
     try { _currentSource.stop(); } catch { /* ignore */ }
     _currentSource = null;
@@ -503,6 +572,27 @@ export function stopPlayback() {
     _currentElement.src = "";
     _currentElement = null;
   }
+}
+
+async function processAudioQueue() {
+  if (_isPlayingQueue || _audioQueue.length === 0) return;
+  _isPlayingQueue = true;
+  
+  while (_audioQueue.length > 0) {
+    const item = _audioQueue.shift();
+    if (item && item.base64) {
+      await playAudio(item.base64, item.mimeType);
+    } else if (item && item.mimeType === "browser") {
+      await speakBrowser(item.text, "pt-BR");
+    }
+  }
+  
+  _isPlayingQueue = false;
+}
+
+export function queueAudio(base64: string, mimeType: string, text: string) {
+  _audioQueue.push({ base64, mimeType, text });
+  processAudioQueue();
 }
 
 function playWithAnalyser(bytes: Uint8Array): Promise<boolean> {
