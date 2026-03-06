@@ -76,7 +76,14 @@ function ImageEditingBubble({ prompt }: { prompt: string }) {
   );
 }
 
-function CarouselGeneratingBubble({ numSlides }: { numSlides: number }) {
+function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: number; slidesDone?: number }) {
+  const allDone = slidesDone >= numSlides && numSlides > 0;
+  const statusText = allDone
+    ? "Finalizando..."
+    : slidesDone > 0
+      ? `${slidesDone} de ${numSlides} prontas`
+      : "Isso pode levar de 1 a 3 minutos";
+
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
@@ -96,21 +103,26 @@ function CarouselGeneratingBubble({ numSlides }: { numSlides: number }) {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-sm text-content font-medium">Gerando {numSlides} {numSlides === 1 ? "imagem" : "imagens"}...</span>
-              <span className="text-[11px] text-content-3 animate-pulse">Isso pode levar de 1 a 3 minutos</span>
+              <span className={`text-[11px] text-content-3 ${slidesDone === 0 ? "animate-pulse" : ""}`}>{statusText}</span>
             </div>
           </div>
           <div className="flex gap-1.5 mt-3">
-            {Array.from({ length: Math.min(numSlides, 6) }).map((_, i) => (
-              <div
-                key={i}
-                className="h-1.5 flex-1 rounded-full bg-line overflow-hidden"
-              >
+            {Array.from({ length: Math.min(numSlides, 10) }).map((_, i) => {
+              const done = i < slidesDone;
+              return (
                 <div
-                  className="h-full rounded-full bg-accent/60 animate-pulse"
-                  style={{ animationDelay: `${i * 300}ms` }}
-                />
-              </div>
-            ))}
+                  key={i}
+                  className="h-1.5 flex-1 rounded-full bg-line overflow-hidden"
+                >
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      done ? "w-full bg-accent" : "w-full bg-accent/20 animate-pulse"
+                    }`}
+                    style={done ? {} : { animationDelay: `${i * 300}ms` }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -124,7 +136,7 @@ function MessageBubble({ msg }: { msg: Message }) {
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(CAROUSEL_GENERATING_PREFIX.length));
-      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} />;
+      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} />;
     } catch {
       return <CarouselGeneratingBubble numSlides={0} />;
     }

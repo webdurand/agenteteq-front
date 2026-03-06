@@ -52,7 +52,11 @@
 }
 
 @layer utilities {
-  /* Scroll estilo macOS: track fino e suave, thumb arredondado */
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--fg-4) transparent;

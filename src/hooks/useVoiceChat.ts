@@ -188,8 +188,30 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
         case "carousel_generating": {
           const placeholderId = `carousel_gen_${msg.carousel_id}`;
           const numSlides = msg.num_slides ?? 0;
-          const placeholderText = `__CAROUSEL_GENERATING__${JSON.stringify({ carousel_id: msg.carousel_id, num_slides: numSlides })}`;
+          const placeholderText = `__CAROUSEL_GENERATING__${JSON.stringify({ carousel_id: msg.carousel_id, num_slides: numSlides, slides_done: 0 })}`;
           setMessages((prev) => [...prev, { id: placeholderId, role: "agent", text: placeholderText, timestamp: new Date() }]);
+          break;
+        }
+
+        case "slide_done": {
+          const carouselId = msg.carousel_id;
+          const slideIndex = msg.slide_index ?? 0;
+          setMessages((prev) => {
+            const genIdx = prev.findIndex((m) => m.id === `carousel_gen_${carouselId}`);
+            if (genIdx < 0) return prev;
+            try {
+              const existing = JSON.parse(prev[genIdx].text.slice("__CAROUSEL_GENERATING__".length));
+              const done = Math.max(existing.slides_done ?? 0, slideIndex + 1);
+              const updated = [...prev];
+              updated[genIdx] = {
+                ...updated[genIdx],
+                text: `__CAROUSEL_GENERATING__${JSON.stringify({ ...existing, slides_done: done })}`,
+              };
+              return updated;
+            } catch {
+              return prev;
+            }
+          });
           break;
         }
 

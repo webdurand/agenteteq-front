@@ -83,7 +83,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   }[state];
 
   return (
-    <div className="h-screen w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300 relative">
+    <div className="h-screen-safe w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
       
       {/* Topbar */}
       <header className="flex-shrink-0 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between z-20 bg-surface">
@@ -163,18 +163,18 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-20 lg:pb-8 overflow-y-auto lg:overflow-hidden z-10">
+      <main className="flex-1 flex flex-col px-4 lg:px-8 lg:pb-8 overflow-hidden min-h-0 z-10">
         
         <SubscriptionBanner token={token} planActive={user.plan_active} status={user.subscription_status || 'unknown'} />
 
         <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-8 min-h-0">
           {/* Left Sidebar - Tasks (Hidden on mobile if not active tab) */}
-          <div className={`lg:flex lg:w-80 flex-shrink-0 flex-col h-full ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
+          <div className={`lg:flex lg:w-80 lg:flex-shrink-0 flex-col min-h-0 h-full ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
             <Sidebar token={token} />
           </div>
           
           {/* Center Area: Voice OR Chat */}
-          <div className={`flex-col lg:flex lg:flex-1 h-full relative flex-shrink-0 rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line ${(activeTab === 'voice' || activeTab === 'chat') ? 'flex' : 'hidden'}`}>
+          <div className={`flex-col lg:flex lg:flex-1 h-full min-h-0 relative rounded-3xl overflow-hidden bg-surface-up shadow-2xl border border-line ${(activeTab === 'voice' || activeTab === 'chat') ? 'flex' : 'hidden'}`}>
             
             {/* Desktop Mode Toggle inside the box */}
             <div className="hidden lg:flex absolute top-4 left-1/2 -translate-x-1/2 z-20 justify-center">
@@ -256,7 +256,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)] z-20">
+      <div className="lg:hidden flex-shrink-0 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]">
         <div className="flex justify-around items-center h-16 px-2">
           <button 
             onClick={() => setActiveTab("tasks")}
