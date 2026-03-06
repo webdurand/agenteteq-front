@@ -13,6 +13,41 @@ const displayToCents = (display: string) => {
   return parseInt(digits || "0", 10);
 };
 
+const CONFIG_TOOLTIPS: Record<string, string> = {
+  max_concurrent_images: "Quantas imagens podem ser geradas ao mesmo tempo dentro de um único carrossel. Valor baixo = menos memória usada, mas o carrossel demora mais. Ex: 3 significa que dos 8 slides, 3 são gerados em paralelo.",
+  max_image_workers: "Número de threads dedicadas à API do Gemini para gerar imagens. Impacta diretamente o uso de CPU/RAM. Se o servidor dá OOM, reduza esse valor.",
+  max_global_processing: "Quantas tasks (carrosséis/edições) podem ser processadas ao mesmo tempo no servidor inteiro. Se houver 3 processando e chegar a 4ª, ela espera na fila.",
+  task_timeout_minutes: "Tempo máximo que uma task pode ficar 'processando' antes de ser considerada travada e re-enfileirada. Se suas gerações demoram mais de 5 min, aumente.",
+  max_tasks_per_user: "Quantos pedidos simultâneos (pendentes + processando) um usuário pode ter. Evita que um usuário monopolize a fila. Ex: 2 = no máximo 2 carrosséis na fila ao mesmo tempo.",
+  max_tasks_per_user_daily: "Limite de gerações de imagens por dia por usuário. Controla o custo da API do Gemini. Quando atinge, o usuário recebe uma mensagem e só pode usar novamente no dia seguinte.",
+};
+
+type ConfigCategory = "infra" | "plan";
+const CONFIG_CATEGORY: Record<string, ConfigCategory> = {
+  max_concurrent_images: "infra",
+  max_image_workers: "infra",
+  max_global_processing: "infra",
+  task_timeout_minutes: "infra",
+  max_tasks_per_user: "plan",
+  max_tasks_per_user_daily: "plan",
+};
+
+function Tooltip({ text }: { text: string }) {
+  return (
+    <div className="group relative inline-block ml-1.5 cursor-help">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-content-4 hover:text-accent transition-colors">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 rounded-xl bg-surface-up border border-line shadow-lg text-xs text-content-2 leading-relaxed pointer-events-none">
+        {text}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-surface-up border-r border-b border-line rotate-45" />
+      </div>
+    </div>
+  );
+}
+
 interface AdminDashboardProps {
   token: string;
   onLogout: () => void;
@@ -43,7 +78,7 @@ function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
 export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardProps) {
   const { dark, toggle } = useTheme();
   const { showToast } = useToast();
-  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios">("negocio");
+  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios" | "sistema">("negocio");
 
   const [businessData, setBusinessData] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
@@ -51,6 +86,14 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const [toolsData, setToolsData] = useState<any[]>([]);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [subsData, setSubsData] = useState<any[]>([]);
+  
+  const [systemQueue, setSystemQueue] = useState<any>(null);
+  const [systemConfigs, setSystemConfigs] = useState<any>({});
+  const [systemTasks, setSystemTasks] = useState<any[]>([]);
+  const [systemMetrics, setSystemMetrics] = useState<any>(null);
+  const [metricsDays, setMetricsDays] = useState(7);
+  const [selectedPlan, setSelectedPlan] = useState<"trial" | "paid">("trial");
+  
   const [searchUser, setSearchUser] = useState("");
   const [newAdminPhone, setNewAdminPhone] = useState("");
   const [manualSubPhone, setManualSubPhone] = useState("");
@@ -69,7 +112,28 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
   useEffect(() => {
     fetchAdminData();
-  }, [tab]);
+    
+    let interval: any;
+    if (tab === "sistema") {
+      interval = setInterval(() => {
+        fetchSystemQueueData();
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [tab, metricsDays]);
+
+  const fetchSystemQueueData = async () => {
+    try {
+      const q = await api.fetchWithAuth("/admin/system/queue", { token });
+      setSystemQueue(q);
+      const t = await api.fetchWithAuth("/admin/system/tasks?limit=10", { token });
+      setSystemTasks(t.tasks || []);
+    } catch (e) {
+      console.error("Erro no polling da fila", e);
+    }
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -85,6 +149,17 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       } else if (tab === "saude") {
         const health = await api.fetchWithAuth("/admin/health/summary", { token });
         setHealthData(health);
+      } else if (tab === "sistema") {
+        const [q, c, t, m] = await Promise.all([
+          api.fetchWithAuth("/admin/system/queue", { token }),
+          api.fetchWithAuth("/admin/system/config", { token }),
+          api.fetchWithAuth("/admin/system/tasks?limit=20", { token }),
+          api.fetchWithAuth(`/admin/system/metrics?days=${metricsDays}`, { token }),
+        ]);
+        setSystemQueue(q);
+        setSystemConfigs(c);
+        setSystemTasks(t.tasks || []);
+        setSystemMetrics(m);
       } else if (tab === "admins" || tab === "usuarios") {
         const usrs = await api.fetchWithAuth("/admin/business/users", { token });
         setUsersData(usrs);
@@ -256,6 +331,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             Negócio
           </button>
           <button 
+            onClick={() => setTab("sistema")}
+            className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "sistema" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
+          >
+            Sistema / Fila
+          </button>
+          <button 
             onClick={() => setTab("saude")}
             className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "saude" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
           >
@@ -322,6 +403,247 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {tab === "sistema" && (
+            <div className="max-w-6xl mx-auto space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-light text-content">Sistema e Fila</h2>
+                <div className="flex gap-2 items-center">
+                  <span className="text-xs text-content-4">Período:</span>
+                  <select 
+                    className="bg-surface-card border border-line text-sm rounded-lg px-3 py-1 text-content"
+                    value={metricsDays}
+                    onChange={e => setMetricsDays(parseInt(e.target.value))}
+                  >
+                    <option value={1}>Hoje</option>
+                    <option value={7}>Últimos 7 dias</option>
+                    <option value={30}>Últimos 30 dias</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Fila Real-time */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Fila em Tempo Real</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wider text-content-3">Na Fila</span>
+                    <span className="text-2xl font-light text-accent">{systemQueue?.pending || 0}</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wider text-content-3">Processando</span>
+                    <span className="text-2xl font-light text-orange-500">{systemQueue?.processing || 0}</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wider text-content-3">Concluídas (24h)</span>
+                    <span className="text-2xl font-light text-green-500">{systemQueue?.done_today || 0}</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wider text-content-3">Falhas (24h)</span>
+                    <span className="text-2xl font-light text-red-500">{systemQueue?.failed_today || 0}</span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wider text-content-3">Tempo Médio</span>
+                    <span className="text-2xl font-light text-content">{systemQueue?.avg_wait || 0}s</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Infraestrutura (global) */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Infraestrutura (Global)</h3>
+                <div className="bg-surface-card border border-line rounded-2xl p-4 space-y-4">
+                  {Object.entries(systemConfigs)
+                    .filter(([key]) => {
+                      const base = key.split(":")[0];
+                      return CONFIG_CATEGORY[base] === "infra";
+                    })
+                    .map(([key, val]: any) => (
+                      <div key={key} className="flex flex-col gap-1">
+                        <div className="flex items-center">
+                          <label className="text-xs text-content font-mono">{key}</label>
+                          {CONFIG_TOOLTIPS[key] && <Tooltip text={CONFIG_TOOLTIPS[key]} />}
+                        </div>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            className="flex-1 bg-surface border border-line rounded-lg px-3 py-1.5 text-sm text-content focus:border-accent outline-none"
+                            value={val}
+                            onChange={(e) => setSystemConfigs({...systemConfigs, [key]: e.target.value})}
+                          />
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await api.fetchWithAuth("/admin/system/config", {
+                                  method: "PUT", token, body: JSON.stringify({ key, value: systemConfigs[key] })
+                                });
+                                showToast("Salvo", "success");
+                              } catch(e) {
+                                showToast("Erro", "error");
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-accent/10 text-accent text-xs rounded-lg hover:bg-accent/20"
+                          >
+                            Salvar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  <div className="mt-2 p-3 bg-blue-500/10 text-blue-400 text-xs rounded-lg border border-blue-500/20">
+                    <strong>Guia de escala (eMedium 2GB):</strong> max_concurrent_images: 3 &middot; max_image_workers: 4 &middot; max_global_processing: 3
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Limites por Plano */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-medium tracking-wide text-content-2">Limites por Plano</h3>
+                    <div className="flex bg-surface border border-line rounded-lg overflow-hidden">
+                      <button 
+                        onClick={() => setSelectedPlan("trial")}
+                        className={`px-4 py-1.5 text-xs font-medium tracking-wide transition-colors ${selectedPlan === "trial" ? "bg-accent/15 text-accent" : "text-content-3 hover:text-content"}`}
+                      >
+                        Free / Trial
+                      </button>
+                      <button 
+                        onClick={() => setSelectedPlan("paid")}
+                        className={`px-4 py-1.5 text-xs font-medium tracking-wide transition-colors ${selectedPlan === "paid" ? "bg-accent/15 text-accent" : "text-content-3 hover:text-content"}`}
+                      >
+                        Pago (R$19,90)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 space-y-4">
+                    {Object.entries(systemConfigs)
+                      .filter(([key]) => {
+                        const base = key.split(":")[0];
+                        return CONFIG_CATEGORY[base] === "plan" && key.endsWith(`:${selectedPlan}`);
+                      })
+                      .map(([key, val]: any) => {
+                        const base = key.split(":")[0];
+                        return (
+                          <div key={key} className="flex flex-col gap-1">
+                            <div className="flex items-center">
+                              <label className="text-xs text-content font-mono">{base}</label>
+                              {CONFIG_TOOLTIPS[base] && <Tooltip text={CONFIG_TOOLTIPS[base]} />}
+                            </div>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                className="flex-1 bg-surface border border-line rounded-lg px-3 py-1.5 text-sm text-content focus:border-accent outline-none"
+                                value={val}
+                                onChange={(e) => setSystemConfigs({...systemConfigs, [key]: e.target.value})}
+                              />
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await api.fetchWithAuth("/admin/system/config", {
+                                      method: "PUT", token, body: JSON.stringify({ key, value: systemConfigs[key] })
+                                    });
+                                    showToast("Salvo", "success");
+                                  } catch(e) {
+                                    showToast("Erro", "error");
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-accent/10 text-accent text-xs rounded-lg hover:bg-accent/20"
+                              >
+                                Salvar
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {Object.entries(systemConfigs)
+                      .filter(([key]) => {
+                        const base = key.split(":")[0];
+                        return CONFIG_CATEGORY[base] === "plan" && key.endsWith(`:${selectedPlan}`);
+                      }).length === 0 && (
+                        <div className="text-sm text-content-4 italic">Nenhum limite configurado para este plano.</div>
+                      )}
+                    <div className="mt-2 p-3 bg-amber-500/10 text-amber-400 text-xs rounded-lg border border-amber-500/20">
+                      {selectedPlan === "trial" 
+                        ? "Plano gratuito / trial. Limites mais restritivos para controlar custo."
+                        : "Plano pago (R$19,90/mês). Limites mais generosos para quem assina."
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Consumidores */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium tracking-wide text-content-2">Top Consumidores de Imagens</h3>
+                  <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
+                    {systemMetrics?.user_usage?.map((u: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-4 border-b border-line/50 last:border-0">
+                        <span className="text-sm text-content font-mono">{u.user_id}</span>
+                        <span className="text-sm font-mono text-content-3 bg-surface px-2 py-1 rounded-md">{u.generates} imgs</span>
+                      </div>
+                    ))}
+                    {!systemMetrics?.user_usage?.length && <div className="p-4 text-sm text-content-4">Sem dados no período</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Tasks */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Tasks Recentes (Fila)</h3>
+                <div className="bg-surface-card border border-line rounded-2xl overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead>
+                      <tr className="border-b border-line/50 text-content-3 text-xs uppercase tracking-wider">
+                        <th className="p-4 font-medium">Status</th>
+                        <th className="p-4 font-medium">Tipo</th>
+                        <th className="p-4 font-medium">Usuário</th>
+                        <th className="p-4 font-medium">Criado</th>
+                        <th className="p-4 font-medium">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-content">
+                      {systemTasks.map((t: any) => (
+                        <tr key={t.id} className="border-b border-line/10 hover:bg-surface/50">
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded-md text-[10px] uppercase tracking-wider ${
+                              t.status === 'done' ? 'bg-green-500/10 text-green-500' :
+                              t.status === 'processing' ? 'bg-orange-500/10 text-orange-500' :
+                              t.status === 'failed' ? 'bg-red-500/10 text-red-500' :
+                              'bg-content-3/10 text-content-3'
+                            }`}>
+                              {t.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-content-2 font-mono text-xs">{t.task_type}</td>
+                          <td className="p-4 font-mono text-xs">{t.user_id}</td>
+                          <td className="p-4 text-content-3 text-xs">{new Date(t.created_at).toLocaleString()}</td>
+                          <td className="p-4">
+                            {t.status === 'failed' && (
+                              <button onClick={async () => {
+                                await api.fetchWithAuth(`/admin/system/tasks/${t.id}/retry`, { method: 'POST', token });
+                                fetchSystemQueueData();
+                              }} className="text-accent text-xs hover:underline mr-3">Retry</button>
+                            )}
+                            {(t.status === 'pending' || t.status === 'processing') && (
+                              <button onClick={async () => {
+                                await api.fetchWithAuth(`/admin/system/tasks/${t.id}/cancel`, { method: 'POST', token });
+                                fetchSystemQueueData();
+                              }} className="text-red-500 text-xs hover:underline">Cancelar</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {systemTasks.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-content-4 italic">Nenhuma task encontrada</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           )}
 
