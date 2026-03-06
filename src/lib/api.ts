@@ -161,9 +161,13 @@ export async function fetchWithAuth(endpoint: string, options: { token: string; 
   return fetchApi(endpoint, reqOptions);
 }
 
-export async function fetchTasks(token: string, status?: string) {
-  const url = status ? `/api/tasks?status=${status}` : "/api/tasks";
-  return fetchApi(url, {
+export async function fetchTasks(token: string, status?: string, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const qs = params.toString();
+  return fetchApi(`/api/tasks${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -194,9 +198,13 @@ export async function deleteTask(token: string, id: number) {
 
 // --- Reminders ---
 
-export async function fetchReminders(token: string, status?: string) {
-  const url = status ? `/api/reminders?status=${status}` : "/api/reminders";
-  return fetchApi(url, {
+export async function fetchReminders(token: string, status?: string, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const qs = params.toString();
+  return fetchApi(`/api/reminders${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });

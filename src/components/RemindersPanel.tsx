@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useReminders, type Reminder, type ReminderFilter } from "../hooks/useReminders";
 import { Skeleton } from "./ui/Skeleton";
 
@@ -100,8 +100,24 @@ function TriggerTypeBadge({ type }: { type: string }) {
   );
 }
 
-function StatusDot({ status }: { status: string }) {
-  if (status === "fired") {
+function isEffectivelyFired(r: Reminder): boolean {
+  if (r.status === "fired") return true;
+  if (r.trigger_type === "date" && r.status === "active" && !r.next_run_str) {
+    const cfg = r.trigger_config || {};
+    if (cfg.minutes_from_now) {
+      const created = new Date(r.created_at).getTime();
+      const expectedFire = created + cfg.minutes_from_now * 60_000;
+      return Date.now() > expectedFire + 60_000;
+    }
+    if (cfg.run_date) {
+      return Date.now() > new Date(cfg.run_date).getTime() + 60_000;
+    }
+  }
+  return false;
+}
+
+function StatusDot({ status, effectivelyFired }: { status: string; effectivelyFired: boolean }) {
+  if (status === "fired" || effectivelyFired) {
     return (
       <span className="w-4 h-4 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0" title="Concluído">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-green-400">
@@ -116,7 +132,8 @@ function StatusDot({ status }: { status: string }) {
 function ReminderCard({ r, onRemove }: { r: Reminder; onRemove: (id: number) => void }) {
   const nextRun = formatNextRun(r.next_run_str);
   const channel = channelLabels[r.notification_channel] || { label: r.notification_channel, icon: "📨" };
-  const isFired = r.status === "fired";
+  const effectivelyDone = isEffectivelyFired(r);
+  const isFired = r.status === "fired" || effectivelyDone;
 
   return (
     <div className={`p-4 rounded-xl border group relative transition-all ${
@@ -137,7 +154,7 @@ function ReminderCard({ r, onRemove }: { r: Reminder; onRemove: (id: number) => 
       )}
 
       <div className="flex items-center gap-2 mb-2">
-        <StatusDot status={r.status} />
+        <StatusDot status={r.status} effectivelyFired={effectivelyDone} />
         <TriggerTypeBadge type={r.trigger_type} />
         <span className="text-[10px] text-content-4 ml-auto">{timeAgo(r.created_at)}</span>
       </div>
@@ -167,12 +184,12 @@ function ReminderCard({ r, onRemove }: { r: Reminder; onRemove: (id: number) => 
           </span>
         )}
 
-        {isFired && r.updated_at && (
+        {isFired && (
           <span className="flex items-center gap-1 text-green-400">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-60">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Disparado {timeAgo(r.updated_at)}
+            {r.updated_at ? `Disparado ${timeAgo(r.updated_at)}` : "Concluído"}
           </span>
         )}
 
@@ -329,8 +346,9 @@ function CreateForm({ onAdd, onClose }: { onAdd: (data: any) => void; onClose: (
 }
 
 export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token: string; isMinimized: boolean; onToggleMinimize: () => void }) {
-  const { reminders, loading, filter, setFilter, addReminder, removeReminder } = useReminders(token);
+  const { reminders, loading, loadingMore, hasMore, loadMore, filter, setFilter, addReminder, removeReminder } = useReminders(token);
   const [showForm, setShowForm] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeCount = reminders.filter(r => r.status === "active").length;
   const firedCount = reminders.filter(r => r.status === "fired").length;
@@ -401,7 +419,15 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
             />
           )}
 
-          <div className="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-3">
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-3"
+            onScroll={() => {
+              const el = scrollRef.current;
+              if (!el || loadingMore || !hasMore) return;
+              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) loadMore();
+            }}
+          >
             {loading && reminders.length === 0 ? (
               <div className="space-y-3">
                 {[0, 1, 2].map(i => <ReminderSkeleton key={i} delay={i * 100} />)}
@@ -421,7 +447,14 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
                 )}
               </div>
             ) : (
-              reminders.map(r => <ReminderCard key={r.id} r={r} onRemove={removeReminder} />)
+              <>
+                {reminders.map(r => <ReminderCard key={r.id} r={r} onRemove={removeReminder} />)}
+                {loadingMore && (
+                  <div className="flex justify-center py-3">
+                    <span className="text-[10px] text-content-3 animate-pulse">Carregando mais...</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

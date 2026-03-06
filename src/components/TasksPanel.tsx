@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTasks, type Task } from "../hooks/useTasks";
 import { Skeleton } from "./ui/Skeleton";
 
 export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: string, isMinimized: boolean, onToggleMinimize: () => void }) {
-  const { tasks, loading, addTask, toggleTask, removeTask } = useTasks(token);
+  const { tasks, loading, loadingMore, hasMore, loadMore, addTask, toggleTask, removeTask } = useTasks(token);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const pendingTasks = tasks.filter((t) => t.status === "pending");
   const doneTasks = tasks.filter((t) => t.status === "done");
@@ -43,7 +44,15 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
             />
           </form>
 
-          <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4">
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto scrollbar-thin pr-2 space-y-4"
+            onScroll={() => {
+              const el = scrollRef.current;
+              if (!el || loadingMore || !hasMore) return;
+              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) loadMore();
+            }}
+          >
             {loading && tasks.length === 0 ? (
               <div className="space-y-4">
                 {[
@@ -68,6 +77,11 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
                   <div className="mt-8">
                     <h3 className="text-xs font-medium tracking-wider uppercase text-content-3 mb-4">Concluídas</h3>
                     <TaskList items={doneTasks} onToggle={toggleTask} onRemove={removeTask} />
+                  </div>
+                )}
+                {loadingMore && (
+                  <div className="flex justify-center py-3">
+                    <span className="text-[10px] text-content-3 animate-pulse">Carregando mais...</span>
                   </div>
                 )}
               </>

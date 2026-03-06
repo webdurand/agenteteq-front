@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchTasks, createTask, updateTask, deleteTask } from "../lib/api";
 import { useWSEvent } from "./useWebSocket";
 
@@ -13,48 +13,67 @@ export interface Task {
   created_at: string;
 }
 
+const PAGE_SIZE = 30;
+
 export function useTasks(token: string | null) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const offsetRef = useRef(0);
 
-  const loadTasks = useCallback(async () => {
+  const loadTasks = useCallback(async (reset = true) => {
     if (!token) return;
     try {
-      setLoading(true);
-      const data = await fetchTasks(token, "all");
-      setTasks(data.tasks || []);
+      if (reset) {
+        setLoading(true);
+        offsetRef.current = 0;
+      } else {
+        setLoadingMore(true);
+      }
+      const data = await fetchTasks(token, "all", PAGE_SIZE, offsetRef.current);
+      const newTasks: Task[] = data.tasks || [];
+      setHasMore(data.has_more ?? false);
+      if (reset) {
+        setTasks(newTasks);
+      } else {
+        setTasks(prev => [...prev, ...newTasks]);
+      }
+      offsetRef.current += newTasks.length;
     } catch (e) {
       console.error("Erro ao carregar tasks:", e);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [token]);
 
   useEffect(() => {
-    loadTasks();
+    loadTasks(true);
   }, [loadTasks]);
 
   useWSEvent("task_updated", () => {
-    // Quando o agente ou outro cliente altera uma tarefa, recarregamos
-    loadTasks();
+    loadTasks(true);
   });
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) loadTasks(false);
+  }, [loadTasks, loadingMore, hasMore]);
 
   const addTask = async (task: Partial<Task>) => {
     if (!token) return;
     await createTask(token, task);
-    loadTasks();
+    loadTasks(true);
   };
 
   const toggleTask = async (id: number, currentStatus: "pending" | "done") => {
     if (!token) return;
     const newStatus = currentStatus === "pending" ? "done" : "pending";
-    // Atualiza otimisticamente
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
     try {
       await updateTask(token, id, { status: newStatus });
     } catch (e) {
-      // Reverte se falhar
-      loadTasks();
+      loadTasks(true);
     }
   };
 
@@ -64,13 +83,16 @@ export function useTasks(token: string | null) {
     try {
       await deleteTask(token, id);
     } catch (e) {
-      loadTasks();
+      loadTasks(true);
     }
   };
 
   return {
     tasks,
     loading,
+    loadingMore,
+    hasMore,
+    loadMore,
     loadTasks,
     addTask,
     toggleTask,
