@@ -387,20 +387,29 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Financeiro</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wider text-content-3">MRR (Receita Recorrente)</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">MRR (Receita Recorrente)</span>
+                      <Tooltip text="Receita Mensal Recorrente, soma do valor dos planos com assinaturas ativas." />
+                    </div>
                     <span className="text-3xl font-light text-green-500">{formatBRL(analyticsData?.financial?.mrr_cents || 0)}</span>
                   </div>
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Assinantes Ativos</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Assinantes Ativos</span>
+                      <Tooltip text="Total de assinaturas ativas ou em período de teste pago." />
+                    </div>
                     <span className="text-3xl font-light text-accent">{analyticsData?.financial?.active_subs || 0}</span>
                   </div>
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Status de Assinaturas</span>
-                    <div className="flex-1 -mx-4">
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Status de Assinaturas</span>
+                      <Tooltip text="Distribuição dos status das assinaturas (ativa, teste, cancelada, etc)." />
+                    </div>
+                    <div className="flex-1 -mx-4 -mt-2">
                       {analyticsData?.financial?.status_distribution?.length > 0 ? (
-                        <PieChart data={analyticsData.financial.status_distribution} height={100} />
+                        <PieChart data={analyticsData.financial.status_distribution} height={140} innerRadius={35} outerRadius={50} />
                       ) : (
-                        <div className="h-[100px] flex items-center justify-center text-xs text-content-4">Sem dados</div>
+                        <div className="h-[140px] flex items-center justify-center text-xs text-content-4">Sem dados</div>
                       )}
                     </div>
                   </div>
@@ -412,7 +421,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Engajamento de Usuários</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Usuários Ativos por Dia (DAU)</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Usuários Ativos por Dia (DAU)</span>
+                      <Tooltip text="Daily Active Users (DAU): Quantidade de usuários únicos que interagiram com o Teq a cada dia." />
+                    </div>
                     {analyticsData?.engagement?.dau?.length > 0 ? (
                       <BarChart data={analyticsData.engagement.dau} xKey="date" barKey="users" barName="Usuários" color="#3b82f6" height={250} />
                     ) : (
@@ -420,7 +432,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     )}
                   </div>
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Mensagens por Dia</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Mensagens por Dia</span>
+                      <Tooltip text="Volume diário de mensagens processadas. Recebidas são as mensagens do usuário, Enviadas são as respostas do Agente." />
+                    </div>
                     {analyticsData?.engagement?.messages_by_day?.length > 0 ? (
                       <LineChart 
                         data={analyticsData.engagement.messages_by_day} 
@@ -443,7 +458,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Uso de Features</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Top Tools (Chamadas)</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Top Tools (Chamadas)</span>
+                      <Tooltip text="Ranking das ferramentas mais utilizadas pelo agente para responder aos usuários." />
+                    </div>
                     {analyticsData?.features?.tools_ranking?.length > 0 ? (
                       <BarChart data={analyticsData.features.tools_ranking.slice(0, 5)} xKey="name" barKey="calls" barName="Chamadas" color="#f59e0b" height={250} />
                     ) : (
@@ -451,7 +469,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     )}
                   </div>
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Tendência de Tools</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Tendência de Tools</span>
+                      <Tooltip text="Evolução diária no volume de chamadas das 5 ferramentas mais populares." />
+                    </div>
                     {analyticsData?.features?.tools_trend_by_day?.length > 0 ? (
                       <LineChart 
                         data={analyticsData.features.tools_trend_by_day} 
@@ -475,13 +496,19 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Operacional ({metricsDays} dias)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Taxa de Erro (Tools)</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Taxa de Erro (Tools)</span>
+                      <Tooltip text="Proporção de falhas nas chamadas de ferramenta pelo agente no período." />
+                    </div>
                     <span className={`text-3xl font-light ${analyticsData?.operational?.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
                       {analyticsData?.operational?.error_rate || 0}%
                     </span>
                   </div>
                   <div className="md:col-span-2 p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-4">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Latência Média por Tool (ms)</span>
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Latência Média por Tool (ms)</span>
+                      <Tooltip text="Tempo médio de resposta de cada ferramenta, em milissegundos. Valores altos indicam gargalos na API externa ou no processamento." />
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {analyticsData?.operational?.latency_by_tool?.map((l: any, i: number) => (
                         <div key={i} className="px-3 py-1.5 bg-surface border border-line rounded-lg text-xs flex gap-2 items-center">
@@ -522,23 +549,38 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Fila em Tempo Real</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-content-3">Na Fila</span>
+                    <div className="flex items-center">
+                      <span className="text-[10px] uppercase tracking-wider text-content-3">Na Fila</span>
+                      <Tooltip text="Tarefas aguardando processamento no momento atual." />
+                    </div>
                     <span className="text-2xl font-light text-accent">{systemQueue?.pending || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-content-3">Processando</span>
+                    <div className="flex items-center">
+                      <span className="text-[10px] uppercase tracking-wider text-content-3">Processando</span>
+                      <Tooltip text="Tarefas sendo processadas agora pelo servidor." />
+                    </div>
                     <span className="text-2xl font-light text-orange-500">{systemQueue?.processing || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-content-3">Concluídas (24h)</span>
+                    <div className="flex items-center">
+                      <span className="text-[10px] uppercase tracking-wider text-content-3">Concluídas (24h)</span>
+                      <Tooltip text="Tarefas finalizadas com sucesso nas últimas 24 horas." />
+                    </div>
                     <span className="text-2xl font-light text-green-500">{systemQueue?.done_today || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-content-3">Falhas (24h)</span>
+                    <div className="flex items-center">
+                      <span className="text-[10px] uppercase tracking-wider text-content-3">Falhas (24h)</span>
+                      <Tooltip text="Tarefas que falharam nas últimas 24 horas." />
+                    </div>
                     <span className="text-2xl font-light text-red-500">{systemQueue?.failed_today || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-content-3">Tempo Médio</span>
+                    <div className="flex items-center">
+                      <span className="text-[10px] uppercase tracking-wider text-content-3">Tempo Médio</span>
+                      <Tooltip text="Tempo médio de espera na fila antes de uma tarefa começar a ser processada." />
+                    </div>
                     <span className="text-2xl font-light text-content">{systemQueue?.avg_wait || 0}s</span>
                   </div>
                 </div>
@@ -668,7 +710,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
                 {/* Top Consumidores */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium tracking-wide text-content-2">Top Consumidores de Imagens</h3>
+                  <div className="flex items-center">
+                    <h3 className="text-sm font-medium tracking-wide text-content-2">Top Consumidores de Imagens</h3>
+                    <Tooltip text="Usuários que mais geraram imagens com carrosséis ou edições no período selecionado." />
+                  </div>
                   <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
                     {systemMetrics?.user_usage?.map((u: any, i: number) => (
                       <div key={i} className="flex justify-between items-center p-4 border-b border-line/50 last:border-0">
@@ -683,7 +728,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
               {/* Tabela de Tasks */}
               <div className="space-y-4">
-                <h3 className="text-sm font-medium tracking-wide text-content-2">Tasks Recentes (Fila)</h3>
+                <div className="flex items-center">
+                  <h3 className="text-sm font-medium tracking-wide text-content-2">Tasks Recentes (Fila)</h3>
+                  <Tooltip text="Últimas tarefas que passaram ou estão aguardando na fila do sistema." />
+                </div>
                 <div className="bg-surface-card border border-line rounded-2xl overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
@@ -746,13 +794,19 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                  <span className="text-xs uppercase tracking-wider text-content-3">Status Geral</span>
+                  <div className="flex items-center">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Status Geral</span>
+                    <Tooltip text="Indica se os serviços principais do Teq estão operando normalmente." />
+                  </div>
                   <span className={`text-xl font-medium ${healthData?.status === 'online' ? 'text-green-500' : 'text-red-500'}`}>
                     {healthData?.status?.toUpperCase() || "CARREGANDO..."}
                   </span>
                 </div>
                 <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                  <span className="text-xs uppercase tracking-wider text-content-3">Banco de Dados</span>
+                  <div className="flex items-center">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Banco de Dados</span>
+                    <Tooltip text="Status da conexão com o banco de dados principal." />
+                  </div>
                   <span className={`text-sm ${healthData?.database === 'ok' ? 'text-green-500' : 'text-red-500'}`}>
                     {healthData?.database || "..."}
                   </span>

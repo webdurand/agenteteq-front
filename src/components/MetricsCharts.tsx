@@ -85,7 +85,7 @@ export function BarChart({ data, xKey = "name", barKey = "value", barName = "Val
   );
 }
 
-export function PieChart({ data, nameKey = "name", dataKey = "value", height = 300 }: BaseChartProps & { nameKey?: string; dataKey?: string }) {
+export function PieChart({ data, nameKey = "name", dataKey = "value", height = 300, innerRadius = "60%", outerRadius = "80%" }: BaseChartProps & { nameKey?: string; dataKey?: string; innerRadius?: number | string; outerRadius?: number | string }) {
   const { dark } = useTheme();
   const textColor = dark ? "#9ca3af" : "#6b7280";
   const tooltipBg = dark ? "#1f2937" : "#ffffff";
@@ -99,8 +99,8 @@ export function PieChart({ data, nameKey = "name", dataKey = "value", height = 3
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={80}
+            innerRadius={innerRadius}
+            outerRadius={outerRadius}
             paddingAngle={5}
             dataKey={dataKey}
             nameKey={nameKey}
