@@ -58,7 +58,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
 
   const { 
     state: classicState, messages, statusText: classicStatus, interimText, needsOnboarding, onboardingPrompt, 
-    wakeWordActive, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
+    wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
   } = useVoiceChat(token);
 
@@ -245,6 +245,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   isLoadingMore={historyLoading}
                   isInitialLoading={historyInitialLoading}
                   hasMore={historyHasMore}
+                  imageEditingPrompt={imageEditingPrompt}
                 />
               </div>
             ) : null}

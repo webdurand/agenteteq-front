@@ -48,6 +48,7 @@ export function useVoiceChat(token: string | null) {
   const [interimText, setInterimText] = useState("");
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
+  const [imageEditingPrompt, setImageEditingPrompt] = useState<string | null>(null);
   const [wakeWordActive, setWakeWordActive] = useState(false);
 
   const stateRef = useRef<ChatState>("idle");
@@ -182,8 +183,15 @@ export function useVoiceChat(token: string | null) {
           restartRecognition();
           break;
 
+        case "carousel_generating": {
+          const placeholderId = `carousel_gen_${msg.carousel_id}`;
+          const numSlides = msg.num_slides ?? 0;
+          const placeholderText = `__CAROUSEL_GENERATING__${JSON.stringify({ carousel_id: msg.carousel_id, num_slides: numSlides })}`;
+          setMessages((prev) => [...prev, { id: placeholderId, role: "agent", text: placeholderText, timestamp: new Date() }]);
+          break;
+        }
+
         case "carousel_ready": {
-          // Monta uma mensagem formatada com os slides prontos
           const slides = msg.slides ?? [];
           const lines = slides.map((s: any, i: number) => {
             const num = s.slide_number ?? (i + 1);
@@ -191,7 +199,31 @@ export function useVoiceChat(token: string | null) {
             return `**Slide ${num}${style}**\n${s.image_url}`;
           });
           const formatted = `🎨 Carrossel pronto! Confira os ${slides.length} slides:\n\n${lines.join("\n\n")}`;
-          addMessage("agent", formatted);
+          setMessages((prev) => {
+            const genIdx = prev.findIndex((m) => m.id.startsWith("carousel_gen_"));
+            if (genIdx >= 0) {
+              const updated = [...prev];
+              updated[genIdx] = { ...updated[genIdx], text: formatted };
+              return updated;
+            }
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: formatted, timestamp: new Date() }];
+          });
+          break;
+        }
+
+        case "image_editing": {
+          setImageEditingPrompt(msg.prompt ?? "");
+          break;
+        }
+
+        case "image_edit_ready": {
+          setImageEditingPrompt(null);
+          const url = msg.image_url;
+          const error = msg.error;
+          const resultText = url
+            ? `Pronto! Aqui está a imagem editada:\n${url}`
+            : `Não consegui editar a imagem: ${error || "erro desconhecido"}`;
+          addMessage("agent", resultText);
           break;
         }
       }
@@ -543,7 +575,7 @@ export function useVoiceChat(token: string | null) {
   const sendMessageText = useCallback((text: string, images?: string[]) => {
     const messageParts = [text];
     if (images && images.length > 0) {
-      images.forEach((img, i) => messageParts.push(img));
+      images.forEach((img) => messageParts.push(img));
     }
     const displayMessage = messageParts.filter(Boolean).join("\n");
     
@@ -566,6 +598,7 @@ export function useVoiceChat(token: string | null) {
     needsOnboarding,
     onboardingPrompt,
     wakeWordActive,
+    imageEditingPrompt,
     toggleListening,
     sendName,
     sendMessageText,

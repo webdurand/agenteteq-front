@@ -11,6 +11,7 @@ interface ChatPanelProps {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   isInitialLoading?: boolean;
+  imageEditingPrompt?: string | null;
 }
 
 // Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
@@ -41,7 +42,91 @@ function parseMessageContent(text: string) {
   return parts;
 }
 
+const CAROUSEL_GENERATING_PREFIX = "__CAROUSEL_GENERATING__";
+
+function ImageEditingBubble({ prompt }: { prompt: string }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 flex-shrink-0">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin" style={{ animationDuration: "2s" }}>
+                <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="2" className="text-line" />
+                <path d="M16 3a13 13 0 0 1 13 13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-accent" />
+              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-content-2">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm text-content font-medium">Editando imagem...</span>
+              {prompt && <span className="text-[11px] text-content-3 line-clamp-1">{prompt}</span>}
+              <span className="text-[10px] text-content-4 animate-pulse">Geralmente leva menos de 1 minuto</span>
+            </div>
+          </div>
+          <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
+            <div className="h-full rounded-full bg-accent/60 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: "40%" }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CarouselGeneratingBubble({ numSlides }: { numSlides: number }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 flex-shrink-0">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin" style={{ animationDuration: "2.5s" }}>
+                <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="2" className="text-line" />
+                <path d="M16 3a13 13 0 0 1 13 13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-accent" />
+              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-content-2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm text-content font-medium">Gerando {numSlides} {numSlides === 1 ? "imagem" : "imagens"}...</span>
+              <span className="text-[11px] text-content-3 animate-pulse">Isso pode levar de 1 a 3 minutos</span>
+            </div>
+          </div>
+          <div className="flex gap-1.5 mt-3">
+            {Array.from({ length: Math.min(numSlides, 6) }).map((_, i) => (
+              <div
+                key={i}
+                className="h-1.5 flex-1 rounded-full bg-line overflow-hidden"
+              >
+                <div
+                  className="h-full rounded-full bg-accent/60 animate-pulse"
+                  style={{ animationDelay: `${i * 300}ms` }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ msg }: { msg: Message }) {
+  if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(CAROUSEL_GENERATING_PREFIX.length));
+      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} />;
+    } catch {
+      return <CarouselGeneratingBubble numSlides={0} />;
+    }
+  }
+
   const isUser = msg.role === "user";
   const parts = parseMessageContent(msg.text);
 
@@ -118,7 +203,8 @@ export function ChatPanel({
   onLoadMore,
   isLoadingMore,
   hasMore,
-  isInitialLoading
+  isInitialLoading,
+  imageEditingPrompt
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -293,6 +379,10 @@ export function ChatPanel({
                {statusText}
              </div>
           </div>
+        )}
+
+        {imageEditingPrompt != null && (
+          <ImageEditingBubble prompt={imageEditingPrompt} />
         )}
         
         <div ref={bottomRef} />
