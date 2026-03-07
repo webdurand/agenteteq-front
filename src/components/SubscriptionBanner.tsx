@@ -1,17 +1,13 @@
 import { useState } from 'react';
-import { fetchWithAuth } from '../lib/api';
 import { Spinner } from './ui/Spinner';
 
-export const SubscriptionBanner = ({ token, planActive, status }: { token: string, planActive: boolean, status: string }) => {
+export const SubscriptionBanner = ({ planActive, status, onManageBilling }: { planActive: boolean, status: string, onManageBilling?: () => void }) => {
   const [loading, setLoading] = useState(false);
 
   const handlePortal = async () => {
     setLoading(true);
     try {
-      const data = await fetchWithAuth('/billing/portal', { token, method: 'POST' });
-      window.location.href = data.url;
-    } catch (e) {
-      console.error(e);
+      onManageBilling?.();
     } finally {
       setLoading(false);
     }
@@ -40,7 +36,7 @@ export const SubscriptionBanner = ({ token, planActive, status }: { token: strin
               className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 text-sm font-medium rounded transition-colors flex items-center gap-2"
             >
               {loading && <Spinner size="sm" colorClass="border-yellow-500/30 border-t-yellow-500" />}
-              {loading ? 'Aguarde...' : 'Atualizar Cartão'}
+              {loading ? 'Aguarde...' : 'Gerenciar cobrança'}
             </button>
           ) : (
             <button

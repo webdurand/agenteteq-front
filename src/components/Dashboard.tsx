@@ -5,13 +5,17 @@ import { Sidebar } from "./Sidebar";
 import { ChatPanel } from "./ChatPanel";
 import { BlogPreviewModal } from "./BlogPreviewModal";
 import { OnboardingModal } from "./OnboardingModal";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SubscriptionStatus } from "./SubscriptionStatus";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { AccountSettingsModal } from "./AccountSettingsModal";
 import { CheckoutModal } from "./CheckoutModal";
 import type { UserInfo } from "../hooks/useAuth";
 import { ThemeToggle } from "./ui/ThemeToggle";
+import * as api from "../lib/api";
+import { ProductOnboardingModal } from "./ProductOnboardingModal";
+import { useProductTourPreferences } from "../hooks/useProductTourPreferences";
+import { CampaignPopupModal } from "./CampaignPopupModal";
 
 interface DashboardProps {
   token: string;
@@ -27,6 +31,18 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<"voice" | "chat" | "tasks">("chat");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [productOnboardingOpen, setProductOnboardingOpen] = useState(false);
+  const [showLimitsHighlight, setShowLimitsHighlight] = useState(false);
+  const [limitsExpanded, setLimitsExpanded] = useState(false);
+  const [limits, setLimits] = useState<{
+    plan_name: "free" | "premium";
+    runs_limit: number;
+    runs_used: number;
+    runs_remaining: number;
+    resets_at: string | null;
+  } | null>(null);
+  const [campaign, setCampaign] = useState<any | null>(null);
+  const [campaignOpen, setCampaignOpen] = useState(false);
 
   const openCheckout = (priceId?: string) => {
     setAccountOpen(false);
@@ -36,9 +52,14 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const isLive = import.meta.env.VITE_VOICE_REALTIME === "true";
 
   const voiceActive = activeTab === "voice";
+  const userStorageKey = useMemo(
+    () => (user.email || user.phone_number || "default").toLowerCase(),
+    [user.email, user.phone_number],
+  );
+  const { completed, hiddenByUser, markCompleted, resetTour } = useProductTourPreferences(userStorageKey);
 
   const { 
-    state: classicState, messages, statusText: classicStatus, interimText, voiceResponse,
+    state: classicState, messages, statusText: classicStatus,
     needsOnboarding, onboardingPrompt, 
     wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
@@ -59,6 +80,117 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     thinking: "Pensando",
     speaking: "Falando",
   }[state];
+  const limitsProgress = limits && limits.runs_limit > 0
+    ? Math.min(100, Math.max(0, Math.round((limits.runs_used / limits.runs_limit) * 100)))
+    : 0;
+
+  useEffect(() => {
+    let mounted = true;
+    api.getUsageLimits(token)
+      .then((data) => {
+        if (!mounted) return;
+        setLimits(data);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setLimits(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (needsOnboarding) return;
+    if (!completed && !hiddenByUser) {
+      setProductOnboardingOpen(true);
+    }
+  }, [completed, hiddenByUser, needsOnboarding]);
+
+  useEffect(() => {
+    if (needsOnboarding || productOnboardingOpen) return;
+    let mounted = true;
+    api.getActiveCampaign(token)
+      .then((res) => {
+        if (!mounted) return;
+        setCampaign(res?.campaign || null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setCampaign(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [token, needsOnboarding, productOnboardingOpen]);
+
+  useEffect(() => {
+    if (!campaign || needsOnboarding || productOnboardingOpen) return;
+
+    const campaignKey = `teq_campaign_seen_${userStorageKey}_${campaign.id}`;
+    const sessionKey = `teq_campaign_session_seen_${campaign.id}`;
+    const seenRaw = localStorage.getItem(campaignKey);
+    let seen: any = null;
+    if (seenRaw) {
+      try {
+        seen = JSON.parse(seenRaw);
+      } catch {
+        seen = null;
+      }
+    }
+    const now = Date.now();
+    const frequency = campaign.frequency || "once";
+
+    let shouldOpen = false;
+
+    if (frequency === "once") {
+      shouldOpen = !seen;
+    } else if (frequency === "per_session") {
+      shouldOpen = !sessionStorage.getItem(sessionKey);
+    } else if (frequency === "daily") {
+      const lastShownAt = seen?.lastShownAt ? Number(seen.lastShownAt) : 0;
+      shouldOpen = !lastShownAt || now - lastShownAt >= 24 * 60 * 60 * 1000;
+    }
+
+    setCampaignOpen(shouldOpen);
+  }, [campaign, needsOnboarding, productOnboardingOpen, userStorageKey]);
+
+  useEffect(() => {
+    if (!showLimitsHighlight) return;
+    const timer = setTimeout(() => setShowLimitsHighlight(false), 4500);
+    return () => clearTimeout(timer);
+  }, [showLimitsHighlight]);
+
+  const markCampaignSeen = (currentCampaign: any) => {
+    const campaignKey = `teq_campaign_seen_${userStorageKey}_${currentCampaign.id}`;
+    const sessionKey = `teq_campaign_session_seen_${currentCampaign.id}`;
+    const now = Date.now();
+    localStorage.setItem(campaignKey, JSON.stringify({ lastShownAt: now }));
+    sessionStorage.setItem(sessionKey, "1");
+  };
+
+  const handleCloseCampaign = () => {
+    if (campaign) markCampaignSeen(campaign);
+    setCampaignOpen(false);
+  };
+
+  const handleFinishProductOnboarding = (hideNextTimes: boolean) => {
+    markCompleted(hideNextTimes);
+    setProductOnboardingOpen(false);
+  };
+
+  const handleSeeLimits = () => {
+    setShowLimitsHighlight(true);
+    setLimitsExpanded(true);
+    markCompleted(false);
+    setProductOnboardingOpen(false);
+  };
+
+  const handleReplayOnboarding = () => {
+    resetTour();
+    setAccountOpen(false);
+    setProductOnboardingOpen(true);
+  };
 
   return (
     <div className="h-screen-safe w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
@@ -69,6 +201,45 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
           <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content">TEQ</h1>
           <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block">Dashboard</span>
           <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
+          {limits && (
+            <div className="relative">
+              <button
+                onClick={() => setLimitsExpanded((prev) => !prev)}
+                className={`px-2.5 py-1 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
+                  showLimitsHighlight
+                    ? "border-accent text-accent bg-accent/10"
+                    : "border-line text-content-3 hover:text-content"
+                }`}
+              >
+                <span>Runs {limits.runs_remaining}/{limits.runs_limit}</span>
+                <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
+              </button>
+
+              {limitsExpanded && (
+                <div className="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-line bg-surface-up shadow-xl p-3 z-50">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
+                    <p className="text-xs text-content">{limits.plan_name === "premium" ? "Premium" : "Free Tier"}</p>
+                  </div>
+                  <p className="mt-2 text-sm text-content-2">Runs restantes</p>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-surface border border-line overflow-hidden">
+                    <div className="h-full bg-accent transition-all" style={{ width: `${limitsProgress}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-content-3">
+                    {limits.runs_remaining}/{limits.runs_limit} • {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : "Sem previsão"}
+                  </p>
+                  {limits.plan_name === "free" && (
+                    <button
+                      onClick={() => openCheckout()}
+                      className="mt-2.5 w-full px-3 py-2 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
+                    >
+                      Ganhar mais limites
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
         {/* Mobile Menu Toggle */}
@@ -143,8 +314,11 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       {/* Main Layout */}
       <main className="flex-1 flex flex-col px-4 lg:px-8 pb-2 lg:pb-8 overflow-hidden min-h-0 z-10">
         
-        <SubscriptionBanner token={token} planActive={user.plan_active} status={user.subscription_status || 'unknown'} />
-
+        <SubscriptionBanner
+          planActive={user.plan_active}
+          status={user.subscription_status || 'unknown'}
+          onManageBilling={() => setAccountOpen(true)}
+        />
         <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-8 min-h-0">
           {/* Left Sidebar - Tasks (Hidden on mobile if not active tab) */}
           <div className={`lg:flex lg:w-80 lg:flex-shrink-0 flex-col min-h-0 h-full ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
@@ -207,14 +381,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                     )}
                   </div>
                   
-                  {state === "listening" && interimText ? (
-                    <div className="mt-2 max-w-md mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
-                      <p className="text-content-2 text-sm leading-relaxed italic">{interimText}</p>
-                    </div>
-                  ) : voiceResponse && state !== "listening" ? (
-                    <div className="mt-2 max-w-lg mx-4 px-6 py-3 rounded-2xl bg-glass backdrop-blur-md border border-line">
-                      <p className="text-content-2 text-sm leading-relaxed">{voiceResponse}</p>
-                    </div>
+                  {statusText && state !== "idle" ? (
+                    <p className="text-content-3 text-xs tracking-wider mt-1">{statusText}</p>
                   ) : null}
                 </div>
               </div>
@@ -280,7 +448,39 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       {needsOnboarding && (
         <OnboardingModal prompt={onboardingPrompt} onSubmit={sendName} />
       )}
-      <AccountSettingsModal token={token} user={user} open={accountOpen} onClose={() => setAccountOpen(false)} onOpenCheckout={openCheckout} />
+      <ProductOnboardingModal
+        open={!needsOnboarding && productOnboardingOpen}
+        onFinish={handleFinishProductOnboarding}
+        onOpenCheckout={(hideNextTimes) => {
+          markCompleted(hideNextTimes);
+          setProductOnboardingOpen(false);
+          openCheckout();
+        }}
+        onSeeLimits={handleSeeLimits}
+      />
+      <CampaignPopupModal
+        open={campaignOpen && !needsOnboarding && !productOnboardingOpen}
+        campaign={campaign}
+        onClose={handleCloseCampaign}
+        onOpenCheckout={() => {
+          if (campaign) markCampaignSeen(campaign);
+          setCampaignOpen(false);
+          openCheckout();
+        }}
+        onOpenAccount={() => {
+          if (campaign) markCampaignSeen(campaign);
+          setCampaignOpen(false);
+          setAccountOpen(true);
+        }}
+      />
+      <AccountSettingsModal
+        token={token}
+        user={user}
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onOpenCheckout={openCheckout}
+        onReplayOnboarding={handleReplayOnboarding}
+      />
       <CheckoutModal token={token} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} priceId={checkoutPriceId} onPaymentSuccess={onRefreshUser} />
       <BlogPreviewModal />
     </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream } from "../lib/audioCtx";
+import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream, hasUserGestured } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
 
 export type LiveChatState = "idle" | "listening" | "thinking" | "speaking";
@@ -56,11 +56,15 @@ export function useVoiceLive(token: string | null) {
   const stateRef = useRef<LiveChatState>("idle");
   const wsRef = useRef<WebSocket | null>(null);
   const playerRef = useRef<AudioStreamPlayer | null>(null);
-  const micProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const micProcessorRef = useRef<ScriptProcessorNode | AudioWorkletNode | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const isCapturingRef = useRef(false);
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
   const setStateSync = (s: LiveChatState) => {
+    if (stateRef.current === "thinking" && s !== "thinking") {
+      sfx.stopThinking();
+    }
     stateRef.current = s;
     setState(s);
   };
@@ -83,7 +87,11 @@ export function useVoiceLive(token: string | null) {
 
     ws.onopen = () => {
       console.log("[VOICE LIVE] WebSocket conectado");
-      startMicCapture(); // tenta iniciar captura assim que conecta
+      if (hasUserGestured()) {
+        startMicCapture();
+      } else {
+        console.log("[VOICE LIVE] Aguardando gesto do usuário para iniciar mic");
+      }
     };
 
     ws.onmessage = (event) => {
@@ -140,8 +148,28 @@ export function useVoiceLive(token: string | null) {
     };
   }, [token, connectWs]);
 
-  // Usamos ScriptProcessorNode por simplicidade no React (deprecated mas funciona bem)
-  // O ideal seria AudioWorklet, mas ScriptProcessor e mto mais facil de integrar inline.
+  const sendPcmChunk = useCallback((pcmBuffer: ArrayBuffer) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+    const pcmData = new Int16Array(pcmBuffer);
+    if (stateRef.current === "speaking") {
+      let sum = 0;
+      for (let i = 0; i < pcmData.length; i++) sum += pcmData[i] * pcmData[i];
+      const rmsVal = Math.sqrt(sum / pcmData.length) / 32768;
+      if (rmsVal > 0.05) {
+        playerRef.current?.stop();
+        setStateSync("listening");
+        setStatusText("Ouvindo...");
+        wsRef.current.send(JSON.stringify({ type: "cancel" }));
+      }
+    }
+
+    const bytes = new Uint8Array(pcmBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    wsRef.current.send(JSON.stringify({ type: "audio_chunk", data: btoa(binary) }));
+  }, []);
+
   const startMicCapture = async () => {
     if (isCapturingRef.current) return;
     try {
@@ -156,85 +184,75 @@ export function useVoiceLive(token: string | null) {
       }
 
       const source = ctx.createMediaStreamSource(stream);
-      // O modelo espera 16kHz. O ctx pode estar em 44.1 ou 48kHz.
-      // Vamos fazer um downsample simples.
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      
-      processor.onaudioprocess = (e) => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        
-        const inputData = e.inputBuffer.getChannelData(0);
-        const inputSampleRate = ctx.sampleRate;
-        const targetSampleRate = 16000;
-        
-        // Simples downsample ignorando low-pass filter (aceitavel pra voz falada)
-        const ratio = inputSampleRate / targetSampleRate;
-        const outLength = Math.floor(inputData.length / ratio);
-        const pcmData = new Int16Array(outLength);
-        
-        for (let i = 0; i < outLength; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[Math.floor(i * ratio)]));
-          pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      micSourceRef.current = source;
+
+      const useWorklet = typeof ctx.audioWorklet !== "undefined";
+
+      if (useWorklet) {
+        try {
+          await ctx.audioWorklet.addModule("/mic-processor.js");
+          const workletNode = new AudioWorkletNode(ctx, "mic-processor");
+          workletNode.port.onmessage = (e) => {
+            if (e.data?.pcm) sendPcmChunk(e.data.pcm);
+          };
+          source.connect(workletNode);
+          workletNode.connect(ctx.destination);
+          micProcessorRef.current = workletNode;
+          console.log("[VOICE LIVE] Mic via AudioWorklet");
+        } catch (workletErr) {
+          console.warn("[VOICE LIVE] AudioWorklet falhou, usando ScriptProcessor:", workletErr);
+          setupScriptProcessor(ctx, source);
         }
+      } else {
+        setupScriptProcessor(ctx, source);
+      }
 
-        // Se o state for speaking, detectamos se o usuario falou alto pra dar barge-in local
-        let isLoud = false;
-        if (stateRef.current === "speaking") {
-           let sum = 0;
-           for(let i=0; i<outLength; i++) sum += pcmData[i]*pcmData[i];
-           const rms = Math.sqrt(sum / outLength) / 32768;
-           if (rms > 0.05) isLoud = true;
-        }
-
-        if (isLoud) {
-           // Barge-in (para o player)
-           playerRef.current?.stop();
-           setStateSync("listening");
-           setStatusText("Ouvindo...");
-           wsRef.current.send(JSON.stringify({ type: "cancel" }));
-        }
-
-        // Converte pra base64
-        const buffer = new ArrayBuffer(pcmData.length * 2);
-        new Int16Array(buffer).set(pcmData);
-        // Base64 em JS precisa de strings chars
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        const b64 = btoa(binary);
-
-        wsRef.current.send(JSON.stringify({ type: "audio_chunk", data: b64 }));
-      };
-
-      source.connect(processor);
-      processor.connect(ctx.destination); // necessario no chrome
-      
-      micProcessorRef.current = processor;
       isCapturingRef.current = true;
-
     } catch (e) {
       console.error("[VOICE LIVE] Erro ao capturar mic", e);
     }
   };
 
+  const setupScriptProcessor = (ctx: AudioContext, source: MediaStreamAudioSourceNode) => {
+    const processor = ctx.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+      const inputData = e.inputBuffer.getChannelData(0);
+      const ratio = ctx.sampleRate / 16000;
+      const outLength = Math.floor(inputData.length / ratio);
+      const pcmData = new Int16Array(outLength);
+      for (let i = 0; i < outLength; i++) {
+        const s = Math.max(-1, Math.min(1, inputData[Math.floor(i * ratio)]));
+        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      sendPcmChunk(pcmData.buffer);
+    };
+    source.connect(processor);
+    processor.connect(ctx.destination);
+    micProcessorRef.current = processor;
+    console.log("[VOICE LIVE] Mic via ScriptProcessor (fallback)");
+  };
+
   const stopMicCapture = () => {
+    if (micSourceRef.current) {
+      try { micSourceRef.current.disconnect(); } catch { /* ignore */ }
+      micSourceRef.current = null;
+    }
     if (micProcessorRef.current) {
-      micProcessorRef.current.disconnect();
+      try { micProcessorRef.current.disconnect(); } catch { /* ignore */ }
       micProcessorRef.current = null;
     }
     isCapturingRef.current = false;
   };
 
-  const toggleListening = useCallback(() => {
-    ensureAudioResumed();
+  const toggleListening = useCallback(async () => {
+    await ensureAudioResumed();
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-       // O microfone ja estara mandando. Se ele quiser cancelar o speech:
        if (stateRef.current === "speaking" || stateRef.current === "thinking") {
            wsRef.current.send(JSON.stringify({ type: "cancel" }));
            playerRef.current?.stop();
            setStateSync("idle");
+       } else if (!isCapturingRef.current) {
+           await startMicCapture();
        }
     } else {
        connectWs();

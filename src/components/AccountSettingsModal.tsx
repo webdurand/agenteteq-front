@@ -10,9 +10,10 @@ interface AccountSettingsModalProps {
   open: boolean;
   onClose: () => void;
   onOpenCheckout?: (priceId?: string) => void;
+  onReplayOnboarding?: () => void;
 }
 
-export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout }: AccountSettingsModalProps) {
+export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout, onReplayOnboarding }: AccountSettingsModalProps) {
   const [billing, setBilling] = useState<any>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
@@ -151,6 +152,17 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                   <div className="text-content-4 uppercase tracking-wider text-xs">E-mail</div>
                   <div className="text-content">{user.email || "-"}</div>
                 </div>
+                {onReplayOnboarding && (
+                  <div className="pt-2">
+                    <div className="text-content-4 uppercase tracking-wider text-xs mb-1">Onboarding</div>
+                    <button
+                      onClick={onReplayOnboarding}
+                      className="px-3 py-1.5 rounded-lg border border-line text-content-2 text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors"
+                    >
+                      Rever onboarding
+                    </button>
+                  </div>
+                )}
                 <div>
                   <div className="text-content-4 uppercase tracking-wider text-xs mb-1">WhatsApp</div>
                   {phoneStep === "editing" ? (

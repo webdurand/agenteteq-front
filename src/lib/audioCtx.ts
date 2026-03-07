@@ -1,4 +1,5 @@
 let _ctx: AudioContext | null = null;
+let _userGestured = false;
 
 export function getAudioCtx(): AudioContext {
   if (!_ctx || _ctx.state === "closed") {
@@ -7,20 +8,24 @@ export function getAudioCtx(): AudioContext {
   return _ctx;
 }
 
-export function ensureAudioResumed(): void {
+export function ensureAudioResumed(): Promise<void> {
   const ctx = getAudioCtx();
   if (ctx.state === "suspended") {
-    ctx.resume().then(() => console.log("[AUDIO] AudioContext resumed"));
+    return ctx.resume().then(() => console.log("[AUDIO] AudioContext resumed"));
   }
+  return Promise.resolve();
+}
+
+export function hasUserGestured(): boolean {
+  return _userGestured;
 }
 
 const _resume = () => {
+  _userGestured = true;
   ensureAudioResumed();
-  document.removeEventListener("click", _resume);
-  document.removeEventListener("touchstart", _resume);
 };
-document.addEventListener("click", _resume, { capture: true });
-document.addEventListener("touchstart", _resume, { capture: true });
+document.addEventListener("click", _resume, { capture: true, passive: true });
+document.addEventListener("touchstart", _resume, { capture: true, passive: true });
 
 // ─── AnalyserNode para visualização reativa ──────────────────────────────────
 

@@ -51,15 +51,14 @@ class WSClient {
     };
 
     this.ws.onclose = (e) => {
-      console.log(`[WS] Fechado | code=${e.code} | reconectando em 3s`);
+      console.log(`[WS] Fechado | code=${e.code} | reconectando em 1.5s`);
       this.isConnecting = false;
       this.ws = null;
-      // Notifica listeners (ex.: chat em "Pensando..." pode voltar para idle)
       if (this.listeners.has("close")) {
         this.listeners.get("close")?.forEach((cb) => cb({ code: e.code }));
       }
       if (this.token) {
-        setTimeout(() => this.connect(), 3000);
+        setTimeout(() => this.connect(), 1500);
       }
     };
 

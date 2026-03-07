@@ -98,7 +98,7 @@ export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: Subscrip
         ) : !clientSecret ? (
           <div className="flex flex-col gap-4">
             <div className="bg-surface-card border border-line rounded-2xl p-6 text-left">
-              <h3 className="text-lg font-medium text-content mb-4 border-b border-line pb-2">Plano Pro</h3>
+              <h3 className="text-lg font-medium text-content mb-4 border-b border-line pb-2">Plano Premium</h3>
               <ul className="space-y-3 mb-2">
                 <li className="flex items-start gap-2 text-sm text-content-2">
                   <span className="text-accent mt-0.5">✓</span> 

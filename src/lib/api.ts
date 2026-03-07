@@ -148,6 +148,50 @@ export async function verifyPhoneChange(token: string, newPhone: string, code: s
   });
 }
 
+export async function getUsageLimits(token: string) {
+  return fetchApi("/api/usage/limits", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getActiveCampaign(token: string) {
+  return fetchApi("/api/campaigns/active", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getAdminCampaigns(token: string) {
+  return fetchApi("/admin/campaigns", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createAdminCampaign(token: string, payload: any) {
+  return fetchApi("/admin/campaigns", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminCampaign(token: string, campaignId: number, payload: any) {
+  return fetchApi(`/admin/campaigns/${campaignId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAdminCampaign(token: string, campaignId: number) {
+  return fetchApi(`/admin/campaigns/${campaignId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // --- Tasks ---
 
 export async function fetchWithAuth(endpoint: string, options: { token: string; method?: string; body?: any }) {

@@ -19,8 +19,24 @@ const CANCEL_PHRASES = [
   "cancelar", "cancela", "pode cancelar", "chega", "silencio", "fica quieto", 
   "encerrar", "encerra", "sai", "sair"
 ];
-const SEND_SILENCE_MS = 600;
+const SEND_SILENCE_MS = 400;
 const IDLE_TIMEOUT_MS = 10000;
+const STT_MAX_PERSISTENT_FAILURES = 3;
+
+function getRecorderMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "audio/webm";
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  for (const mt of candidates) {
+    if (MediaRecorder.isTypeSupported(mt)) return mt;
+  }
+  return "";
+}
+
+function mimeToExtension(mime: string): string {
+  if (mime.includes("mp4")) return "mp4";
+  if (mime.includes("ogg")) return "ogg";
+  return "webm";
+}
 
 function matchesCancelPhrase(norm: string): boolean {
   return CANCEL_PHRASES.some((p) => {
@@ -64,6 +80,7 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
   const sttFailCountRef = useRef(0);
   const sttLastErrorRef = useRef<string | null>(null);
+  const sttBrokenRef = useRef(false);
   const lastWakeResultIdxRef = useRef(-1);
   const wakeCooldownRef = useRef(0);
   const recognitionPausedRef = useRef(false);
@@ -77,6 +94,9 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
   }, []);
 
   const setStateSync = (s: ChatState) => {
+    if (stateRef.current === "thinking" && s !== "thinking") {
+      sfx.stopThinking();
+    }
     stateRef.current = s;
     setState(s);
   };
@@ -165,7 +185,7 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
           }
           
           recognitionPausedRef.current = false;
-          if (voiceEnabledRef.current) setTimeout(() => startRecognition(), 400);
+          if (voiceEnabledRef.current) setTimeout(() => startRecognition(), 200);
           
           break;
         }
@@ -505,16 +525,19 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
       if (recognitionPausedRef.current) return;
 
-      const MAX_RETRIES = 10;
-      if (sttLastErrorRef.current === "aborted") sttFailCountRef.current++;
+      if (sttLastErrorRef.current === "aborted" || sttLastErrorRef.current === "no-speech") {
+        sttFailCountRef.current++;
+      }
 
-      if (sttFailCountRef.current >= MAX_RETRIES) {
+      if (sttFailCountRef.current >= STT_MAX_PERSISTENT_FAILURES) {
+        console.warn("[STT] Muitas falhas consecutivas, marcando como indisponível (fallback p/ MediaRecorder)");
+        sttBrokenRef.current = true;
         sttFailCountRef.current = 0;
         return;
       }
 
       const delay = sttLastErrorRef.current === "aborted"
-        ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 30000) : 150;
+        ? Math.min(500 * Math.pow(2, sttFailCountRef.current), 15000) : 150;
 
       if (voiceEnabledRef.current) setTimeout(() => startRecognition(), delay);
     };
@@ -522,6 +545,8 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
     r.onerror = (e: Event & { error?: string }) => {
       sttLastErrorRef.current = e.error ?? null;
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        console.warn("[STT] Permissão negada, marcando como indisponível");
+        sttBrokenRef.current = true;
         recognitionRef.current = null;
         return;
       }
@@ -569,21 +594,24 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
       recognitionPausedRef.current = false;
       setStateSync("idle");
       setStatusText(idleStatusText());
-      setTimeout(() => startRecognition(), 500);
+      setTimeout(() => startRecognition(), 250);
       return;
     }
 
     const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const useStt = hasSpeechRecognition && !sttBrokenRef.current;
 
     if (stateRef.current === "listening") {
-      if (!hasSpeechRecognition && mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      if (!useStt && mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       } else {
         sendTranscript();
       }
     } else {
-      sttFailCountRef.current = 0;
-      sttLastErrorRef.current = null;
+      if (useStt) {
+        sttFailCountRef.current = 0;
+        sttLastErrorRef.current = null;
+      }
       sfx.micOpen();
       isCapturingRef.current = true;
       transcriptBufRef.current = "";
@@ -592,20 +620,24 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
       setInterimText("");
       startIdleTimer();
       
-      if (hasSpeechRecognition) {
+      if (useStt) {
         if (!recognitionRef.current) startRecognition();
       } else {
-        const stream = getMicStream();
-        if (stream) {
+        const startMediaRecorder = (stream: MediaStream) => {
           try {
             audioChunksRef.current = [];
-            const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+            const mimeType = getRecorderMimeType();
+            const mrOptions: MediaRecorderOptions = mimeType ? { mimeType } : {};
+            const mr = new MediaRecorder(stream, mrOptions);
+            const ext = mimeToExtension(mr.mimeType || mimeType);
             mr.ondataavailable = (e) => {
               if (e.data.size > 0) audioChunksRef.current.push(e.data);
             };
             mr.onstop = () => {
               if (audioChunksRef.current.length > 0) {
-                const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || mimeType });
+                const meta = JSON.stringify({ type: "audio_meta", ext });
+                wsClient.send(meta);
                 sendTranscript(blob);
               }
               audioChunksRef.current = [];
@@ -618,11 +650,16 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
             setStatusText("Erro ao acessar microfone.");
             isCapturingRef.current = false;
           }
+        };
+
+        const stream = getMicStream();
+        if (stream) {
+          startMediaRecorder(stream);
         } else {
           startMicAnalysis().then(() => {
             const newStream = getMicStream();
             if (newStream) {
-              toggleListening();
+              startMediaRecorder(newStream);
             } else {
               setStateSync("idle");
               setStatusText("Microfone não disponível.");

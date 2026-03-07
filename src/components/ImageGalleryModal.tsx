@@ -1,20 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface GalleryImage {
   url: string;
   title?: string;
   subtitle?: string;
+  carouselId?: string;
 }
 
-export function ImageGalleryModal({ images, currentIndex, onClose, onNavigate }: {
+export function ImageGalleryModal({ images, currentIndex, onClose, onNavigate, onDelete }: {
   images: GalleryImage[];
   currentIndex: number;
   onClose: () => void;
   onNavigate: (idx: number) => void;
+  onDelete?: (carouselId: string) => Promise<boolean>;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const current = images[currentIndex];
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < images.length - 1;
+
+  useEffect(() => {
+    setConfirmDelete(false);
+  }, [currentIndex]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -88,6 +96,47 @@ export function ImageGalleryModal({ images, currentIndex, onClose, onNavigate }:
                   </svg>
                   Baixar
                 </a>
+              )}
+              {onDelete && current?.carouselId && (
+                confirmDelete ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true);
+                        const ok = await onDelete(current.carouselId!);
+                        setDeleting(false);
+                        if (ok) {
+                          setConfirmDelete(false);
+                          if (images.length <= 1) {
+                            onClose();
+                          } else if (currentIndex >= images.length - 1) {
+                            onNavigate(currentIndex - 1);
+                          }
+                        }
+                      }}
+                      className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      {deleting ? "Apagando..." : "Confirmar"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="text-[10px] text-content-3 hover:text-content transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="text-[10px] text-content-3 hover:text-red-400 transition-colors flex items-center gap-1"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Apagar
+                  </button>
+                )
               )}
             </div>
           </div>

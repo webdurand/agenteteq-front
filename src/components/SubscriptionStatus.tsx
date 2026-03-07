@@ -7,12 +7,12 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
     status = trialEnd ? 'trialing' : 'active';
   }
 
-  // Se tem assinatura Stripe ativa (mesmo em trial pago), é Pro
+  // Se tem assinatura Stripe ativa (mesmo em trial pago), é Premium
   const isPro = hasStripeSubscription && (status === 'trialing' || status === 'active');
   const isFreeTrial = !hasStripeSubscription && status === 'trialing';
 
   if (isPro || status === 'active') {
-    label = 'Pro';
+    label = 'Premium';
     color = 'bg-green-500/15 border border-green-500/30 text-green-500';
   } else if (isFreeTrial) {
     label = 'Trial';

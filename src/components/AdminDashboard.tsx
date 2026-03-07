@@ -57,13 +57,14 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardProps) {
   const { showToast } = useToast();
-  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios" | "sistema">("negocio");
+  const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios" | "sistema" | "campanhas">("negocio");
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [healthData, setHealthData] = useState<any>(null);
   const [usersData, setUsersData] = useState<any[]>([]);
   const [plansData, setPlansData] = useState<any[]>([]);
   const [subsData, setSubsData] = useState<any[]>([]);
+  const [campaignsData, setCampaignsData] = useState<any[]>([]);
   
   const [systemQueue, setSystemQueue] = useState<any>(null);
   const [systemConfigs, setSystemConfigs] = useState<any>({});
@@ -80,12 +81,25 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
   const [planForm, setPlanForm] = useState({
     code: "pro_mensal",
-    name: "Plano Pro Mensal",
+    name: "Plano Premium Mensal",
     description: "Acesso completo ao Teq com 7 dias gratis.",
     amount_cents: 4990,
     trial_days: 7,
     stripe_price_id: "",
     features_json: '["Acesso completo","WhatsApp","Tarefas","Lembretes","Chat por voz"]',
+  });
+  const [campaignForm, setCampaignForm] = useState({
+    id: 0,
+    title: "",
+    message: "",
+    image_url: "",
+    cta_label: "Experimentar Premium",
+    cta_action: "open_checkout",
+    cta_url: "",
+    audience: "all",
+    frequency: "once",
+    priority: 100,
+    active: true,
   });
 
   useEffect(() => {
@@ -154,6 +168,9 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       } else if (tab === "assinaturas") {
         const s = await api.fetchWithAuth("/admin/billing/subscriptions", { token });
         setSubsData(s);
+      } else if (tab === "campanhas") {
+        const c = await api.getAdminCampaigns(token);
+        setCampaignsData(c);
       }
     } catch (e) {
       console.error("Erro ao buscar dados do admin:", e);
@@ -267,6 +284,85 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
     }
   };
 
+  const handleCreateCampaign = async () => {
+    try {
+      await api.createAdminCampaign(token, {
+        title: campaignForm.title,
+        message: campaignForm.message,
+        image_url: campaignForm.image_url || null,
+        cta_label: campaignForm.cta_label || null,
+        cta_action: campaignForm.cta_action,
+        cta_url: campaignForm.cta_url || null,
+        audience: campaignForm.audience,
+        frequency: campaignForm.frequency,
+        priority: Number(campaignForm.priority) || 100,
+        active: campaignForm.active,
+      });
+      showToast("Campanha criada com sucesso", "success");
+      setCampaignForm((prev) => ({
+        ...prev,
+        id: 0,
+        title: "",
+        message: "",
+        image_url: "",
+      }));
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao criar campanha", "error");
+    }
+  };
+
+  const handleUpdateCampaign = async () => {
+    if (!campaignForm.id) {
+      showToast("Selecione uma campanha para editar", "error");
+      return;
+    }
+    try {
+      await api.updateAdminCampaign(token, campaignForm.id, {
+        title: campaignForm.title,
+        message: campaignForm.message,
+        image_url: campaignForm.image_url || null,
+        cta_label: campaignForm.cta_label || null,
+        cta_action: campaignForm.cta_action,
+        cta_url: campaignForm.cta_url || null,
+        audience: campaignForm.audience,
+        frequency: campaignForm.frequency,
+        priority: Number(campaignForm.priority) || 100,
+        active: campaignForm.active,
+      });
+      showToast("Campanha atualizada com sucesso", "success");
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao atualizar campanha", "error");
+    }
+  };
+
+  const handleDeleteCampaign = async (id: number) => {
+    if (!confirm("Tem certeza que deseja remover essa campanha?")) return;
+    try {
+      await api.deleteAdminCampaign(token, id);
+      showToast("Campanha removida com sucesso", "success");
+      if (campaignForm.id === id) {
+        setCampaignForm({
+          id: 0,
+          title: "",
+          message: "",
+          image_url: "",
+          cta_label: "Experimentar Premium",
+          cta_action: "open_checkout",
+          cta_url: "",
+          audience: "all",
+          frequency: "once",
+          priority: 100,
+          active: true,
+        });
+      }
+      fetchAdminData();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao remover campanha", "error");
+    }
+  };
+
   return (
     <div className="h-screen w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
       {/* Topbar */}
@@ -337,6 +433,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "assinaturas" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
           >
             Assinaturas
+          </button>
+          <button 
+            onClick={() => setTab("campanhas")}
+            className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "campanhas" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
+          >
+            Campanhas
           </button>
         </div>
 
@@ -839,8 +941,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                             'border-line text-content-3 bg-surface'
                           }`}>
                             {{
-                              active:    'Pro',
-                              pro_trial: 'Pro',
+                              active:    'Premium',
+                              pro_trial: 'Premium',
                               trialing:  'Trial',
                               past_due:  'Pendente',
                               canceled:  'Cancelado',
@@ -1056,6 +1158,153 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {tab === "campanhas" && (
+            <div className="max-w-5xl mx-auto space-y-8">
+              <h2 className="text-xl font-light text-content">Campanhas de Popup</h2>
+
+              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+                <h3 className="text-sm font-medium text-content uppercase tracking-wider">Criar / editar campanha</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    value={campaignForm.title}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="Título"
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <input
+                    value={campaignForm.image_url}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, image_url: e.target.value }))}
+                    placeholder="URL da imagem"
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <input
+                    value={campaignForm.message}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, message: e.target.value }))}
+                    placeholder="Mensagem"
+                    className="md:col-span-2 w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <input
+                    value={campaignForm.cta_label}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, cta_label: e.target.value }))}
+                    placeholder="Texto do botão CTA"
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <select
+                    value={campaignForm.cta_action}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, cta_action: e.target.value }))}
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content focus:outline-none transition-colors"
+                  >
+                    <option value="open_checkout" className="bg-surface-up text-content">Abrir checkout</option>
+                    <option value="open_account" className="bg-surface-up text-content">Abrir conta</option>
+                    <option value="external_url" className="bg-surface-up text-content">Link externo</option>
+                  </select>
+                  <input
+                    value={campaignForm.cta_url}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, cta_url: e.target.value }))}
+                    placeholder="URL externa (se aplicável)"
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <select
+                    value={campaignForm.audience}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, audience: e.target.value }))}
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content focus:outline-none transition-colors"
+                  >
+                    <option value="all" className="bg-surface-up text-content">Todos</option>
+                    <option value="free_only" className="bg-surface-up text-content">Somente Free Tier</option>
+                    <option value="paid_only" className="bg-surface-up text-content">Somente Premium</option>
+                  </select>
+                  <select
+                    value={campaignForm.frequency}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, frequency: e.target.value }))}
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content focus:outline-none transition-colors"
+                  >
+                    <option value="once" className="bg-surface-up text-content">Uma vez</option>
+                    <option value="per_session" className="bg-surface-up text-content">Uma vez por sessão</option>
+                    <option value="daily" className="bg-surface-up text-content">Uma vez por dia</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={campaignForm.priority}
+                    onChange={(e) => setCampaignForm((prev) => ({ ...prev, priority: Number(e.target.value) || 100 }))}
+                    placeholder="Prioridade"
+                    className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors"
+                  />
+                  <label className="flex items-center gap-2 text-sm text-content-2">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.active}
+                      onChange={(e) => setCampaignForm((prev) => ({ ...prev, active: e.target.checked }))}
+                    />
+                    Campanha ativa
+                  </label>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCreateCampaign}
+                    className="px-4 py-2 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+                  >
+                    Criar campanha
+                  </button>
+                  <button
+                    onClick={handleUpdateCampaign}
+                    className="px-4 py-2 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface transition-colors"
+                  >
+                    Salvar alterações
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {campaignsData.map((c: any) => (
+                  <div key={c.id} className="p-6 rounded-2xl bg-surface-card border border-line space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg text-content">{c.title}</h3>
+                      <span className={`text-xs px-2 py-1 rounded-full border ${c.active ? "border-green-500 text-green-500 bg-green-500/10" : "border-line text-content-3"}`}>
+                        {c.active ? "Ativa" : "Inativa"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-content-3">{c.message}</p>
+                    <div className="text-xs text-content-4 space-y-1">
+                      <div>Audiência: {c.audience}</div>
+                      <div>Frequência: {c.frequency}</div>
+                      <div>Prioridade: {c.priority}</div>
+                      <div>Ação CTA: {c.cta_action}</div>
+                    </div>
+                    <div className="flex items-center gap-4 pt-1">
+                      <button
+                        onClick={() => setCampaignForm({
+                          id: c.id,
+                          title: c.title || "",
+                          message: c.message || "",
+                          image_url: c.image_url || "",
+                          cta_label: c.cta_label || "Experimentar Premium",
+                          cta_action: c.cta_action || "open_checkout",
+                          cta_url: c.cta_url || "",
+                          audience: c.audience || "all",
+                          frequency: c.frequency || "once",
+                          priority: c.priority || 100,
+                          active: Boolean(c.active),
+                        })}
+                        className="text-xs text-accent hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCampaign(c.id)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {campaignsData.length === 0 && (
+                  <div className="text-sm text-content-4 italic">Nenhuma campanha cadastrada.</div>
+                )}
               </div>
             </div>
           )}

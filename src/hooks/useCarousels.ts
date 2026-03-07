@@ -68,5 +68,20 @@ export function useCarousels(token: string) {
     if (!loadingMore && hasMore) fetchCarousels(false);
   }, [fetchCarousels, loadingMore, hasMore]);
 
-  return { carousels, loading, loadingMore, hasMore, loadMore, refresh: () => fetchCarousels(true) };
+  const deleteCarousel = useCallback(async (carouselId: string) => {
+    if (!token) return false;
+    try {
+      const res = await fetch(`${API_URL}/carousel/${carouselId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return false;
+      setCarousels(prev => prev.filter(c => c.id !== carouselId));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [token]);
+
+  return { carousels, loading, loadingMore, hasMore, loadMore, refresh: () => fetchCarousels(true), deleteCarousel };
 }

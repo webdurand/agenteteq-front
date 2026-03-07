@@ -3,6 +3,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import * as api from "../lib/api";
 import { CheckoutForm } from "./CheckoutForm";
+import { UpdatePaymentModal } from "./UpdatePaymentModal";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
@@ -19,6 +20,10 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
   const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<any>(null);
+  const [billing, setBilling] = useState<any>(null);
+  const [activeView, setActiveView] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [showUpdatePayment, setShowUpdatePayment] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
 
@@ -27,6 +32,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
       setClientSecret("");
       setError(null);
       setPaymentStatus('idle');
+      setBilling(null);
+      setActiveView(false);
       return;
     }
     
@@ -36,15 +43,30 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
       setLoading(true);
       setError(null);
       try {
-        const [plansData, subData] = await Promise.all([
+        const [plansData, billingData] = await Promise.all([
           api.getBillingPlans(token),
-          api.subscribeBilling(token, priceId)
+          api.getBillingOverview(token),
         ]);
         
         if (!isMounted) return;
         
         const activePlan = plansData.plans.find((p: any) => priceId ? p.code === priceId : true) || plansData.plans[0];
         setPlan(activePlan);
+        setBilling(billingData);
+
+        const hasActiveStripeSubscription =
+          billingData?.has_stripe_subscription &&
+          ["active", "trialing", "past_due"].includes(billingData?.status);
+
+        if (hasActiveStripeSubscription) {
+          setActiveView(true);
+          setClientSecret("");
+          return;
+        }
+
+        const subData = await api.subscribeBilling(token, priceId);
+        if (!isMounted) return;
+        setActiveView(false);
         setClientSecret(subData.client_secret);
       } catch (err: any) {
         if (!isMounted) return;
@@ -88,6 +110,20 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
 
   if (!open) return null;
 
+  const handleCancelSubscription = async () => {
+    if (!confirm("Cancelar a assinatura ao fim do período atual?")) return;
+    try {
+      setCancelLoading(true);
+      await api.cancelBilling(token);
+      const updated = await api.getBillingOverview(token);
+      setBilling(updated);
+    } catch (err: any) {
+      setError(err.message || "Erro ao cancelar assinatura");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl bg-surface-up border border-line shadow-2xl flex flex-col lg:flex-row relative">
@@ -98,13 +134,77 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         </button>
 
         {/* Left Column - Payment */}
-        <div className="flex-1 p-8 lg:p-12 lg:border-r border-line bg-surface-up relative">
+        <div className="order-2 lg:order-1 flex-1 p-8 lg:p-12 lg:border-r border-line bg-surface-up relative">
           <h2 className="text-2xl font-light text-content mb-2">Finalizar Assinatura</h2>
           <p className="text-sm text-content-3 mb-8">Escolha sua forma de pagamento preferida</p>
           
           {error ? (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-4 rounded-xl">
               {error}
+            </div>
+          ) : activeView ? (
+            <div className="relative w-full min-h-[400px] flex flex-col justify-start gap-6">
+              <div className="rounded-2xl border border-line bg-surface-card p-6 space-y-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-content-3">Assinatura ativa</p>
+                  <h3 className="text-2xl font-light text-content mt-1">{billing?.plan_name || "Premium"}</h3>
+                  <p className="text-sm text-content-3 mt-1">
+                    {billing?.status === "trialing" ? "Período de teste em andamento" : "Assinatura ativa e funcionando normalmente"}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="rounded-xl border border-line p-4">
+                    <p className="text-content-4 uppercase tracking-wider text-[10px]">Valor do plano</p>
+                    <p className="text-content mt-1">
+                      {billing?.amount_cents
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: (billing.currency || "BRL").toUpperCase() }).format(billing.amount_cents / 100)
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-line p-4">
+                    <p className="text-content-4 uppercase tracking-wider text-[10px]">
+                      {billing?.cancel_at_period_end ? "Acesso até" : "Próxima renovação"}
+                    </p>
+                    <p className="text-content mt-1">
+                      {billing?.current_period_end
+                        ? new Date(billing.current_period_end).toLocaleDateString("pt-BR")
+                        : "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-line p-4">
+                  <p className="text-content-4 uppercase tracking-wider text-[10px] mb-2">Cartão utilizado</p>
+                  {billing?.payment_methods?.length ? (
+                    <div className="text-content text-sm">
+                      {(billing.payment_methods[0].brand || "cartão").toUpperCase()} final {billing.payment_methods[0].last4}
+                      {" • "}
+                      {String(billing.payment_methods[0].exp_month).padStart(2, "0")}/{billing.payment_methods[0].exp_year}
+                    </div>
+                  ) : (
+                    <div className="text-content-3 text-sm">Nenhum cartão identificado.</div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-3 pt-1">
+                  <button
+                    onClick={() => setShowUpdatePayment(true)}
+                    className="px-4 py-2.5 rounded-xl bg-content text-surface text-xs font-medium uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    Atualizar cartão
+                  </button>
+                  {!billing?.cancel_at_period_end && (
+                    <button
+                      onClick={handleCancelSubscription}
+                      disabled={cancelLoading}
+                      className="px-4 py-2.5 rounded-xl border border-line text-content text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors disabled:opacity-50"
+                    >
+                      {cancelLoading ? "Cancelando..." : "Cancelar assinatura"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           ) : paymentStatus === 'processing' ? (
             <div className="relative w-full min-h-[400px] flex flex-col items-center justify-center gap-6 text-center animate-in fade-in duration-500">
@@ -169,7 +269,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         </div>
 
         {/* Right Column - Summary */}
-        <div className="w-full lg:w-[400px] bg-glass p-8 lg:p-12 flex flex-col relative">
+        <div className="order-1 lg:order-2 w-full lg:w-[400px] bg-glass p-8 lg:p-12 flex flex-col relative">
           <h3 className="text-sm uppercase tracking-wider text-content-3 mb-6">Resumo do Pedido</h3>
           
           {/* Skeleton Overlay for Summary */}
@@ -217,22 +317,24 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
               <div className="space-y-6 flex-1 flex flex-col">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-content text-lg mb-1">{plan.name}</div>
-                    <div className="text-content-3 text-sm">{plan.description}</div>
+                    <div className="text-content text-lg mb-1">{activeView ? (billing?.plan_name || plan.name) : plan.name}</div>
+                    <div className="text-content-3 text-sm">{activeView ? (billing?.plan_description || plan.description) : plan.description}</div>
                   </div>
                   <div className="text-accent text-xl font-light whitespace-nowrap">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: (plan.currency || "BRL").toUpperCase() }).format(plan.amount_cents / 100)}
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: ((activeView ? billing?.currency : plan.currency) || "BRL").toUpperCase() }).format(((activeView ? billing?.amount_cents : plan.amount_cents) || 0) / 100)}
                   </div>
                 </div>
                 
                 <div className="border-t border-line pt-6 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-content-3">Subtotal</span>
-                    <span className="text-content">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: (plan.currency || "BRL").toUpperCase() }).format(plan.amount_cents / 100)}</span>
+                    <span className="text-content">
+                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: ((activeView ? billing?.currency : plan.currency) || "BRL").toUpperCase() }).format(((activeView ? billing?.amount_cents : plan.amount_cents) || 0) / 100)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-content-3">Trial</span>
-                    <span className="text-green-500">{plan.trial_days} dias grátis</span>
+                    <span className="text-green-500">{activeView ? (billing?.status === "trialing" ? "Em teste" : "Já utilizado") : `${plan.trial_days} dias grátis`}</span>
                   </div>
                 </div>
                 
@@ -260,6 +362,16 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
           </div>
         </div>
       </div>
+
+      <UpdatePaymentModal
+        token={token}
+        open={showUpdatePayment}
+        onClose={() => setShowUpdatePayment(false)}
+        onSuccess={async () => {
+          const updated = await api.getBillingOverview(token);
+          setBilling(updated);
+        }}
+      />
     </div>
   );
 }

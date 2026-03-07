@@ -73,7 +73,7 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
   isMinimized: boolean;
   onToggleMinimize: () => void;
 }) {
-  const { carousels, loading, loadingMore, hasMore, loadMore, refresh } = useCarousels(token);
+  const { carousels, loading, loadingMore, hasMore, loadMore, refresh, deleteCarousel } = useCarousels(token);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -159,11 +159,19 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
           images={viewableSlides.map(v => ({
             url: v.slide.image_url!,
             title: v.slide.style,
-            subtitle: v.carousel.title
+            subtitle: v.carousel.title,
+            carouselId: v.carousel.id,
           }))}
           currentIndex={selectedIdx}
           onClose={() => setSelectedIdx(null)}
           onNavigate={setSelectedIdx}
+          onDelete={async (carouselId) => {
+            const ok = await deleteCarousel(carouselId);
+            if (ok) {
+              setSelectedIdx(null);
+            }
+            return ok;
+          }}
         />,
         document.body
       )}
