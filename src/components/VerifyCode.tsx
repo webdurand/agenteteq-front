@@ -1,24 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { Spinner } from "./ui/Spinner";
+import { formatPhone } from "../lib/formatters";
 
 interface VerifyCodeProps {
   auth: ReturnType<typeof useAuth>;
   purpose: "register" | "login_2fa";
-}
-
-function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length >= 12) {
-    const ddi = digits.slice(0, 2);
-    const ddd = digits.slice(2, 4);
-    const rest = digits.slice(4);
-    if (rest.length === 9) {
-      return `+${ddi} (${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
-    }
-    return `+${ddi} (${ddd}) ${rest}`;
-  }
-  return `+${digits}`;
 }
 
 export function VerifyCode({ auth, purpose }: VerifyCodeProps) {

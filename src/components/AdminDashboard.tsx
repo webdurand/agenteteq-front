@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import * as api from "../lib/api";
-import { useTheme } from "../hooks/useTheme";
 import { useToast } from "../contexts/ToastContext";
+import { ThemeToggle } from "./ui/ThemeToggle";
 import { LineChart, BarChart, PieChart } from "./MetricsCharts";
 
 const formatBRL = (cents: number) =>
@@ -55,29 +55,7 @@ interface AdminDashboardProps {
   onExitAdmin: () => void;
 }
 
-function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
-  return (
-    <button
-      onClick={toggle}
-      className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-line text-content-3 hover:text-content transition-colors duration-200"
-      aria-label={dark ? "Modo claro" : "Modo escuro"}
-    >
-      {dark ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-    </button>
-  );
-}
-
 export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardProps) {
-  const { dark, toggle } = useTheme();
   const { showToast } = useToast();
   const [tab, setTab] = useState<"negocio" | "saude" | "admins" | "planos" | "assinaturas" | "usuarios" | "sistema">("negocio");
 
@@ -298,7 +276,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         </div>
         
         <div className="flex items-center gap-2 lg:gap-4">
-          <ThemeToggle dark={dark} toggle={toggle} />
+          <ThemeToggle />
           <button 
             onClick={onExitAdmin}
             className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"

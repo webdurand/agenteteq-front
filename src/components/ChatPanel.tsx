@@ -453,17 +453,19 @@ export function ChatPanel({
               </div>
             )}
             
-            <div className="flex items-end">
-              <button 
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center text-content-4 hover:text-content transition-colors"
-                title="Anexar arquivo/imagem"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-                </svg>
-              </button>
+            <div className="flex items-center gap-0">
+              <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center">
+                <button 
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-11 h-11 flex items-center justify-center text-content-4 hover:text-content transition-colors rounded-full -m-1"
+                  title="Anexar arquivo/imagem"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                  </svg>
+                </button>
+              </div>
 
               <textarea
                 ref={textareaRef}
@@ -473,17 +475,17 @@ export function ChatPanel({
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder="Pergunte alguma coisa (Shift+Enter para nova linha)"
-                className="flex-1 bg-transparent py-[13px] text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-hidden leading-relaxed"
+                className="flex-1 bg-transparent py-3 text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-hidden leading-relaxed min-h-[44px]"
               />
               
-              <div className="flex items-center pr-2 pb-2">
+              <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center pr-1">
                 {text.trim() || pendingImages.length > 0 ? (
                   <button 
                     type="button"
                     onClick={handleSubmit}
-                    className="w-8 h-8 flex items-center justify-center text-surface bg-content hover:bg-content/80 transition-colors rounded-full"
+                    className="w-8 h-8 flex items-center justify-center text-surface bg-content hover:bg-content/80 transition-colors rounded-full p-0"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="block shrink-0" style={{ transform: 'translate(2.5px, 2.5px)' }}>
                       <line x1="22" y1="2" x2="11" y2="13"></line>
                       <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>

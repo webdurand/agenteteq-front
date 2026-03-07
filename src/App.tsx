@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { AuthLayout } from "./components/AuthLayout";
 import { LoginForm } from "./components/LoginForm";
@@ -11,34 +10,14 @@ import { Dashboard } from "./components/Dashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { SubscriptionPage } from "./components/SubscriptionPage";
 import { Spinner } from "./components/ui/Spinner";
+import { ThemeToggle } from "./components/ui/ThemeToggle";
 
-function ThemeToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
-  return (
-    <button
-      onClick={toggle}
-      className="fixed top-5 right-5 z-50 w-9 h-9 rounded-full flex items-center justify-center
-        bg-surface-card border border-line text-content-3 hover:text-content
-        transition-colors duration-200"
-      aria-label={dark ? "Modo claro" : "Modo escuro"}
-    >
-      {dark ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-        </svg>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-    </button>
-  );
-}
+const FIXED_TOGGLE_CLASS = "fixed top-5 right-5 z-50 w-9 h-9 rounded-full flex items-center justify-center bg-surface-card border border-line text-content-3 hover:text-content transition-colors duration-200";
 
-function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof useAuth>; dark: boolean; toggle: () => void }) {
+function PendingVerification({ auth }: { auth: ReturnType<typeof useAuth> }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-surface p-6">
-      <ThemeToggle dark={dark} toggle={toggle} />
+      <ThemeToggle className={FIXED_TOGGLE_CLASS} />
       <div className="max-w-md w-full text-center bg-surface-card border border-line rounded-2xl p-8">
         <div className="w-16 h-16 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 flex items-center justify-center mx-auto mb-6">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -77,7 +56,6 @@ function PendingVerification({ auth, dark, toggle }: { auth: ReturnType<typeof u
 
 export default function App() {
   const auth = useAuth();
-  const { dark, toggle } = useTheme();
   const [isAdminView, setIsAdminView] = useState(false);
 
   if (auth.loading) {
@@ -91,7 +69,7 @@ export default function App() {
   if (auth.screen === "login") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <LoginForm auth={auth} />
         </AuthLayout>
@@ -102,7 +80,7 @@ export default function App() {
   if (auth.screen === "register") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <RegisterForm auth={auth} />
         </AuthLayout>
@@ -113,7 +91,7 @@ export default function App() {
   if (auth.screen === "confirm_phone") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <ConfirmPhone auth={auth} />
         </AuthLayout>
@@ -124,7 +102,7 @@ export default function App() {
   if (auth.screen === "verify_whatsapp") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <VerifyCode auth={auth} purpose="register" />
         </AuthLayout>
@@ -135,7 +113,7 @@ export default function App() {
   if (auth.screen === "verify_2fa") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <VerifyCode auth={auth} purpose="login_2fa" />
         </AuthLayout>
@@ -144,13 +122,13 @@ export default function App() {
   }
 
   if (auth.screen === "pending_verification") {
-    return <PendingVerification auth={auth} dark={dark} toggle={toggle} />;
+    return <PendingVerification auth={auth} />;
   }
 
   if (auth.screen === "trial_expired") {
     return (
       <>
-        <ThemeToggle dark={dark} toggle={toggle} />
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <SubscriptionPage token={auth.token || ''} onLogout={auth.logout} onPaymentSuccess={auth.refreshUser} />
         </AuthLayout>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as api from "../lib/api";
 import type { UserInfo } from "../hooks/useAuth";
 import { UpdatePaymentModal } from "./UpdatePaymentModal";
+import { formatPhone } from "../lib/formatters";
 
 interface AccountSettingsModalProps {
   token: string;
@@ -9,14 +10,6 @@ interface AccountSettingsModalProps {
   open: boolean;
   onClose: () => void;
   onOpenCheckout?: (priceId?: string) => void;
-}
-
-function maskPhone(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 13);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `+${digits.slice(0, 2)} (${digits.slice(2)}`;
-  if (digits.length <= 9) return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4)}`;
-  return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
 }
 
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout }: AccountSettingsModalProps) {
@@ -165,7 +158,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                       <input
                         autoFocus
                         value={newPhone}
-                        onChange={(e) => setNewPhone(maskPhone(e.target.value))}
+                        onChange={(e) => setNewPhone(formatPhone(e.target.value))}
                         placeholder="+55 (21) 99999-9999"
                         className="w-full bg-transparent border-b border-line-strong focus:border-content py-1.5 text-content placeholder-content-4 focus:outline-none transition-colors text-sm"
                       />
