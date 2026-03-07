@@ -132,10 +132,12 @@ function StatusDot({ status, effectivelyFired }: { status: string; effectivelyFi
 }
 
 function ReminderCard({ r, onRemove }: { r: Reminder; onRemove: (id: number) => void }) {
+  const [expanded, setExpanded] = useState(false);
   const nextRun = formatNextRun(r.next_run_str);
   const channel = channelLabels[r.notification_channel] || { label: r.notification_channel, icon: "📨" };
   const effectivelyDone = isEffectivelyFired(r);
   const isFired = r.status === "fired" || effectivelyDone;
+  const isLongText = r.task_instructions.length > 100;
 
   return (
     <div className={`p-4 rounded-xl border group relative transition-all ${
@@ -165,9 +167,19 @@ function ReminderCard({ r, onRemove }: { r: Reminder; onRemove: (id: number) => 
         <p className="text-xs font-medium text-content mb-1">{r.title}</p>
       )}
 
-      <p className={`text-sm leading-relaxed mb-3 ${isFired ? "text-content-3" : "text-content"}`}>
-        {r.task_instructions}
-      </p>
+      <div className="mb-3">
+        <p className={`text-sm leading-relaxed ${isFired ? "text-content-3" : "text-content"} ${!expanded && isLongText ? "line-clamp-3" : ""}`}>
+          {r.task_instructions}
+        </p>
+        {isLongText && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] text-content-3 hover:text-accent mt-1 transition-colors"
+          >
+            {expanded ? "▲ ver menos" : "▼ ver mais"}
+          </button>
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-content-3">
         <span className="flex items-center gap-1">
@@ -262,7 +274,7 @@ function CreateForm({ onAdd, onClose }: { onAdd: (data: any) => void; onClose: (
   const inputClass = "w-full bg-surface border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-content transition-colors";
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 p-4 rounded-xl bg-surface-card border border-line space-y-3">
+    <form onSubmit={handleSubmit} className="mb-4 p-4 rounded-xl bg-surface-card border border-line space-y-3 flex-shrink-0">
       <div className="flex gap-1 p-0.5 bg-surface rounded-lg border border-line">
         {(["date", "cron", "interval"] as TriggerTab[]).map((t) => (
           <button
@@ -288,8 +300,8 @@ function CreateForm({ onAdd, onClose }: { onAdd: (data: any) => void; onClose: (
         <textarea
           value={instructions}
           onChange={e => setInstructions(e.target.value)}
-          className={`${inputClass} resize-none`}
-          rows={2}
+          className={`${inputClass} resize-y min-h-[60px] max-h-[160px]`}
+          rows={3}
           placeholder="Ex: Hora de beber água! Me manda uma mensagem motivacional."
           required
         />
@@ -319,18 +331,18 @@ function CreateForm({ onAdd, onClose }: { onAdd: (data: any) => void; onClose: (
 
       <div>
         <label className="text-[10px] text-content-3 mb-1 block uppercase tracking-wider">Canal de notificação</label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {[
             { value: "web_voice", label: "Voz no app", icon: "🔊" },
             { value: "web_text", label: "Web (texto)", icon: "💻" },
             { value: "whatsapp_text", label: "WhatsApp", icon: "💬" },
-            { value: "web_whatsapp", label: "Web + WhatsApp", icon: "🔔" },
+            { value: "web_whatsapp", label: "Web + WA", icon: "🔔" },
           ].map(ch => (
             <button
               key={ch.value}
               type="button"
               onClick={() => setChannel(ch.value)}
-              className={`flex-1 py-2 text-[10px] font-medium tracking-wider rounded-lg border transition-all ${
+              className={`py-2 text-[10px] font-medium tracking-wider rounded-lg border transition-all ${
                 channel === ch.value 
                   ? "bg-accent/10 border-accent/30 text-accent" 
                   : "bg-surface border-line text-content-3 hover:text-content"
@@ -354,16 +366,17 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
   const [showForm, setShowForm] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const activeCount = reminders.filter(r => r.status === "active").length;
-  const firedCount = reminders.filter(r => r.status === "fired").length;
+  const displayCount = reminders.length;
 
   return (
     <div className={`flex flex-col p-6 text-content ${isMinimized ? "" : "h-full"}`}>
       <div className={`flex items-center justify-between ${isMinimized ? "" : "mb-4"}`}>
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Avisos</h2>
-          {!loading && activeCount > 0 && (
-            <span className="text-[10px] text-content-3 bg-line/40 px-1.5 py-0.5 rounded-full">{activeCount}</span>
+          {!loading && displayCount > 0 && (
+            <span className="text-[10px] text-content-3 bg-line/40 px-1.5 py-0.5 rounded-full">
+              {displayCount}{hasMore ? "+" : ""}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -391,8 +404,7 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
 
       {!isMinimized && (
         <>
-          {/* Filter tabs */}
-          <div className="flex gap-1 mb-4 p-0.5 bg-surface rounded-lg border border-line">
+          <div className="flex gap-1 mb-4 p-0.5 bg-surface rounded-lg border border-line flex-shrink-0">
             {([
               { key: "active" as ReminderFilter, label: "Ativos" },
               { key: "fired" as ReminderFilter, label: "Concluídos" },
@@ -406,22 +418,12 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
                 }`}
               >
                 {tab.label}
-                {tab.key === "active" && activeCount > 0 && filter !== "active" && (
-                  <span className="ml-1 text-accent">{activeCount}</span>
-                )}
-                {tab.key === "fired" && firedCount > 0 && filter !== "fired" && (
-                  <span className="ml-1 opacity-50">{firedCount}</span>
+                {filter === tab.key && displayCount > 0 && (
+                  <span className="ml-1 font-bold">{displayCount}{hasMore ? "+" : ""}</span>
                 )}
               </button>
             ))}
           </div>
-
-          {showForm && (
-            <CreateForm
-              onAdd={(data) => { addReminder(data); setShowForm(false); }}
-              onClose={() => setShowForm(false)}
-            />
-          )}
 
           <div
             ref={scrollRef}
@@ -432,6 +434,13 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
               if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) loadMore();
             }}
           >
+            {showForm && (
+              <CreateForm
+                onAdd={(data) => { addReminder(data); setShowForm(false); }}
+                onClose={() => setShowForm(false)}
+              />
+            )}
+
             {loading && reminders.length === 0 ? (
               <div className="space-y-3">
                 {[0, 1, 2].map(i => <ReminderSkeleton key={i} delay={i * 100} />)}

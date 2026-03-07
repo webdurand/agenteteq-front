@@ -77,6 +77,16 @@ export function useTasks(token: string | null) {
     }
   };
 
+  const editTask = async (id: number, data: Partial<Task>) => {
+    if (!token) return;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+    try {
+      await updateTask(token, id, data);
+    } catch (e) {
+      loadTasks(true);
+    }
+  };
+
   const removeTask = async (id: number) => {
     if (!token) return;
     setTasks(prev => prev.filter(t => t.id !== id));
@@ -95,6 +105,7 @@ export function useTasks(token: string | null) {
     loadMore,
     loadTasks,
     addTask,
+    editTask,
     toggleTask,
     removeTask
   };
