@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream, hasUserGestured } from "../lib/audioCtx";
 import { sfx } from "../lib/sounds";
 
-export type LiveChatState = "idle" | "listening" | "thinking" | "speaking";
+export type LiveChatState = "connecting" | "idle" | "listening" | "thinking" | "speaking";
+const VAD_RMS_THRESHOLD = 0.015;
+const VAD_START_MS = 100;
+const VAD_END_MS = 800;
 
 // Simples buffer circular para tocar audio em stream continuo
 class AudioStreamPlayer {
@@ -50,20 +53,26 @@ class AudioStreamPlayer {
 }
 
 export function useVoiceLive(token: string | null) {
-  const [state, setState] = useState<LiveChatState>("idle");
-  const [statusText, setStatusText] = useState("Diga 'Teq' ou comece a falar");
+  const [state, setState] = useState<LiveChatState>("connecting");
+  const [statusText, setStatusText] = useState("");
   
-  const stateRef = useRef<LiveChatState>("idle");
+  const stateRef = useRef<LiveChatState>("connecting");
   const wsRef = useRef<WebSocket | null>(null);
   const playerRef = useRef<AudioStreamPlayer | null>(null);
   const micProcessorRef = useRef<ScriptProcessorNode | AudioWorkletNode | null>(null);
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const isCapturingRef = useRef(false);
+  const speechSinceRef = useRef<number | null>(null);
+  const silenceSinceRef = useRef<number | null>(null);
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
   const setStateSync = (s: LiveChatState) => {
-    if (stateRef.current === "thinking" && s !== "thinking") {
+    const prev = stateRef.current;
+    if (prev === "thinking" && s !== "thinking") {
       sfx.stopThinking();
+    }
+    if (s === "thinking" && prev !== "thinking") {
+      sfx.thinking();
     }
     stateRef.current = s;
     setState(s);
@@ -100,6 +109,9 @@ export function useVoiceLive(token: string | null) {
       switch (msg.type) {
         case "status":
           setStatusText(msg.text);
+          if (stateRef.current === "connecting") {
+            setStateSync("idle");
+          }
           break;
         case "audio":
           if (msg.audio_b64) {
@@ -114,7 +126,6 @@ export function useVoiceLive(token: string | null) {
           }
           break;
         case "tool_call_start":
-          sfx.thinking(); // sutil beep de "carregando"
           setStateSync("thinking");
           break;
         case "turn_complete":
@@ -152,10 +163,33 @@ export function useVoiceLive(token: string | null) {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     const pcmData = new Int16Array(pcmBuffer);
+    let sum = 0;
+    for (let i = 0; i < pcmData.length; i++) sum += pcmData[i] * pcmData[i];
+    const rmsVal = Math.sqrt(sum / pcmData.length) / 32768;
+
+    if (stateRef.current !== "speaking" && stateRef.current !== "thinking") {
+      const now = performance.now();
+      if (rmsVal >= VAD_RMS_THRESHOLD) {
+        silenceSinceRef.current = null;
+        if (speechSinceRef.current === null) speechSinceRef.current = now;
+        if (now - speechSinceRef.current >= VAD_START_MS && stateRef.current !== "listening") {
+          setStateSync("listening");
+          setStatusText("Ouvindo...");
+        }
+      } else {
+        speechSinceRef.current = null;
+        if (silenceSinceRef.current === null) silenceSinceRef.current = now;
+        if (now - silenceSinceRef.current >= VAD_END_MS && stateRef.current === "listening") {
+          setStateSync("idle");
+          setStatusText("Pode falar...");
+        }
+      }
+    } else {
+      speechSinceRef.current = null;
+      silenceSinceRef.current = null;
+    }
+
     if (stateRef.current === "speaking") {
-      let sum = 0;
-      for (let i = 0; i < pcmData.length; i++) sum += pcmData[i] * pcmData[i];
-      const rmsVal = Math.sqrt(sum / pcmData.length) / 32768;
       if (rmsVal > 0.05) {
         playerRef.current?.stop();
         setStateSync("listening");

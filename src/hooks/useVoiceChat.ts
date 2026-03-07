@@ -94,8 +94,12 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
   }, []);
 
   const setStateSync = (s: ChatState) => {
-    if (stateRef.current === "thinking" && s !== "thinking") {
+    const prev = stateRef.current;
+    if (prev === "thinking" && s !== "thinking") {
       sfx.stopThinking();
+    }
+    if (s === "thinking" && prev !== "thinking") {
+      sfx.thinking();
     }
     stateRef.current = s;
     setState(s);
@@ -127,7 +131,6 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
         case "transcript":
           if (requestGenRef.current !== genAtReceive) break;
-          sfx.thinking();
           setStateSync("thinking");
           setStatusText("Pensando...");
           break;
@@ -272,6 +275,17 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
           if (msg.image_url) {
             addMessage("agent", `Pronto! Aqui está a imagem editada:\n${msg.image_url}`);
           }
+          break;
+        }
+
+        case "limit_reached": {
+          const payload = JSON.stringify({
+            message: msg.message ?? "",
+            plan_type: msg.plan_type ?? "trial",
+          });
+          addMessage("agent", `__LIMIT_REACHED__${payload}`);
+          setStateSync("idle");
+          setStatusText(idleStatusText());
           break;
         }
 

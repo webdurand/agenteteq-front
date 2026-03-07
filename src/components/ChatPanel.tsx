@@ -13,6 +13,7 @@ interface ChatPanelProps {
   hasMore?: boolean;
   isInitialLoading?: boolean;
   imageEditingPrompt?: string | null;
+  onOpenCheckout?: () => void;
 }
 
 // Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
@@ -44,6 +45,37 @@ function parseMessageContent(text: string) {
 }
 
 const CAROUSEL_GENERATING_PREFIX = "__CAROUSEL_GENERATING__";
+const LIMIT_REACHED_PREFIX = "__LIMIT_REACHED__";
+
+function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: string; planType: string; onOpenCheckout?: () => void }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-4 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 flex-shrink-0 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-content leading-relaxed">{message}</p>
+              {planType === "trial" && onOpenCheckout && (
+                <button
+                  onClick={onOpenCheckout}
+                  className="self-start mt-1 px-4 py-2 rounded-xl bg-accent text-surface text-xs font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
+                >
+                  Assinar Premium
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ImageEditingBubble({ prompt }: { prompt: string }) {
   return (
@@ -145,11 +177,20 @@ function SystemNotification({ msg }: { msg: Message }) {
   );
 }
 
-function MessageBubble({ msg }: { msg: Message }) {
+function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?: () => void }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (msg.role === "system") {
     return <SystemNotification msg={msg} />;
+  }
+
+  if (msg.text.startsWith(LIMIT_REACHED_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(LIMIT_REACHED_PREFIX.length));
+      return <LimitReachedBubble message={payload.message} planType={payload.plan_type} onOpenCheckout={onOpenCheckout} />;
+    } catch {
+      return <LimitReachedBubble message="Seu limite de gerações acabou." planType="trial" onOpenCheckout={onOpenCheckout} />;
+    }
   }
 
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
@@ -233,7 +274,8 @@ export function ChatPanel({
   isLoadingMore,
   hasMore,
   isInitialLoading,
-  imageEditingPrompt
+  imageEditingPrompt,
+  onOpenCheckout
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -403,7 +445,7 @@ export function ChatPanel({
             <p className="text-sm italic">O que vamos fazer hoje?</p>
           </div>
         ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
+          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} />)
         )}
         
         {statusText && !statusText.includes("Teq") && (

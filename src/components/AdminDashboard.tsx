@@ -666,6 +666,45 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 </div>
               </div>
 
+              {/* Admin Bypass Toggle */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Admin</h3>
+                <div className="bg-surface-card border border-line rounded-2xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-content font-medium">Bypass de limites para Admin</p>
+                      <p className="text-[10px] text-content-3 mt-0.5">Quando desligado, admins são tratados como usuários free para testar fluxos de limite.</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const current = (systemConfigs["admin_bypass_limits"] ?? "true").toLowerCase();
+                        const next = current === "true" ? "false" : "true";
+                        try {
+                          await api.fetchWithAuth("/admin/system/config", {
+                            method: "PUT", token, body: JSON.stringify({ key: "admin_bypass_limits", value: next })
+                          });
+                          setSystemConfigs({ ...systemConfigs, admin_bypass_limits: next });
+                          showToast(next === "true" ? "Bypass ativado" : "Bypass desativado", "success");
+                        } catch {
+                          showToast("Erro ao salvar", "error");
+                        }
+                      }}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        (systemConfigs["admin_bypass_limits"] ?? "true").toLowerCase() === "true"
+                          ? "bg-accent"
+                          : "bg-line"
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                        (systemConfigs["admin_bypass_limits"] ?? "true").toLowerCase() === "true"
+                          ? "translate-x-[22px]"
+                          : "translate-x-0.5"
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Infraestrutura (global) */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Infraestrutura (Global)</h3>

@@ -67,19 +67,28 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
 
   const {
     state: liveState, statusText: liveStatus, toggleListening: liveToggle, onOrbScale: liveScale
-  } = useVoiceLive(isLive ? token : null);
+  } = useVoiceLive(isLive && voiceActive ? token : null);
 
-  const state = isLive ? liveState : classicState;
+  const rawState = isLive ? liveState : classicState;
+  const state = rawState === "connecting" ? "idle" : rawState;
   const statusText = isLive ? liveStatus : classicStatus;
   const toggleListening = isLive ? liveToggle : classicToggle;
   const onOrbScale = isLive ? liveScale : classicScale;
   
-  const stateLabel = {
-    idle: "Em espera",
-    listening: "Ouvindo",
-    thinking: "Pensando",
-    speaking: "Falando",
-  }[state];
+  const stateLabel = isLive
+    ? ({
+        connecting: "Conectando...",
+        idle: "Pode falar",
+        listening: "Ouvindo...",
+        thinking: "Pensando...",
+        speaking: "Falando...",
+      }[rawState])
+    : ({
+        idle: "Em espera",
+        listening: "Ouvindo",
+        thinking: "Pensando",
+        speaking: "Falando",
+      }[state]);
   const limitsProgress = limits && limits.runs_limit > 0
     ? Math.min(100, Math.max(0, Math.round((limits.runs_used / limits.runs_limit) * 100)))
     : 0;
@@ -381,7 +390,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                     )}
                   </div>
                   
-                  {statusText && state !== "idle" ? (
+                  {statusText && (isLive || state !== "idle") ? (
                     <p className="text-content-3 text-xs tracking-wider mt-1">{statusText}</p>
                   ) : null}
                 </div>
@@ -391,13 +400,14 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 <ChatPanel 
                   messages={messages} 
                   onSendMessage={sendMessageText} 
-                  statusText={statusText} 
+                  statusText={classicStatus} 
                   className="lg:max-w-none rounded-none border-none shadow-none bg-transparent" 
                   onLoadMore={historyLoadMore}
                   isLoadingMore={historyLoading}
                   isInitialLoading={historyInitialLoading}
                   hasMore={historyHasMore}
                   imageEditingPrompt={imageEditingPrompt}
+                  onOpenCheckout={() => openCheckout()}
                 />
               </div>
             ) : null}
