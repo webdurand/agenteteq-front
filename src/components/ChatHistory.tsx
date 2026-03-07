@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Message } from "../hooks/useVoiceChat";
+import type { Message } from "../hooks/chatTypes";
 
 interface ChatHistoryProps {
   messages: Message[];

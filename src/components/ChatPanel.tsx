@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Message } from "../hooks/useVoiceChat";
+import type { Message } from "../hooks/chatTypes";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 
 interface ChatPanelProps {

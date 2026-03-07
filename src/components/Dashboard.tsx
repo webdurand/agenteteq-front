@@ -1,4 +1,4 @@
-import { useVoiceChat } from "../hooks/useVoiceChat";
+import { useChat } from "../hooks/useChat";
 import { useVoiceLive } from "../hooks/useVoiceLive";
 import { Orb } from "./Orb";
 import { Sidebar } from "./Sidebar";
@@ -49,8 +49,6 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     setCheckoutPriceId(priceId);
     setCheckoutOpen(true);
   };
-  const isLive = import.meta.env.VITE_VOICE_REALTIME === "true";
-
   const voiceActive = activeTab === "voice";
   const userStorageKey = useMemo(
     () => (user.email || user.phone_number || "default").toLowerCase(),
@@ -58,37 +56,28 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   );
   const { completed, hiddenByUser, markCompleted, resetTour } = useProductTourPreferences(userStorageKey);
 
-  const { 
-    state: classicState, messages, statusText: classicStatus,
+  const {
+    messages,
+    statusText: chatStatus,
     needsOnboarding, onboardingPrompt, 
-    wakeWordActive, imageEditingPrompt, toggleListening: classicToggle, sendName, sendMessageText, onOrbScale: classicScale,
+    imageEditingPrompt, sendName, sendMessageText,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
-  } = useVoiceChat(token, voiceActive);
+  } = useChat(token);
 
   const {
-    state: liveState, statusText: liveStatus, toggleListening: liveToggle, onOrbScale: liveScale
-  } = useVoiceLive(isLive && voiceActive ? token : null);
+    state,
+    statusText,
+    toggleListening,
+    onOrbScale,
+  } = useVoiceLive(voiceActive ? token : null);
 
-  const rawState = isLive ? liveState : classicState;
-  const state = rawState === "connecting" ? "idle" : rawState;
-  const statusText = isLive ? liveStatus : classicStatus;
-  const toggleListening = isLive ? liveToggle : classicToggle;
-  const onOrbScale = isLive ? liveScale : classicScale;
-  
-  const stateLabel = isLive
-    ? ({
-        connecting: "Conectando...",
-        idle: "Pode falar",
-        listening: "Ouvindo...",
-        thinking: "Pensando...",
-        speaking: "Falando...",
-      }[rawState])
-    : ({
-        idle: "Em espera",
-        listening: "Ouvindo",
-        thinking: "Pensando",
-        speaking: "Falando",
-      }[state]);
+  const stateLabel = {
+    connecting: "Conectando...",
+    idle: "Pode falar",
+    listening: "Ouvindo...",
+    speaking: "Falando...",
+    muted: "Microfone pausado",
+  }[state];
   const limitsProgress = limits && limits.runs_limit > 0
     ? Math.min(100, Math.max(0, Math.round((limits.runs_used / limits.runs_limit) * 100)))
     : 0;
@@ -382,15 +371,9 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                     <span className="text-xs font-medium tracking-[0.3em] uppercase transition-colors duration-300 text-content-2">
                       {stateLabel}
                     </span>
-                    {wakeWordActive && state === "idle" && (
-                      <span className="flex items-center gap-1 text-[10px] text-content-3 tracking-wider">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                        escuta ativa
-                      </span>
-                    )}
                   </div>
                   
-                  {statusText && (isLive || state !== "idle") ? (
+                  {statusText ? (
                     <p className="text-content-3 text-xs tracking-wider mt-1">{statusText}</p>
                   ) : null}
                 </div>
@@ -400,7 +383,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 <ChatPanel 
                   messages={messages} 
                   onSendMessage={sendMessageText} 
-                  statusText={classicStatus} 
+                  statusText={chatStatus} 
                   className="lg:max-w-none rounded-none border-none shadow-none bg-transparent" 
                   onLoadMore={historyLoadMore}
                   isLoadingMore={historyLoading}

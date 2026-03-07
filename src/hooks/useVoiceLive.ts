@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream, hasUserGestured } from "../lib/audioCtx";
-import { sfx } from "../lib/sounds";
 
-export type LiveChatState = "connecting" | "idle" | "listening" | "thinking" | "speaking";
-const VAD_RMS_THRESHOLD = 0.015;
-const VAD_START_MS = 100;
-const VAD_END_MS = 800;
+export type LiveChatState = "connecting" | "idle" | "listening" | "speaking" | "muted";
+const LIVE_IDLE_TIMEOUT_MS = 90_000;
+const MIC_ACTIVITY_THRESHOLD = 0.01;
 
 // Simples buffer circular para tocar audio em stream continuo
 class AudioStreamPlayer {
@@ -62,21 +60,19 @@ export function useVoiceLive(token: string | null) {
   const micProcessorRef = useRef<ScriptProcessorNode | AudioWorkletNode | null>(null);
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const isCapturingRef = useRef(false);
-  const speechSinceRef = useRef<number | null>(null);
-  const silenceSinceRef = useRef<number | null>(null);
+  const isMutedRef = useRef(false);
+  const idleCheckRef = useRef<number | null>(null);
+  const lastActivityAtRef = useRef(Date.now());
   const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
   const setStateSync = (s: LiveChatState) => {
-    const prev = stateRef.current;
-    if (prev === "thinking" && s !== "thinking") {
-      sfx.stopThinking();
-    }
-    if (s === "thinking" && prev !== "thinking") {
-      sfx.thinking();
-    }
     stateRef.current = s;
     setState(s);
   };
+
+  const markActivity = useCallback(() => {
+    lastActivityAtRef.current = Date.now();
+  }, []);
 
   const onOrbScale = useCallback((cb: (scale: number) => void) => {
     orbListeners.current.add(cb);
@@ -93,10 +89,14 @@ export function useVoiceLive(token: string | null) {
     const ws = new WebSocket(`${wsUrl}/ws/voice-live?token=${token}`);
     wsRef.current = ws;
     playerRef.current = new AudioStreamPlayer();
+    setStateSync("connecting");
+    setStatusText("Conectando ao modelo de voz...");
 
     ws.onopen = () => {
       console.log("[VOICE LIVE] WebSocket conectado");
+      markActivity();
       if (hasUserGestured()) {
+        isMutedRef.current = false;
         startMicCapture();
       } else {
         console.log("[VOICE LIVE] Aguardando gesto do usuário para iniciar mic");
@@ -108,12 +108,14 @@ export function useVoiceLive(token: string | null) {
 
       switch (msg.type) {
         case "status":
+          markActivity();
           setStatusText(msg.text);
           if (stateRef.current === "connecting") {
-            setStateSync("idle");
+            setStateSync(isMutedRef.current ? "muted" : "listening");
           }
           break;
         case "audio":
+          markActivity();
           if (msg.audio_b64) {
             if (stateRef.current !== "speaking") {
               setStateSync("speaking");
@@ -125,17 +127,15 @@ export function useVoiceLive(token: string | null) {
             playerRef.current?.playChunk(bytes, 24000); // Gemini envia 24kHz
           }
           break;
-        case "tool_call_start":
-          setStateSync("thinking");
-          break;
         case "turn_complete":
-          setStateSync("idle");
-          setStatusText("Pode falar...");
-          break;
-        case "task_updated":
-        case "reminder_updated":
-          // Emite um evento custom local para o Dashboard reagir
-          window.dispatchEvent(new CustomEvent("ws_event", { detail: { type: msg.type } }));
+          markActivity();
+          if (isMutedRef.current) {
+            setStateSync("muted");
+            setStatusText("Microfone pausado");
+          } else {
+            setStateSync("listening");
+            setStatusText("Pode falar...");
+          }
           break;
       }
     };
@@ -143,54 +143,52 @@ export function useVoiceLive(token: string | null) {
     ws.onclose = () => {
       console.log("[VOICE LIVE] WebSocket fechado");
       stopMicCapture();
+      isMutedRef.current = false;
       setStateSync("idle");
+      setStatusText("");
     };
 
-  }, [token]);
+  }, [token, markActivity]);
 
   useEffect(() => {
     if (token) {
       connectWs();
       startMicAnalysis();
+      lastActivityAtRef.current = Date.now();
+      idleCheckRef.current = window.setInterval(() => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - lastActivityAtRef.current > LIVE_IDLE_TIMEOUT_MS) {
+          setStatusText("Sessão pausada por inatividade.");
+          stopMicCapture();
+          ws.close(1000, "idle_timeout");
+        }
+      }, 5000);
     }
     return () => {
+      if (idleCheckRef.current !== null) {
+        window.clearInterval(idleCheckRef.current);
+        idleCheckRef.current = null;
+      }
       if (wsRef.current) wsRef.current.close();
       stopMicCapture();
     };
   }, [token, connectWs]);
 
   const sendPcmChunk = useCallback((pcmBuffer: ArrayBuffer) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || isMutedRef.current) return;
 
     const pcmData = new Int16Array(pcmBuffer);
     let sum = 0;
     for (let i = 0; i < pcmData.length; i++) sum += pcmData[i] * pcmData[i];
     const rmsVal = Math.sqrt(sum / pcmData.length) / 32768;
-
-    if (stateRef.current !== "speaking" && stateRef.current !== "thinking") {
-      const now = performance.now();
-      if (rmsVal >= VAD_RMS_THRESHOLD) {
-        silenceSinceRef.current = null;
-        if (speechSinceRef.current === null) speechSinceRef.current = now;
-        if (now - speechSinceRef.current >= VAD_START_MS && stateRef.current !== "listening") {
-          setStateSync("listening");
-          setStatusText("Ouvindo...");
-        }
-      } else {
-        speechSinceRef.current = null;
-        if (silenceSinceRef.current === null) silenceSinceRef.current = now;
-        if (now - silenceSinceRef.current >= VAD_END_MS && stateRef.current === "listening") {
-          setStateSync("idle");
-          setStatusText("Pode falar...");
-        }
+    if (rmsVal > MIC_ACTIVITY_THRESHOLD) {
+      markActivity();
+      if (stateRef.current !== "speaking" && stateRef.current !== "connecting" && stateRef.current !== "listening") {
+        setStateSync("listening");
+        setStatusText("Ouvindo...");
       }
-    } else {
-      speechSinceRef.current = null;
-      silenceSinceRef.current = null;
-    }
-
-    if (stateRef.current === "speaking") {
-      if (rmsVal > 0.05) {
+      if (stateRef.current === "speaking") {
         playerRef.current?.stop();
         setStateSync("listening");
         setStatusText("Ouvindo...");
@@ -202,7 +200,7 @@ export function useVoiceLive(token: string | null) {
     let binary = "";
     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
     wsRef.current.send(JSON.stringify({ type: "audio_chunk", data: btoa(binary) }));
-  }, []);
+  }, [markActivity]);
 
   const startMicCapture = async () => {
     if (isCapturingRef.current) return;
@@ -242,6 +240,10 @@ export function useVoiceLive(token: string | null) {
       }
 
       isCapturingRef.current = true;
+      if (stateRef.current !== "speaking" && !isMutedRef.current) {
+        setStateSync("listening");
+        setStatusText("Pode falar...");
+      }
     } catch (e) {
       console.error("[VOICE LIVE] Erro ao capturar mic", e);
     }
@@ -281,17 +283,25 @@ export function useVoiceLive(token: string | null) {
   const toggleListening = useCallback(async () => {
     await ensureAudioResumed();
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-       if (stateRef.current === "speaking" || stateRef.current === "thinking") {
-           wsRef.current.send(JSON.stringify({ type: "cancel" }));
-           playerRef.current?.stop();
-           setStateSync("idle");
-       } else if (!isCapturingRef.current) {
-           await startMicCapture();
-       }
+      if (isMutedRef.current) {
+        isMutedRef.current = false;
+        markActivity();
+        if (!isCapturingRef.current) {
+          await startMicCapture();
+        }
+        setStateSync("listening");
+        setStatusText("Pode falar...");
+      } else {
+        isMutedRef.current = true;
+        stopMicCapture();
+        setStateSync("muted");
+        setStatusText("Microfone pausado");
+      }
     } else {
-       connectWs();
+      isMutedRef.current = false;
+      connectWs();
     }
-  }, [connectWs]);
+  }, [connectWs, markActivity]);
 
   return {
     state,

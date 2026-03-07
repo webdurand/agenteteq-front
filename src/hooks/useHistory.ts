@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { fetchWithAuth } from "../lib/api";
-import type { Message } from "./useVoiceChat";
+import type { Message } from "./chatTypes";
 
 export function useHistory(token: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);

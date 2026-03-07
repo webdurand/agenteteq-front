@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import type { ChatState } from "../hooks/useVoiceChat";
+import type { LiveChatState } from "../hooks/useVoiceLive";
 import { getPlaybackAmplitude, getMicAmplitude } from "../lib/audioCtx";
 
 interface OrbProps {
-  state: ChatState;
+  state: LiveChatState;
   onOrbScale: (cb: (s: number) => void) => () => void;
   onClick: () => void;
 }
@@ -28,8 +28,16 @@ const PARAM_KEYS: (keyof WaveParams)[] = [
   "rotSpeed", "distortSpan", "baseAlpha", "waveAlpha", "glowBlur", "glowAlpha",
 ];
 
-function getTargetParams(state: ChatState): WaveParams {
+function getTargetParams(state: LiveChatState): WaveParams {
   switch (state) {
+    case "muted":
+      return {
+        amp1: 0.8, amp2: 0.4, freq1: 2, freq2: 4,
+        speed1: 0.25, speed2: 0.35,
+        rotSpeed: 0.02, distortSpan: Math.PI * 0.5,
+        baseAlpha: 0.12, waveAlpha: 0.15,
+        glowBlur: 4, glowAlpha: 0.08,
+      };
     case "listening":
       return {
         amp1: 4, amp2: 2.5, freq1: 5, freq2: 8,
@@ -37,14 +45,6 @@ function getTargetParams(state: ChatState): WaveParams {
         rotSpeed: 0.25, distortSpan: Math.PI * 1.2,
         baseAlpha: 0.4, waveAlpha: 0.7,
         glowBlur: 14, glowAlpha: 0.3,
-      };
-    case "thinking":
-      return {
-        amp1: 2.5, amp2: 1.5, freq1: 4, freq2: 7,
-        speed1: 1.5, speed2: 2,
-        rotSpeed: 0.8, distortSpan: Math.PI * 0.6,
-        baseAlpha: 0.3, waveAlpha: 0.5,
-        glowBlur: 16, glowAlpha: 0.25,
       };
     case "speaking":
       return {
@@ -73,14 +73,14 @@ const SMOOTHING = 0.04;
 export function Orb({ state, onClick }: OrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const stateRef = useRef<ChatState>(state);
+  const stateRef = useRef<LiveChatState>(state);
   const curRef = useRef<WaveParams | null>(null);
   const angleRef = useRef(Math.PI * 1.15);
   const prevTimeRef = useRef(0);
   const reactRef = useRef(0);
 
   stateRef.current = state;
-  const isClickable = state === "idle" || state === "listening";
+  const isClickable = state !== "connecting";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -124,7 +124,7 @@ export function Orb({ state, onClick }: OrbProps) {
       let rawAmp = 0;
       if (currentState === "speaking") {
         rawAmp = getPlaybackAmplitude();
-      } else if (currentState === "listening") {
+      } else if (currentState === "listening" || currentState === "idle") {
         rawAmp = getMicAmplitude();
       }
       const targetReact = Math.min(rawAmp * 3, 1);
@@ -205,7 +205,7 @@ export function Orb({ state, onClick }: OrbProps) {
       <button
         onClick={isClickable ? onClick : undefined}
         className={`w-full h-full flex items-center justify-center ${isClickable ? "cursor-pointer active:opacity-80" : "cursor-default"}`}
-        aria-label={state === "listening" ? "Parar de ouvir" : "Falar com Teq"}
+        aria-label={state === "muted" ? "Ativar microfone" : "Pausar microfone"}
       >
         <canvas
           ref={canvasRef}
