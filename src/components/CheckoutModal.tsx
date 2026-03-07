@@ -135,8 +135,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
           Fechar
         </button>
 
-        {/* Left Column - Payment */}
-        <div className="order-1 lg:order-1 flex-1 p-5 sm:p-8 lg:p-12 lg:border-r border-line bg-surface-up relative flex flex-col">
+        {/* Payment Form Column */}
+        <div className="order-2 lg:order-2 flex-1 p-5 sm:p-8 lg:p-12 lg:border-l border-line bg-surface-up relative flex flex-col">
           <h2 className="text-xl sm:text-2xl font-light text-content mb-1 sm:mb-2 pr-20">Finalizar Assinatura</h2>
           <p className="text-sm text-content-3 mb-6 sm:mb-8">Escolha sua forma de pagamento preferida</p>
           
@@ -264,8 +264,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
           )}
         </div>
 
-        {/* Right Column - Summary */}
-        <div className={`order-2 lg:order-2 w-full lg:w-[400px] bg-glass p-5 sm:p-8 lg:p-12 flex flex-col relative ${isLoading ? 'hidden lg:flex' : ''}`}>
+        {/* Order Summary Column */}
+        <div className={`order-1 lg:order-1 w-full lg:w-[400px] bg-glass p-5 sm:p-8 lg:p-12 flex flex-col relative ${isLoading ? 'hidden lg:flex' : ''}`}>
           <h3 className="text-sm uppercase tracking-wider text-content-3 mb-4 sm:mb-6">Resumo do Pedido</h3>
           
           {/* Skeleton Overlay for Summary */}
