@@ -68,7 +68,6 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     state,
     statusText,
     toggleListening,
-    onOrbScale,
   } = useVoiceLive(voiceActive ? token : null);
 
   const stateLabel = {
@@ -76,6 +75,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     idle: "Pode falar",
     listening: "Ouvindo...",
     speaking: "Falando...",
+    processing: "Processando...",
     muted: "Microfone pausado",
   }[state];
   const limitsProgress = limits && limits.runs_limit > 0
@@ -359,11 +359,12 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 <div className={`absolute inset-0 opacity-20 transition-all duration-1000 ${
                   state === 'listening' ? 'bg-gradient-to-tr from-accent/20 to-transparent' :
                   state === 'speaking' ? 'bg-gradient-to-tr from-accent/10 via-transparent to-accent/10' :
+                  state === 'processing' ? 'bg-gradient-to-tr from-amber-400/20 via-transparent to-orange-400/20' :
                   'bg-gradient-to-b from-transparent to-black/5'
                 }`} />
 
                 <div className="flex-1 flex items-center justify-center relative z-10">
-                  <Orb state={state} onOrbScale={onOrbScale} onClick={toggleListening} />
+                  <Orb state={state} onClick={toggleListening} />
                 </div>
                 
                 <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 z-10 pointer-events-none">
@@ -376,6 +377,9 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   {statusText ? (
                     <p className="text-content-3 text-xs tracking-wider mt-1">{statusText}</p>
                   ) : null}
+                  {state === 'processing' && (
+                    <p className="text-content-3/50 text-[10px] tracking-wider mt-1">Toque no orb para interromper</p>
+                  )}
                 </div>
               </div>
             ) : activeTab === 'chat' ? (

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioCtx, ensureAudioResumed, getPlaybackAnalyser, startMicAnalysis, getMicStream, hasUserGestured } from "../lib/audioCtx";
 
-export type LiveChatState = "connecting" | "idle" | "listening" | "speaking" | "muted";
+export type LiveChatState = "connecting" | "idle" | "listening" | "speaking" | "processing" | "muted";
 const LIVE_IDLE_TIMEOUT_MS = 90_000;
 const MIC_ACTIVITY_THRESHOLD = 0.01;
 
-// Simples buffer circular para tocar audio em stream continuo
 class AudioStreamPlayer {
   private ctx: AudioContext;
   private analyser: AnalyserNode;
   private nextPlayTime: number = 0;
+  private activeSources: AudioBufferSourceNode[] = [];
 
   constructor() {
     this.ctx = getAudioCtx();
@@ -19,7 +19,6 @@ class AudioStreamPlayer {
   playChunk(pcmData: Uint8Array, sampleRate: number = 24000) {
     if (this.ctx.state === "suspended") this.ctx.resume();
 
-    // pcmData is 16-bit PCM little endian
     const numSamples = pcmData.length / 2;
     const float32Data = new Float32Array(numSamples);
     const dataView = new DataView(pcmData.buffer, pcmData.byteOffset, pcmData.byteLength);
@@ -35,6 +34,12 @@ class AudioStreamPlayer {
     source.buffer = audioBuffer;
     source.connect(this.analyser);
 
+    this.activeSources.push(source);
+    source.onended = () => {
+      const idx = this.activeSources.indexOf(source);
+      if (idx >= 0) this.activeSources.splice(idx, 1);
+    };
+
     const currentTime = this.ctx.currentTime;
     if (this.nextPlayTime < currentTime) {
       this.nextPlayTime = currentTime;
@@ -45,7 +50,10 @@ class AudioStreamPlayer {
   }
 
   stop() {
-    // Para parar um stream, podemos simplismente resetar o nextPlayTime e suspender/retomar (ou recriar o player na pratica)
+    for (const src of this.activeSources) {
+      try { src.stop(); src.disconnect(); } catch { /* already stopped */ }
+    }
+    this.activeSources = [];
     this.nextPlayTime = 0;
   }
 }
@@ -63,7 +71,6 @@ export function useVoiceLive(token: string | null) {
   const isMutedRef = useRef(false);
   const idleCheckRef = useRef<number | null>(null);
   const lastActivityAtRef = useRef(Date.now());
-  const orbListeners = useRef<Set<(scale: number) => void>>(new Set());
 
   const setStateSync = (s: LiveChatState) => {
     stateRef.current = s;
@@ -74,16 +81,14 @@ export function useVoiceLive(token: string | null) {
     lastActivityAtRef.current = Date.now();
   }, []);
 
-  const onOrbScale = useCallback((cb: (scale: number) => void) => {
-    orbListeners.current.add(cb);
-    return () => orbListeners.current.delete(cb);
-  }, []);
-
   const connectWs = useCallback(() => {
     if (!token) return;
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
     }
+
+    // Para qualquer áudio residual do player anterior
+    playerRef.current?.stop();
 
     const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
     const ws = new WebSocket(`${wsUrl}/ws/voice-live?token=${token}`);
@@ -137,11 +142,23 @@ export function useVoiceLive(token: string | null) {
             setStatusText("Pode falar...");
           }
           break;
+        case "tool_call_start":
+          markActivity();
+          setStateSync("processing");
+          setStatusText(msg.label || `Executando ${msg.name || "acao"}...`);
+          break;
+        case "tool_call_end":
+          markActivity();
+          break;
+        case "interrupted":
+          playerRef.current?.stop();
+          break;
       }
     };
 
     ws.onclose = () => {
       console.log("[VOICE LIVE] WebSocket fechado");
+      playerRef.current?.stop();
       stopMicCapture();
       isMutedRef.current = false;
       setStateSync("idle");
@@ -177,6 +194,7 @@ export function useVoiceLive(token: string | null) {
 
   const sendPcmChunk = useCallback((pcmBuffer: ArrayBuffer) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || isMutedRef.current) return;
+    if (stateRef.current === "processing") return;
 
     const pcmData = new Int16Array(pcmBuffer);
     let sum = 0;
@@ -192,7 +210,6 @@ export function useVoiceLive(token: string | null) {
         playerRef.current?.stop();
         setStateSync("listening");
         setStatusText("Ouvindo...");
-        wsRef.current.send(JSON.stringify({ type: "cancel" }));
       }
     }
 
@@ -283,6 +300,12 @@ export function useVoiceLive(token: string | null) {
   const toggleListening = useCallback(async () => {
     await ensureAudioResumed();
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (stateRef.current === "processing") {
+        markActivity();
+        setStateSync("listening");
+        setStatusText("Pode falar...");
+        return;
+      }
       if (isMutedRef.current) {
         isMutedRef.current = false;
         markActivity();
@@ -307,6 +330,5 @@ export function useVoiceLive(token: string | null) {
     state,
     statusText,
     toggleListening,
-    onOrbScale,
   };
 }

@@ -1,82 +1,122 @@
 import { useEffect, useRef } from "react";
 import type { LiveChatState } from "../hooks/useVoiceLive";
-import { getPlaybackAmplitude, getMicAmplitude } from "../lib/audioCtx";
+import { getMicAmplitude, getPlaybackAmplitude } from "../lib/audioCtx";
 
 interface OrbProps {
   state: LiveChatState;
-  onOrbScale: (cb: (s: number) => void) => () => void;
   onClick: () => void;
 }
 
-interface WaveParams {
-  amp1: number;
-  amp2: number;
-  freq1: number;
-  freq2: number;
-  speed1: number;
-  speed2: number;
-  rotSpeed: number;
-  distortSpan: number;
-  baseAlpha: number;
-  waveAlpha: number;
-  glowBlur: number;
-  glowAlpha: number;
+interface RgbColor {
+  r: number;
+  g: number;
+  b: number;
 }
 
-const PARAM_KEYS: (keyof WaveParams)[] = [
-  "amp1", "amp2", "freq1", "freq2", "speed1", "speed2",
-  "rotSpeed", "distortSpan", "baseAlpha", "waveAlpha", "glowBlur", "glowAlpha",
-];
+interface OrbStyle {
+  core: RgbColor;
+  glow: RgbColor;
+  wave: RgbColor;
+  pulseSpeed: number;
+  waveSpeed: number;
+  waveAmp: number;
+  baseGlow: number;
+  alpha: number;
+}
 
-function getTargetParams(state: LiveChatState): WaveParams {
+const SIZE = 256;
+const CORE_RADIUS = 68;
+const WAVE_SEGMENTS = 220;
+const SMOOTHING = 0.05;
+
+function rgb(r: number, g: number, b: number): RgbColor {
+  return { r, g, b };
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpColor(a: RgbColor, b: RgbColor, t: number): RgbColor {
+  return {
+    r: lerp(a.r, b.r, t),
+    g: lerp(a.g, b.g, t),
+    b: lerp(a.b, b.b, t),
+  };
+}
+
+function colorToRgba(color: RgbColor, alpha: number): string {
+  return `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${alpha})`;
+}
+
+function getStyleByState(state: LiveChatState): OrbStyle {
   switch (state) {
-    case "muted":
-      return {
-        amp1: 0.8, amp2: 0.4, freq1: 2, freq2: 4,
-        speed1: 0.25, speed2: 0.35,
-        rotSpeed: 0.02, distortSpan: Math.PI * 0.5,
-        baseAlpha: 0.12, waveAlpha: 0.15,
-        glowBlur: 4, glowAlpha: 0.08,
-      };
     case "listening":
       return {
-        amp1: 4, amp2: 2.5, freq1: 5, freq2: 8,
-        speed1: 1.8, speed2: 2.5,
-        rotSpeed: 0.25, distortSpan: Math.PI * 1.2,
-        baseAlpha: 0.4, waveAlpha: 0.7,
-        glowBlur: 14, glowAlpha: 0.3,
+        core: rgb(100, 191, 255),
+        glow: rgb(37, 130, 255),
+        wave: rgb(120, 222, 255),
+        pulseSpeed: 1.3,
+        waveSpeed: 2.2,
+        waveAmp: 7,
+        baseGlow: 20,
+        alpha: 0.95,
       };
     case "speaking":
       return {
-        amp1: 5, amp2: 3, freq1: 3, freq2: 6,
-        speed1: 2, speed2: 3,
-        rotSpeed: 0.35, distortSpan: Math.PI * 1.5,
-        baseAlpha: 0.35, waveAlpha: 0.75,
-        glowBlur: 18, glowAlpha: 0.35,
+        core: rgb(182, 126, 255),
+        glow: rgb(145, 95, 255),
+        wave: rgb(220, 156, 255),
+        pulseSpeed: 1.8,
+        waveSpeed: 2.8,
+        waveAmp: 9,
+        baseGlow: 24,
+        alpha: 0.95,
       };
+    case "processing":
+      return {
+        core: rgb(255, 195, 90),
+        glow: rgb(255, 154, 58),
+        wave: rgb(255, 223, 130),
+        pulseSpeed: 2.2,
+        waveSpeed: 3.1,
+        waveAmp: 6,
+        baseGlow: 26,
+        alpha: 0.92,
+      };
+    case "muted":
+      return {
+        core: rgb(120, 128, 146),
+        glow: rgb(82, 92, 112),
+        wave: rgb(148, 156, 176),
+        pulseSpeed: 0.55,
+        waveSpeed: 1.0,
+        waveAmp: 2.5,
+        baseGlow: 10,
+        alpha: 0.48,
+      };
+    case "idle":
+    case "connecting":
     default:
       return {
-        amp1: 2, amp2: 1, freq1: 3, freq2: 5,
-        speed1: 0.6, speed2: 0.9,
-        rotSpeed: 0.04, distortSpan: Math.PI * 0.7,
-        baseAlpha: 0.2, waveAlpha: 0.35,
-        glowBlur: 8, glowAlpha: 0.12,
+        core: rgb(140, 154, 188),
+        glow: rgb(112, 126, 164),
+        wave: rgb(168, 182, 214),
+        pulseSpeed: 0.8,
+        waveSpeed: 1.4,
+        waveAmp: 3.5,
+        baseGlow: 14,
+        alpha: 0.72,
       };
   }
 }
 
-const SIZE = 256;
-const RADIUS = 90;
-const SEGMENTS = 512;
-const SMOOTHING = 0.04;
-
 export function Orb({ state, onClick }: OrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const stateRef = useRef<LiveChatState>(state);
-  const curRef = useRef<WaveParams | null>(null);
-  const angleRef = useRef(Math.PI * 1.15);
   const prevTimeRef = useRef(0);
+  const stateRef = useRef<LiveChatState>(state);
+  const currentStyleRef = useRef<OrbStyle>(getStyleByState(state));
   const reactRef = useRef(0);
 
   stateRef.current = state;
@@ -85,132 +125,150 @@ export function Orb({ state, onClick }: OrbProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const drawCtx = canvas.getContext("2d");
-    if (!drawCtx) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = SIZE * dpr;
     canvas.height = SIZE * dpr;
-    drawCtx.scale(dpr, dpr);
+    ctx.scale(dpr, dpr);
 
     const cx = SIZE / 2;
     const cy = SIZE / 2;
 
-    if (!curRef.current) {
-      curRef.current = { ...getTargetParams(stateRef.current) };
-    }
+    const drawWave = (
+      phase: number,
+      radiusBase: number,
+      amp: number,
+      speed: number,
+      color: RgbColor,
+      alpha: number,
+      inverse = false,
+    ) => {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i <= WAVE_SEGMENTS; i++) {
+        const a = (i / WAVE_SEGMENTS) * Math.PI * 2;
+        const direction = inverse ? -1 : 1;
+        const deform =
+          Math.sin(a * 3 + phase * speed * direction) * amp +
+          Math.sin(a * 5 - phase * speed * 0.6 * direction) * amp * 0.35;
+        const r = radiusBase + deform;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = colorToRgba(color, alpha);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.restore();
+    };
 
     const draw = (now: number) => {
       const dt = prevTimeRef.current ? (now - prevTimeRef.current) / 1000 : 1 / 60;
       prevTimeRef.current = now;
       const t = now / 1000;
 
-      drawCtx.clearRect(0, 0, SIZE, SIZE);
+      ctx.clearRect(0, 0, SIZE, SIZE);
 
-      const isDark = document.documentElement.classList.contains("dark");
-      const waveRGB = isDark ? "255, 255, 255" : "0, 0, 0";
-      const glowRGB = isDark ? "200, 200, 200" : "80, 80, 80";
-
-      const currentState = stateRef.current;
-      const target = getTargetParams(currentState);
-      const cur = curRef.current!;
+      const targetStyle = getStyleByState(stateRef.current);
+      const cur = currentStyleRef.current;
       const factor = 1 - Math.pow(SMOOTHING, dt);
+      cur.core = lerpColor(cur.core, targetStyle.core, factor);
+      cur.glow = lerpColor(cur.glow, targetStyle.glow, factor);
+      cur.wave = lerpColor(cur.wave, targetStyle.wave, factor);
+      cur.pulseSpeed = lerp(cur.pulseSpeed, targetStyle.pulseSpeed, factor);
+      cur.waveSpeed = lerp(cur.waveSpeed, targetStyle.waveSpeed, factor);
+      cur.waveAmp = lerp(cur.waveAmp, targetStyle.waveAmp, factor);
+      cur.baseGlow = lerp(cur.baseGlow, targetStyle.baseGlow, factor);
+      cur.alpha = lerp(cur.alpha, targetStyle.alpha, factor);
 
-      for (const k of PARAM_KEYS) {
-        cur[k] += (target[k] - cur[k]) * factor;
-      }
-
-      // Audio-reactive amplitude
       let rawAmp = 0;
-      if (currentState === "speaking") {
+      if (stateRef.current === "speaking") {
         rawAmp = getPlaybackAmplitude();
-      } else if (currentState === "listening" || currentState === "idle") {
+      } else if (stateRef.current === "listening") {
         rawAmp = getMicAmplitude();
+      } else if (stateRef.current === "processing") {
+        rawAmp = 0.35 + Math.sin(t * 4.2) * 0.15;
       }
-      const targetReact = Math.min(rawAmp * 3, 1);
+      const targetReact = Math.min(Math.max(rawAmp * 3.2, 0), 1);
       const reactSmooth = targetReact > reactRef.current ? 0.18 : 0.06;
       reactRef.current += (targetReact - reactRef.current) * reactSmooth;
       const react = reactRef.current;
 
-      const ampBoost = 1 + react * 0.8;
-      const glowBoost = 1 + react * 0.3;
+      const pulse = 1 + Math.sin(t * cur.pulseSpeed * 2.4) * 0.02 + react * 0.045;
+      const radius = CORE_RADIUS * pulse;
+      const glowBlur = cur.baseGlow + react * 24;
+      const waveAmp = cur.waveAmp * (1 + react * 0.85);
 
-      angleRef.current = (angleRef.current + cur.rotSpeed * dt) % (Math.PI * 2);
-      const center = angleRef.current;
-      const halfSpan = cur.distortSpan / 2;
+      const coreGradient = ctx.createRadialGradient(
+        cx - 8,
+        cy - 12,
+        radius * 0.08,
+        cx,
+        cy,
+        radius * 1.15,
+      );
+      coreGradient.addColorStop(0, colorToRgba(cur.core, 0.95 * cur.alpha));
+      coreGradient.addColorStop(0.58, colorToRgba(lerpColor(cur.core, cur.glow, 0.35), 0.72 * cur.alpha));
+      coreGradient.addColorStop(1, colorToRgba(cur.glow, 0.1 * cur.alpha));
 
-      const envelope = (angle: number): number => {
-        const delta =
-          ((angle - center) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) -
-          Math.PI;
-        if (Math.abs(delta) > halfSpan) return 0;
-        return Math.cos((delta / halfSpan) * (Math.PI / 2));
-      };
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = coreGradient;
+      ctx.shadowColor = colorToRgba(cur.glow, 0.75 * cur.alpha);
+      ctx.shadowBlur = glowBlur;
+      ctx.fill();
+      ctx.restore();
 
-      const WAVE_LAYERS = [
-        { radiusOff:  0, ampScale: 1.0,  phaseOff: 0,        alpha: 1.0 },
-        { radiusOff:  6, ampScale: 0.6,  phaseOff: 0.9,      alpha: 0.45 },
-        { radiusOff: -6, ampScale: 0.5,  phaseOff: 1.8,      alpha: 0.35 },
-        { radiusOff: 12, ampScale: 0.35, phaseOff: 2.6,      alpha: 0.2 },
-      ];
+      // Halo externo
+      const haloGradient = ctx.createRadialGradient(cx, cy, radius * 1.05, cx, cy, radius * 1.85);
+      haloGradient.addColorStop(0, colorToRgba(cur.glow, 0.22 * cur.alpha));
+      haloGradient.addColorStop(1, colorToRgba(cur.glow, 0));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 1.82, 0, Math.PI * 2);
+      ctx.fillStyle = haloGradient;
+      ctx.fill();
+      ctx.restore();
 
-      for (const layer of WAVE_LAYERS) {
-        const layerR = RADIUS + layer.radiusOff;
-        const lAlpha = cur.waveAlpha * layer.alpha + react * 0.04;
-        drawCtx.save();
-        drawCtx.beginPath();
-        for (let i = 0; i <= SEGMENTS; i++) {
-          const angle = (i / SEGMENTS) * Math.PI * 2;
-          const env = envelope(angle);
-          const wave =
-            env *
-            layer.ampScale *
-            (Math.sin(angle * cur.freq1 + t * cur.speed1 + layer.phaseOff) * cur.amp1 * ampBoost +
-              Math.sin(angle * cur.freq2 - t * cur.speed2 + layer.phaseOff) * cur.amp2 * ampBoost);
-          const r = layerR + wave;
-          const x = cx + Math.cos(angle) * r;
-          const y = cy + Math.sin(angle) * r;
-          if (i === 0) drawCtx.moveTo(x, y);
-          else drawCtx.lineTo(x, y);
-        }
-        drawCtx.closePath();
-        drawCtx.strokeStyle = `rgba(${waveRGB}, ${Math.min(lAlpha, 1)})`;
-        drawCtx.lineWidth = layer.alpha > 0.5 ? 1.0 + react * 0.2 : 0.6;
-        drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * glowBoost * layer.alpha})`;
-        drawCtx.shadowBlur = cur.glowBlur * glowBoost * layer.alpha;
-        drawCtx.stroke();
-        drawCtx.restore();
+      const processingInverse = stateRef.current === "speaking";
+      drawWave(t, radius + 18, waveAmp, cur.waveSpeed, cur.wave, 0.38 * cur.alpha + react * 0.15, processingInverse);
+      drawWave(t + 0.75, radius + 28, waveAmp * 0.72, cur.waveSpeed * 0.88, cur.wave, 0.22 * cur.alpha + react * 0.1, processingInverse);
+      drawWave(t + 1.4, radius + 38, waveAmp * 0.5, cur.waveSpeed * 0.74, cur.wave, 0.12 * cur.alpha + react * 0.08, processingInverse);
+
+      if (stateRef.current === "processing") {
+        const ringRadius = radius + 13 + Math.sin(t * 7) * 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = colorToRgba(cur.wave, 0.35 + react * 0.25);
+        ctx.lineWidth = 1.4;
+        ctx.shadowColor = colorToRgba(cur.wave, 0.45);
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+        ctx.restore();
       }
-
-      // Base circle
-      drawCtx.save();
-      drawCtx.beginPath();
-      drawCtx.arc(cx, cy, RADIUS, 0, Math.PI * 2);
-      drawCtx.strokeStyle = `rgba(${waveRGB}, ${cur.baseAlpha})`;
-      drawCtx.lineWidth = 0.8;
-      drawCtx.shadowColor = `rgba(${glowRGB}, ${cur.glowAlpha * 0.4})`;
-      drawCtx.shadowBlur = cur.glowBlur * 0.4;
-      drawCtx.stroke();
-      drawCtx.restore();
 
       animRef.current = requestAnimationFrame(draw);
     };
 
     animRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animRef.current);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative flex items-center justify-center w-full max-w-[256px] aspect-square">
       <button
         onClick={isClickable ? onClick : undefined}
         className={`w-full h-full flex items-center justify-center ${isClickable ? "cursor-pointer active:opacity-80" : "cursor-default"}`}
-        aria-label={state === "muted" ? "Ativar microfone" : "Pausar microfone"}
+        aria-label={state === "processing" ? "Interromper processamento" : state === "muted" ? "Ativar microfone" : "Pausar microfone"}
       >
-        <canvas
-          ref={canvasRef}
-          style={{ width: "100%", height: "100%", maxWidth: SIZE, maxHeight: SIZE }}
-        />
+        <canvas ref={canvasRef} style={{ width: "100%", height: "100%", maxWidth: SIZE, maxHeight: SIZE }} />
       </button>
     </div>
   );
