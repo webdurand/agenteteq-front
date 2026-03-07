@@ -124,9 +124,11 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     }
   };
 
+  const isLoading = !clientSecret && !error && !activeView && paymentStatus === 'idle';
+
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-surface-up border border-line shadow-2xl flex flex-col lg:flex-row relative">
+    <div className="fixed inset-0 z-[100] bg-surface sm:bg-black/80 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
+      <div className="w-full sm:max-w-5xl sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
         
         {/* Close Button */}
         <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium uppercase tracking-wider">
@@ -134,16 +136,16 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         </button>
 
         {/* Left Column - Payment */}
-        <div className="order-2 lg:order-1 flex-1 p-5 sm:p-8 lg:p-12 lg:border-r border-line bg-surface-up relative">
-          <h2 className="text-2xl font-light text-content mb-2">Finalizar Assinatura</h2>
-          <p className="text-sm text-content-3 mb-8">Escolha sua forma de pagamento preferida</p>
+        <div className="order-1 lg:order-1 flex-1 p-5 sm:p-8 lg:p-12 lg:border-r border-line bg-surface-up relative">
+          <h2 className="text-xl sm:text-2xl font-light text-content mb-1 sm:mb-2 pr-20">Finalizar Assinatura</h2>
+          <p className="text-sm text-content-3 mb-6 sm:mb-8">Escolha sua forma de pagamento preferida</p>
           
           {error ? (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-4 rounded-xl">
               {error}
             </div>
           ) : activeView ? (
-            <div className="relative w-full min-h-[280px] sm:min-h-[400px] flex flex-col justify-start gap-6">
+            <div className="relative w-full flex flex-col justify-start gap-6">
               <div className="rounded-2xl border border-line bg-surface-card p-6 space-y-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-wider text-content-3">Assinatura ativa</p>
@@ -207,16 +209,16 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
               </div>
             </div>
           ) : paymentStatus === 'processing' ? (
-            <div className="relative w-full min-h-[200px] sm:min-h-[400px] flex flex-col items-center justify-center gap-4 sm:gap-6 text-center animate-in fade-in duration-500 py-8">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-4 border-line border-t-accent animate-spin"></div>
+            <div className="relative w-full flex-1 flex flex-col items-center justify-center gap-5 text-center animate-in fade-in duration-500 py-12">
+              <div className="w-14 h-14 rounded-full border-4 border-line border-t-accent animate-spin"></div>
               <div>
                 <h3 className="text-xl sm:text-2xl font-light text-content mb-2">Processando Pagamento</h3>
                 <p className="text-content-3 text-sm">Aguarde enquanto confirmamos sua assinatura...</p>
               </div>
             </div>
           ) : paymentStatus === 'success' ? (
-            <div className="relative w-full min-h-[200px] sm:min-h-[400px] flex flex-col items-center justify-center gap-4 sm:gap-6 text-center animate-in fade-in zoom-in duration-500 py-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+            <div className="relative w-full flex-1 flex flex-col items-center justify-center gap-5 text-center animate-in fade-in zoom-in duration-500 py-12">
+              <div className="w-18 h-18 sm:w-20 sm:h-20 bg-green-500/20 rounded-full flex items-center justify-center">
                 <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -236,13 +238,13 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
               </button>
             </div>
           ) : (
-            <div className="relative w-full min-h-[200px] sm:min-h-[400px] flex items-center justify-center">
+            <div className="relative w-full flex-1 flex items-center justify-center">
               <div 
-                className={`absolute inset-0 z-10 transition-opacity duration-500 flex flex-col items-center justify-center gap-3 py-8 ${
+                className={`absolute inset-0 z-10 transition-opacity duration-500 flex flex-col items-center justify-center gap-4 ${
                   clientSecret ? "opacity-0 pointer-events-none" : "opacity-100"
                 }`}
               >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-line border-t-content animate-spin"></div>
+                <div className="w-8 h-8 rounded-full border-2 border-line border-t-content animate-spin"></div>
                 <div className="text-content-3 text-xs sm:text-sm tracking-wider uppercase font-medium">Conectando ao ambiente seguro...</div>
               </div>
 
@@ -268,7 +270,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         </div>
 
         {/* Right Column - Summary */}
-        <div className="order-1 lg:order-2 w-full lg:w-[400px] bg-glass p-5 sm:p-8 lg:p-12 flex flex-col relative">
+        <div className={`order-2 lg:order-2 w-full lg:w-[400px] bg-glass p-5 sm:p-8 lg:p-12 flex flex-col relative ${isLoading ? 'hidden lg:flex' : ''}`}>
           <h3 className="text-sm uppercase tracking-wider text-content-3 mb-4 sm:mb-6">Resumo do Pedido</h3>
           
           {/* Skeleton Overlay for Summary */}

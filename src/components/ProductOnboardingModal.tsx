@@ -72,69 +72,73 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-surface/90 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-line bg-surface-up shadow-2xl p-5 sm:p-8">
-        <Illustration step={stepIndex} />
+    <div className="fixed inset-0 z-[70] bg-surface sm:bg-surface/90 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
+      <div className="w-full sm:max-w-xl sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl sm:border sm:border-line bg-surface-up sm:shadow-2xl flex flex-col">
+        <div className="flex-1 flex flex-col justify-center p-5 sm:p-8">
+          <Illustration step={stepIndex} />
 
-        <div className="flex items-center justify-center gap-2 mt-4 sm:mt-5">
-          {dots.map((active, idx) => (
-            <span
-              key={idx}
-              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border transition-colors ${
-                active
-                  ? "bg-content border-content"
-                  : "bg-content-4/70 border-content-3/70"
-              }`}
-            />
-          ))}
+          <div className="flex items-center justify-center gap-2 mt-5">
+            {dots.map((active, idx) => (
+              <span
+                key={idx}
+                className={`w-2.5 h-2.5 rounded-full border transition-colors ${
+                  active
+                    ? "bg-content border-content"
+                    : "bg-content-4/70 border-content-3/70"
+                }`}
+              />
+            ))}
+          </div>
+
+          <h2 className="mt-6 text-2xl sm:text-3xl font-light text-content">{current.title}</h2>
+          <p className="mt-3 text-sm sm:text-base text-content-2 leading-relaxed">{current.description}</p>
+
+          {isLastStep && (
+            <label className="mt-5 flex items-start gap-2 text-sm text-content-3">
+              <input
+                type="checkbox"
+                checked={hideNextTimes}
+                onChange={(e) => setHideNextTimes(e.target.checked)}
+                className="mt-0.5"
+              />
+              Não exibir esse onboarding novamente
+            </label>
+          )}
         </div>
 
-        <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-light text-content">{current.title}</h2>
-        <p className="mt-2 sm:mt-3 text-sm sm:text-base text-content-2 leading-relaxed">{current.description}</p>
+        <div className="flex-shrink-0 p-5 sm:p-8 pt-0 sm:pt-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-col-reverse sm:flex-row items-center sm:justify-between gap-3">
+            {!isLastStep ? (
+              <button
+                onClick={() => setStepIndex((prev) => Math.min(prev + 1, STEPS.length - 1))}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
+              >
+                Próximo
+              </button>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={onSeeLimits}
+                  className="px-4 py-3.5 rounded-full border border-line text-content text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors"
+                >
+                  Ver meus limites
+                </button>
+                <button
+                  onClick={() => onOpenCheckout(hideNextTimes)}
+                  className="px-6 py-3.5 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
+                >
+                  Assinar agora
+                </button>
+              </div>
+            )}
 
-        {isLastStep && (
-          <label className="mt-4 sm:mt-5 flex items-start gap-2 text-sm text-content-3">
-            <input
-              type="checkbox"
-              checked={hideNextTimes}
-              onChange={(e) => setHideNextTimes(e.target.checked)}
-              className="mt-0.5"
-            />
-            Não exibir esse onboarding novamente
-          </label>
-        )}
-
-        <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row items-center sm:justify-between gap-3">
-          {!isLastStep ? (
             <button
-              onClick={() => setStepIndex((prev) => Math.min(prev + 1, STEPS.length - 1))}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
+              onClick={() => onFinish(hideNextTimes)}
+              className="px-4 py-2 text-xs uppercase tracking-wider text-content-3 hover:text-content transition-colors"
             >
-              Próximo
+              Pular tour
             </button>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={onSeeLimits}
-                className="px-4 py-3 rounded-full border border-line text-content text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors"
-              >
-                Ver meus limites
-              </button>
-              <button
-                onClick={() => onOpenCheckout(hideNextTimes)}
-                className="px-6 py-3 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
-              >
-                Assinar agora
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => onFinish(hideNextTimes)}
-            className="px-4 py-2 text-xs uppercase tracking-wider text-content-3 hover:text-content transition-colors"
-          >
-            Pular tour
-          </button>
+          </div>
         </div>
       </div>
     </div>
