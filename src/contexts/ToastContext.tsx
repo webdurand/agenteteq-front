@@ -17,7 +17,7 @@ const ToastContext = createContext<ToastContextData | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);

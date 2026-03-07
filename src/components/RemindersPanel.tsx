@@ -82,7 +82,9 @@ function describeCron(expr: string): string {
 
 const channelLabels: Record<string, { label: string; icon: string }> = {
   whatsapp_text: { label: "WhatsApp", icon: "💬" },
+  web_text: { label: "Web (texto)", icon: "💻" },
   web_voice: { label: "Voz no app", icon: "🔊" },
+  web_whatsapp: { label: "Web + WhatsApp", icon: "🔔" },
   whatsapp_call: { label: "Ligação WA", icon: "📞" },
 };
 
@@ -320,7 +322,9 @@ function CreateForm({ onAdd, onClose }: { onAdd: (data: any) => void; onClose: (
         <div className="flex gap-2">
           {[
             { value: "web_voice", label: "Voz no app", icon: "🔊" },
+            { value: "web_text", label: "Web (texto)", icon: "💻" },
             { value: "whatsapp_text", label: "WhatsApp", icon: "💬" },
+            { value: "web_whatsapp", label: "Web + WhatsApp", icon: "🔔" },
           ].map(ch => (
             <button
               key={ch.value}

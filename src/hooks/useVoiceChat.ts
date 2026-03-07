@@ -257,6 +257,9 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
 
         case "action_log": {
           const channel = msg.channel || "unknown";
+          if (channel === "web" || channel === "web_text") {
+            break;
+          }
           const text = `[${channel}] ${msg.action}: ${msg.summary}`;
           setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "system", text, timestamp: new Date() }]);
           break;
