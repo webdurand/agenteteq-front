@@ -100,6 +100,9 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
       switch (msg.type) {
         case "status":
           setStatusText(msg.text);
+          if (!msg.text && stateRef.current === "thinking") {
+            setStateSync("idle");
+          }
           break;
 
         case "transcript":
@@ -261,8 +264,20 @@ export function useVoiceChat(token: string | null, voiceEnabled = false) {
       }
     };
 
-    const cleanup = wsClient.on("message", handleMessage);
-    return cleanup;
+    const cleanupMsg = wsClient.on("message", handleMessage);
+
+    const handleClose = () => {
+      if (stateRef.current === "thinking") {
+        setStateSync("idle");
+        setStatusText("");
+      }
+    };
+    const cleanupClose = wsClient.on("close", handleClose);
+
+    return () => {
+      cleanupMsg();
+      cleanupClose();
+    };
   }, []);
 
   useEffect(() => {
