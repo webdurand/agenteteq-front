@@ -30,7 +30,7 @@ function GalleryImage({ slide, carousel, onClick }: {
   return (
     <button
       onClick={status === "ready" && !imgError ? onClick : undefined}
-      className={`group relative aspect-[4/3] w-full overflow-hidden rounded-xl border bg-surface transition-all ${
+      className={`group relative aspect-[4/3] w-full overflow-hidden rounded-xl border bg-surface transition-all touch-pan-y ${
         status === "ready" && !imgError ? "border-line hover:border-accent cursor-pointer" : "border-line/50 cursor-default"
       }`}
     >
@@ -39,6 +39,7 @@ function GalleryImage({ slide, carousel, onClick }: {
           src={slide.image_url}
           alt={slide.prompt?.slice(0, 40)}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          draggable={false}
           loading="lazy"
           onError={() => setImgError(true)}
         />

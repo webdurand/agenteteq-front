@@ -220,13 +220,14 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
               <button 
                 key={i} 
                 onClick={() => setSelectedIdx(globalImgIdx)} 
-                className="block group cursor-pointer text-left"
+                className="block group cursor-pointer text-left touch-pan-y"
               >
                 <div className="relative overflow-hidden rounded-xl border border-line shadow-sm">
                   <img
                     src={part.content}
                     alt={`Slide ${i + 1}`}
                     className="w-full max-w-[260px] object-cover rounded-xl group-hover:opacity-90 transition-opacity"
+                    draggable={false}
                     loading="lazy"
                   />
                   <div className="absolute inset-0 flex items-end opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/40 to-transparent rounded-xl">

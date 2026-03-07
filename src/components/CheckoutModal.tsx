@@ -128,7 +128,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
 
   return (
     <div className="fixed inset-0 z-[100] bg-surface sm:bg-black/80 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-5xl sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
+      <div className="w-full sm:max-w-5xl sm:min-h-[550px] sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
         
         {/* Close Button */}
         <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium uppercase tracking-wider">
@@ -136,7 +136,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         </button>
 
         {/* Left Column - Payment */}
-        <div className="order-1 lg:order-1 flex-1 p-5 sm:p-8 lg:p-12 lg:border-r border-line bg-surface-up relative">
+        <div className="order-1 lg:order-1 flex-1 p-5 sm:p-8 lg:p-12 lg:border-r border-line bg-surface-up relative flex flex-col">
           <h2 className="text-xl sm:text-2xl font-light text-content mb-1 sm:mb-2 pr-20">Finalizar Assinatura</h2>
           <p className="text-sm text-content-3 mb-6 sm:mb-8">Escolha sua forma de pagamento preferida</p>
           
@@ -238,19 +238,14 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
               </button>
             </div>
           ) : (
-            <div className="relative w-full flex-1 flex items-center justify-center">
-              <div 
-                className={`absolute inset-0 z-10 transition-opacity duration-500 flex flex-col items-center justify-center gap-4 ${
-                  clientSecret ? "opacity-0 pointer-events-none" : "opacity-100"
-                }`}
-              >
-                <div className="w-8 h-8 rounded-full border-2 border-line border-t-content animate-spin"></div>
-                <div className="text-content-3 text-xs sm:text-sm tracking-wider uppercase font-medium">Conectando ao ambiente seguro...</div>
-              </div>
-
-              {/* Elemento Real do Stripe */}
-              <div className={`w-full transition-opacity duration-500 ${clientSecret ? "opacity-100" : "opacity-0"}`}>
-                {clientSecret && (
+            <div className="relative w-full flex-1 flex flex-col">
+              {!clientSecret ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-5 animate-in fade-in duration-500 py-12">
+                  <div className="w-10 h-10 rounded-full border-2 border-line border-t-content animate-spin"></div>
+                  <div className="text-content-3 text-xs sm:text-sm tracking-wider uppercase font-medium">Conectando ao ambiente seguro...</div>
+                </div>
+              ) : (
+                <div className="w-full flex-1 flex flex-col animate-in fade-in duration-500">
                   <Elements stripe={stripePromise} options={{
                     clientSecret,
                     appearance: {
@@ -263,8 +258,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
                       onSuccess={() => setPaymentStatus('processing')}
                     />
                   </Elements>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
