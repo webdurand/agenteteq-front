@@ -194,27 +194,148 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     <div className="h-screen-safe w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
       
       {/* Topbar */}
-      <header className="flex-shrink-0 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between z-20 bg-surface">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content">TEQ</h1>
-          <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block">Dashboard</span>
-          <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
-          {limits && (
-            <div className="relative">
-              <button
-                onClick={() => setLimitsExpanded((prev) => !prev)}
-                className={`px-2.5 py-1 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
-                  showLimitsHighlight
-                    ? "border-accent text-accent bg-accent/10"
-                    : "border-line text-content-3 hover:text-content"
-                }`}
-              >
-                <span>Runs {limits.runs_remaining}/{limits.runs_limit}</span>
-                <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
-              </button>
+      <header className="flex-shrink-0 px-3 sm:px-4 lg:px-8 pt-3 pb-2 lg:py-6 z-20 bg-surface">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h1 className="text-sm font-bold tracking-[0.4em] uppercase text-content flex-shrink-0">TEQ</h1>
+            <span className="text-[10px] tracking-widest uppercase text-content-3 border border-line px-2 py-0.5 rounded-full hidden sm:inline-block flex-shrink-0">Dashboard</span>
+            <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
+            {/* Desktop limits inline */}
+            {limits && (
+              <div className="hidden lg:block relative">
+                <button
+                  onClick={() => setLimitsExpanded((prev) => !prev)}
+                  className={`px-2.5 py-1 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
+                    showLimitsHighlight
+                      ? "border-accent text-accent bg-accent/10"
+                      : "border-line text-content-3 hover:text-content"
+                  }`}
+                >
+                  <span>Runs {limits.runs_remaining}/{limits.runs_limit}</span>
+                  <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
+                </button>
 
-              {limitsExpanded && (
-                <div className="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-line bg-surface-up shadow-xl p-3 z-50">
+                {limitsExpanded && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setLimitsExpanded(false)} />
+                    <div className="absolute top-full left-0 mt-2 w-64 rounded-2xl border border-line bg-surface-up shadow-xl p-3 z-50">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
+                        <p className="text-xs text-content">{limits.plan_name === "premium" ? "Premium" : "Free Tier"}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-content-2">Runs restantes</p>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-surface border border-line overflow-hidden">
+                        <div className="h-full bg-accent transition-all" style={{ width: `${limitsProgress}%` }} />
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-content-3">
+                        {limits.runs_remaining}/{limits.runs_limit} • {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : "Sem previsão"}
+                      </p>
+                      {limits.plan_name === "free" && (
+                        <button
+                          onClick={() => { setLimitsExpanded(false); openCheckout(); }}
+                          className="mt-2.5 w-full px-3 py-2 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
+                        >
+                          Ganhar mais limites
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile Menu Toggle */}
+          <div className="lg:hidden relative flex-shrink-0">
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-surface border border-line text-content-3 hover:text-content"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+              </svg>
+            </button>
+            
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-48 bg-surface-up border border-line rounded-2xl shadow-xl flex flex-col p-2 z-50">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-line mb-1">
+                    <span className="text-xs text-content-3 uppercase tracking-wider">Tema</span>
+                    <ThemeToggle />
+                  </div>
+                  <button
+                    onClick={() => { setAccountOpen(true); setMenuOpen(false); }}
+                    className="text-left px-3 py-2.5 text-sm text-content hover:bg-surface-card rounded-xl transition-colors"
+                  >
+                    Conta
+                  </button>
+                  {onOpenAdmin && (
+                    <button 
+                      onClick={() => { onOpenAdmin(); setMenuOpen(false); }}
+                      className="text-left px-3 py-2.5 text-sm text-accent hover:bg-accent/10 rounded-xl transition-colors"
+                    >
+                      Admin
+                    </button>
+                  )}
+                  <button 
+                    onClick={onLogout}
+                    className="text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+                  >
+                    Sair
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Desktop Menu */}
+          <div className="hidden lg:flex items-center gap-2 lg:gap-4">
+            <ThemeToggle />
+            <button
+              onClick={() => setAccountOpen(true)}
+              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
+            >
+              Conta
+            </button>
+            {onOpenAdmin && (
+              <button 
+                onClick={onOpenAdmin}
+                className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 text-xs font-medium tracking-wider uppercase transition-colors"
+              >
+                Admin
+              </button>
+            )}
+            <button 
+              onClick={onLogout}
+              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
+
+        {/* Limits bar - segunda linha no mobile */}
+        {limits && (
+          <div className="mt-2 lg:mt-0 lg:hidden relative">
+            <button
+              onClick={() => setLimitsExpanded((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
+                showLimitsHighlight
+                  ? "border-accent text-accent bg-accent/10"
+                  : "border-line text-content-3 hover:text-content"
+              }`}
+            >
+              <span>Runs {limits.runs_remaining}/{limits.runs_limit}</span>
+              <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
+            </button>
+
+            {limitsExpanded && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setLimitsExpanded(false)} />
+                <div className="absolute top-full left-0 mt-2 w-[calc(100vw-1.5rem)] max-w-xs rounded-2xl border border-line bg-surface-up shadow-xl p-4 z-50">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
                     <p className="text-xs text-content">{limits.plan_name === "premium" ? "Premium" : "Free Tier"}</p>
@@ -228,98 +349,30 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   </p>
                   {limits.plan_name === "free" && (
                     <button
-                      onClick={() => openCheckout()}
-                      className="mt-2.5 w-full px-3 py-2 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
+                      onClick={() => { setLimitsExpanded(false); openCheckout(); }}
+                      className="mt-3 w-full px-3 py-2.5 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
                     >
                       Ganhar mais limites
                     </button>
                   )}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-        {/* Mobile Menu Toggle */}
-        <div className="lg:hidden relative">
-          <button 
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-line text-content-3 hover:text-content"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="1"></circle>
-              <circle cx="12" cy="5" r="1"></circle>
-              <circle cx="12" cy="19" r="1"></circle>
-            </svg>
-          </button>
-          
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-surface-up border border-line rounded-2xl shadow-xl flex flex-col p-2 z-50">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-line mb-1">
-                <span className="text-xs text-content-3 uppercase tracking-wider">Tema</span>
-                <ThemeToggle />
-              </div>
-              <button
-                onClick={() => { setAccountOpen(true); setMenuOpen(false); }}
-                className="text-left px-3 py-2.5 text-sm text-content hover:bg-surface-card rounded-xl transition-colors"
-              >
-                Conta
-              </button>
-              {onOpenAdmin && (
-                <button 
-                  onClick={() => { onOpenAdmin(); setMenuOpen(false); }}
-                  className="text-left px-3 py-2.5 text-sm text-accent hover:bg-accent/10 rounded-xl transition-colors"
-                >
-                  Admin
-                </button>
-              )}
-              <button 
-                onClick={onLogout}
-                className="text-left px-3 py-2.5 text-sm text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
-              >
-                Sair
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Menu */}
-        <div className="hidden lg:flex items-center gap-2 lg:gap-4">
-          <ThemeToggle />
-          <button
-            onClick={() => setAccountOpen(true)}
-            className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
-          >
-            Conta
-          </button>
-          {onOpenAdmin && (
-            <button 
-              onClick={onOpenAdmin}
-              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 text-xs font-medium tracking-wider uppercase transition-colors"
-            >
-              Admin
-            </button>
-          )}
-          <button 
-            onClick={onLogout}
-            className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium tracking-wider uppercase transition-colors"
-          >
-            Sair
-          </button>
-        </div>
+              </>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 flex flex-col px-4 lg:px-8 pb-2 lg:pb-8 overflow-hidden min-h-0 z-10">
+      <main className="flex-1 flex flex-col px-3 sm:px-4 lg:px-8 pb-1 lg:pb-8 overflow-hidden min-h-0 z-10">
         
         <SubscriptionBanner
           planActive={user.plan_active}
           status={user.subscription_status || 'unknown'}
           onManageBilling={() => setAccountOpen(true)}
         />
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-8 min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 lg:gap-8 min-h-0">
           {/* Left Sidebar - Tasks (Hidden on mobile if not active tab) */}
-          <div className={`lg:flex lg:w-80 lg:flex-shrink-0 flex-col min-h-0 h-full ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
+          <div className={`lg:flex lg:w-80 lg:flex-shrink-0 flex-col min-h-0 h-full overflow-hidden ${activeTab === 'tasks' ? 'flex' : 'hidden'}`}>
             <Sidebar token={token} />
           </div>
           
@@ -404,7 +457,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
 
       {/* Mobile Bottom Tab Bar */}
       <div className="lg:hidden flex-shrink-0 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]">
-        <div className="flex justify-around items-center h-16 px-2">
+        <div className="flex justify-around items-center h-14 px-2">
           <button 
             onClick={() => setActiveTab("tasks")}
             className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'tasks' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}

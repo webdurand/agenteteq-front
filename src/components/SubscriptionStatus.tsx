@@ -30,14 +30,14 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-medium ${color}`}>
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-wider font-medium whitespace-nowrap ${color}`}>
         {label}
       </span>
       {isFreeTrial && onSubscribeClick && (
         <button 
           onClick={onSubscribeClick}
-          className="text-[10px] font-bold tracking-wider uppercase text-surface bg-accent hover:bg-accent/90 transition-colors px-2 py-0.5 rounded-full"
+          className="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase text-surface bg-accent hover:bg-accent/90 transition-colors px-2 py-0.5 rounded-full whitespace-nowrap"
         >
           Assinar Agora
         </button>

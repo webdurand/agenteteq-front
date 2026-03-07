@@ -72,15 +72,15 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-surface/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-xl rounded-3xl border border-line bg-surface-up shadow-2xl p-6 sm:p-8">
+    <div className="fixed inset-0 z-[70] bg-surface/90 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+      <div className="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-line bg-surface-up shadow-2xl p-5 sm:p-8">
         <Illustration step={stepIndex} />
 
-        <div className="flex items-center justify-center gap-2 mt-5">
+        <div className="flex items-center justify-center gap-2 mt-4 sm:mt-5">
           {dots.map((active, idx) => (
             <span
               key={idx}
-              className={`w-2.5 h-2.5 rounded-full border transition-colors ${
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border transition-colors ${
                 active
                   ? "bg-content border-content"
                   : "bg-content-4/70 border-content-3/70"
@@ -89,11 +89,11 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
           ))}
         </div>
 
-        <h2 className="mt-6 text-3xl font-light text-content">{current.title}</h2>
-        <p className="mt-3 text-content-2 leading-relaxed">{current.description}</p>
+        <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-light text-content">{current.title}</h2>
+        <p className="mt-2 sm:mt-3 text-sm sm:text-base text-content-2 leading-relaxed">{current.description}</p>
 
         {isLastStep && (
-          <label className="mt-5 flex items-start gap-2 text-sm text-content-3">
+          <label className="mt-4 sm:mt-5 flex items-start gap-2 text-sm text-content-3">
             <input
               type="checkbox"
               checked={hideNextTimes}
@@ -104,23 +104,16 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
           </label>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-3">
-          <button
-            onClick={() => onFinish(hideNextTimes)}
-            className="px-4 py-2 text-xs uppercase tracking-wider text-content-3 hover:text-content transition-colors"
-          >
-            Pular tour
-          </button>
-
+        <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row items-center sm:justify-between gap-3">
           {!isLastStep ? (
             <button
               onClick={() => setStepIndex((prev) => Math.min(prev + 1, STEPS.length - 1))}
-              className="px-6 py-3 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-content text-surface text-sm font-medium tracking-wider uppercase hover:opacity-90 transition-opacity"
             >
               Próximo
             </button>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={onSeeLimits}
                 className="px-4 py-3 rounded-full border border-line text-content text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors"
@@ -135,6 +128,13 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
               </button>
             </div>
           )}
+
+          <button
+            onClick={() => onFinish(hideNextTimes)}
+            className="px-4 py-2 text-xs uppercase tracking-wider text-content-3 hover:text-content transition-colors"
+          >
+            Pular tour
+          </button>
         </div>
       </div>
     </div>
