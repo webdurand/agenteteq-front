@@ -427,7 +427,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
 
   return (
     <div className="fixed inset-0 z-[100] bg-surface sm:bg-black/80 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-5xl sm:min-h-[550px] sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
+      <div className="w-full sm:max-w-5xl sm:min-h-[550px] sm:max-h-[90vh] overflow-y-auto scrollbar-thin sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
 
         {/* Close Button */}
         <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium uppercase tracking-wider">

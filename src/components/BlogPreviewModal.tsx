@@ -42,7 +42,7 @@ export function BlogPreviewModal() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 font-mono text-sm leading-relaxed text-content bg-surface">
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-8 font-mono text-sm leading-relaxed text-content bg-surface">
           <h1 className="text-2xl font-bold mb-6 pb-4 border-b border-line">{preview.title}</h1>
           <div className="whitespace-pre-wrap">{preview.content}</div>
         </div>

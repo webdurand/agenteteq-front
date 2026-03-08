@@ -518,7 +518,7 @@ export function ChatPanel({
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder="Pergunte alguma coisa (Shift+Enter para nova linha)"
-                className="flex-1 bg-transparent py-3 text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-hidden leading-relaxed min-h-[44px]"
+                className="flex-1 bg-transparent py-3 text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-y-auto scrollbar-thin leading-relaxed min-h-[44px]"
               />
               
               <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center pr-1">

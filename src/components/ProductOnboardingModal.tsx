@@ -73,7 +73,7 @@ export function ProductOnboardingModal({ open, onFinish, onOpenCheckout, onSeeLi
 
   return (
     <div className="fixed inset-0 z-[70] bg-surface sm:bg-surface/90 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-xl sm:max-h-[90vh] overflow-y-auto sm:rounded-3xl sm:border sm:border-line bg-surface-up sm:shadow-2xl flex flex-col">
+      <div className="w-full sm:max-w-xl sm:max-h-[90vh] overflow-y-auto scrollbar-thin sm:rounded-3xl sm:border sm:border-line bg-surface-up sm:shadow-2xl flex flex-col">
         <div className="flex-1 flex flex-col justify-center p-5 sm:p-8">
           <Illustration step={stepIndex} />
 
