@@ -774,10 +774,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                           : "bg-line"
                       }`}
                     >
-                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full shadow transition-transform ${
                         (systemConfigs["admin_bypass_limits"] ?? "true").toLowerCase() === "true"
-                          ? "translate-x-[22px]"
-                          : "translate-x-0.5"
+                          ? "translate-x-[22px] bg-surface"
+                          : "translate-x-0.5 bg-white"
                       }`} />
                     </button>
                   </div>
