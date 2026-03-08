@@ -12,7 +12,6 @@ interface ChatPanelProps {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   isInitialLoading?: boolean;
-  imageEditingPrompt?: string | null;
   onOpenCheckout?: () => void;
 }
 
@@ -45,6 +44,9 @@ function parseMessageContent(text: string) {
 }
 
 const CAROUSEL_GENERATING_PREFIX = "__CAROUSEL_GENERATING__";
+const CAROUSEL_READY_PREFIX = "__CAROUSEL_READY__";
+const CAROUSEL_FAILED_PREFIX = "__CAROUSEL_FAILED__";
+const IMAGE_EDITING_PREFIX = "__IMAGE_EDITING__";
 const LIMIT_REACHED_PREFIX = "__LIMIT_REACHED__";
 
 function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: string; planType: string; onOpenCheckout?: () => void }) {
@@ -162,6 +164,82 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: nu
   );
 }
 
+function CarouselReadyBubble({ slides }: { slides: Array<{ slide_number: number; style: string; image_url: string }> }) {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const validSlides = slides.filter(s => s.image_url);
+
+  return (
+    <>
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent flex-shrink-0">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span className="text-sm text-content font-medium">
+              {validSlides.length === 1 ? "Imagem pronta!" : `Carrossel pronto! ${validSlides.length} imagens`}
+            </span>
+          </div>
+          <div className={`grid gap-1.5 ${validSlides.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+            {validSlides.map((slide, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedIdx(i)}
+                className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-line cursor-pointer touch-pan-y"
+              >
+                <img
+                  src={slide.image_url}
+                  alt={slide.style || `Slide ${slide.slide_number}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  draggable={false}
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-1.5">
+                  {slide.style && <span className="text-white text-[10px] font-medium leading-tight line-clamp-1">{slide.style}</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+    {selectedIdx !== null && validSlides.length > 0 && createPortal(
+      <ImageGalleryModal
+        images={validSlides.map(s => ({ url: s.image_url, title: s.style || `Slide ${s.slide_number}` }))}
+        currentIndex={selectedIdx}
+        onClose={() => setSelectedIdx(null)}
+        onNavigate={setSelectedIdx}
+      />,
+      document.body
+    )}
+    </>
+  );
+}
+
+function CarouselFailedBubble() {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-red-500/20 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 flex-shrink-0 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+            </div>
+            <span className="text-sm text-content">Erro ao gerar o carrossel. Tente novamente.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SystemNotification({ msg }: { msg: Message }) {
   return (
     <div className="flex justify-center py-1">
@@ -199,6 +277,28 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
       return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} />;
     } catch {
       return <CarouselGeneratingBubble numSlides={0} />;
+    }
+  }
+
+  if (msg.text.startsWith(CAROUSEL_READY_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(CAROUSEL_READY_PREFIX.length));
+      return <CarouselReadyBubble slides={payload.slides ?? []} />;
+    } catch {
+      return null;
+    }
+  }
+
+  if (msg.text.startsWith(CAROUSEL_FAILED_PREFIX)) {
+    return <CarouselFailedBubble />;
+  }
+
+  if (msg.text.startsWith(IMAGE_EDITING_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(IMAGE_EDITING_PREFIX.length));
+      return <ImageEditingBubble prompt={payload.prompt ?? ""} />;
+    } catch {
+      return <ImageEditingBubble prompt="" />;
     }
   }
 
@@ -275,7 +375,6 @@ export function ChatPanel({
   isLoadingMore,
   hasMore,
   isInitialLoading,
-  imageEditingPrompt,
   onOpenCheckout
 }: ChatPanelProps) {
   const [text, setText] = useState("");
@@ -458,10 +557,6 @@ export function ChatPanel({
           </div>
         )}
 
-        {imageEditingPrompt != null && (
-          <ImageEditingBubble prompt={imageEditingPrompt} />
-        )}
-        
         <div ref={bottomRef} />
       </div>
 

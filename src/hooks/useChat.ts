@@ -70,7 +70,13 @@ export function useChat(token: string | null) {
           const carouselId = msg.carousel_id;
           const slideIndex = msg.slide_index ?? 0;
           setMessages((prev) => {
-            const genIdx = prev.findIndex((m) => m.id === `carousel_gen_${carouselId}`);
+            // Match by client-side ID first, then by text content (DB-loaded)
+            let genIdx = prev.findIndex((m) => m.id === `carousel_gen_${carouselId}`);
+            if (genIdx < 0) {
+              genIdx = prev.findIndex((m) =>
+                m.text.startsWith("__CAROUSEL_GENERATING__") && m.text.includes(carouselId)
+              );
+            }
             if (genIdx < 0) return prev;
             try {
               const existing = JSON.parse(prev[genIdx].text.slice("__CAROUSEL_GENERATING__".length));
@@ -89,35 +95,95 @@ export function useChat(token: string | null) {
         }
 
         case "carousel_ready": {
+          const carouselId = msg.carousel_id ?? "";
           const slides = msg.slides ?? [];
-          const lines = slides.map((s: any, i: number) => {
-            const num = s.slide_number ?? (i + 1);
-            const style = s.style ? ` — ${s.style}` : "";
-            return `**Slide ${num}${style}**\n${s.image_url}`;
-          });
-          const formatted = `🎨 Carrossel pronto! Confira os ${slides.length} slides:\n\n${lines.join("\n\n")}`;
+          const readyText = `__CAROUSEL_READY__${JSON.stringify({
+            carousel_id: carouselId,
+            slides: slides.map((s: any, i: number) => ({
+              slide_number: s.slide_number ?? (i + 1),
+              style: s.style ?? "",
+              image_url: s.image_url ?? "",
+            })),
+          })}`;
           setMessages((prev) => {
-            const genIdx = prev.findIndex((m) => m.id.startsWith("carousel_gen_"));
+            // Match by client-side ID first, then by text content (DB-loaded)
+            let genIdx = prev.findIndex((m) => m.id === `carousel_gen_${carouselId}`);
+            if (genIdx < 0 && carouselId) {
+              genIdx = prev.findIndex((m) =>
+                m.text.startsWith("__CAROUSEL_GENERATING__") && m.text.includes(carouselId)
+              );
+            }
             if (genIdx >= 0) {
               const updated = [...prev];
-              updated[genIdx] = { ...updated[genIdx], text: formatted };
+              updated[genIdx] = { ...updated[genIdx], text: readyText };
               return updated;
             }
-            return [...prev, { id: crypto.randomUUID(), role: "agent", text: formatted, timestamp: new Date() }];
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: readyText, timestamp: new Date() }];
           });
           break;
         }
 
-        case "image_editing":
-          setImageEditingPrompt(msg.prompt ?? "");
+        case "carousel_failed": {
+          const failedCarouselId = msg.carousel_id ?? "";
+          const failedText = `__CAROUSEL_FAILED__${failedCarouselId}`;
+          setMessages((prev) => {
+            let genIdx = prev.findIndex((m) => m.id === `carousel_gen_${failedCarouselId}`);
+            if (genIdx < 0 && failedCarouselId) {
+              genIdx = prev.findIndex((m) =>
+                m.text.startsWith("__CAROUSEL_GENERATING__") && m.text.includes(failedCarouselId)
+              );
+            }
+            if (genIdx >= 0) {
+              const updated = [...prev];
+              updated[genIdx] = { ...updated[genIdx], text: failedText };
+              return updated;
+            }
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: failedText, timestamp: new Date() }];
+          });
           break;
+        }
 
-        case "image_edit_ready":
+        case "image_editing": {
+          const editPrompt = msg.prompt ?? "";
+          setImageEditingPrompt(editPrompt);
+          const editingText = `__IMAGE_EDITING__${JSON.stringify({ prompt: editPrompt })}`;
+          setMessages((prev) => {
+            // Avoid duplicate if already loaded from DB history
+            if (prev.some((m) => m.text.startsWith("__IMAGE_EDITING__"))) return prev;
+            return [...prev, { id: `image_edit_${Date.now()}`, role: "agent", text: editingText, timestamp: new Date() }];
+          });
+          break;
+        }
+
+        case "image_edit_ready": {
           setImageEditingPrompt(null);
           if (msg.image_url) {
-            addMessage("agent", `Pronto! Aqui está a imagem editada:\n${msg.image_url}`);
+            const resultText = `Pronto! Aqui está a imagem editada:\n${msg.image_url}`;
+            setMessages((prev) => {
+              // Find and replace __IMAGE_EDITING__ placeholder
+              const editIdx = prev.findIndex((m) => m.text.startsWith("__IMAGE_EDITING__"));
+              if (editIdx >= 0) {
+                const updated = [...prev];
+                updated[editIdx] = { ...updated[editIdx], text: resultText };
+                return updated;
+              }
+              return [...prev, { id: crypto.randomUUID(), role: "agent", text: resultText, timestamp: new Date() }];
+            });
+          } else {
+            // Error case: show error message
+            const errorText = "\u274c Erro ao editar a imagem. Tente novamente.";
+            setMessages((prev) => {
+              const editIdx = prev.findIndex((m) => m.text.startsWith("__IMAGE_EDITING__"));
+              if (editIdx >= 0) {
+                const updated = [...prev];
+                updated[editIdx] = { ...updated[editIdx], text: errorText };
+                return updated;
+              }
+              return [...prev, { id: crypto.randomUUID(), role: "agent", text: errorText, timestamp: new Date() }];
+            });
           }
           break;
+        }
 
         case "limit_reached": {
           const payload = JSON.stringify({
