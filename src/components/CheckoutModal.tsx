@@ -21,7 +21,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
   const [plan, setPlan] = useState<any>(null);
   const [allPlans, setAllPlans] = useState<any[]>([]);
   const [billing, setBilling] = useState<any>(null);
-  const [step, setStep] = useState<'loading' | 'selecting' | 'subscribing' | 'payment' | 'processing' | 'success' | 'active'>('loading');
+  const [step, setStep] = useState<'loading' | 'selecting' | 'setup' | 'payment' | 'activating' | 'success' | 'active'>('loading');
+  const [setupIntentId, setSetupIntentId] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
@@ -67,44 +68,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
           return;
         }
 
-        // If a specific plan was requested, auto-select it
-        const paidPlans = activePlans.filter((p: any) => p.code !== "free");
-        if (priceId) {
-          const requested = paidPlans.find((p: any) => p.code === priceId);
-          if (requested) {
-            setPlan(requested);
-            // Go straight to subscribing
-            setStep('subscribing');
-            await startSubscription(requested);
-            return;
-          }
-        }
-
-        // Only 1 paid plan? Auto-select it
-        if (paidPlans.length === 1) {
-          setPlan(paidPlans[0]);
-          setStep('subscribing');
-          await startSubscription(paidPlans[0]);
-          return;
-        }
-
-        // Multiple paid plans or none — show selection
+        // Always show plan selection so user can review before subscribing
         setStep('selecting');
-      } catch (err: any) {
-        if (!isMounted) return;
-        const msg = err.message || err.detail || err;
-        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
-        setStep('selecting');
-      }
-    };
-
-    const startSubscription = async (selectedPlan: any) => {
-      try {
-        setError(null);
-        const subData = await api.subscribeBilling(token, selectedPlan.code);
-        if (!isMounted) return;
-        setClientSecret(subData.client_secret);
-        setStep('payment');
       } catch (err: any) {
         if (!isMounted) return;
         const msg = err.message || err.detail || err;
@@ -119,11 +84,13 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
 
   const handleSelectPlan = async (selectedPlan: any) => {
     setPlan(selectedPlan);
-    setStep('subscribing');
+    setStep('setup');
     setError(null);
     try {
-      const subData = await api.subscribeBilling(token, selectedPlan.code);
-      setClientSecret(subData.client_secret);
+      // Step 1: Create SetupIntent to collect card (no subscription yet)
+      const data = await api.setupBilling(token, selectedPlan.code);
+      setClientSecret(data.client_secret);
+      setSetupIntentId(data.setup_intent_id);
       setStep('payment');
     } catch (err: any) {
       const msg = err.message || err.detail || err;
@@ -132,30 +99,21 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     }
   };
 
-  // Poll for payment confirmation
-  useEffect(() => {
-    if (step !== 'processing') return;
+  const handleCardConfirmed = async () => {
+    if (!plan || !setupIntentId) return;
+    setStep('activating');
+    setError(null);
+    try {
+      // Step 2: Card confirmed — now create subscription with trial
+      await api.activateBilling(token, plan.code, setupIntentId);
+      setStep('success');
+    } catch (err: any) {
+      const msg = err.message || err.detail || err;
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setStep('selecting');
+    }
+  };
 
-    let isPolling = true;
-    const pollStatus = async () => {
-      try {
-        const data = await api.getBillingOverview(token);
-        if ((data.status === 'active' || data.status === 'trialing') && isPolling) {
-          setStep('success');
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    const interval = setInterval(pollStatus, 3000);
-    pollStatus();
-
-    return () => {
-      isPolling = false;
-      clearInterval(interval);
-    };
-  }, [step, token]);
 
   if (!open) return null;
 
@@ -250,8 +208,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     </div>
   );
 
-  // ----- Subscribing / Loading Step -----
-  const renderSubscribingStep = () => (
+  // ----- Setup / Loading Step -----
+  const renderSetupStep = () => (
     <div className="flex-1 flex flex-col items-center justify-center gap-5 py-12">
       <div className="w-10 h-10 rounded-full border-2 border-line border-t-content animate-spin"></div>
       <div className="text-content-3 text-xs sm:text-sm tracking-wider uppercase font-medium">Preparando pagamento...</div>
@@ -276,7 +234,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
             <CheckoutForm
               onCancel={onClose}
               clientSecret={clientSecret}
-              onSuccess={() => setStep('processing')}
+              onSuccess={() => handleCardConfirmed()}
             />
           </Elements>
         </div>
@@ -289,13 +247,13 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     </div>
   );
 
-  // ----- Processing Step -----
-  const renderProcessingStep = () => (
+  // ----- Activating Step -----
+  const renderActivatingStep = () => (
     <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center py-12">
       <div className="w-14 h-14 rounded-full border-4 border-line border-t-accent animate-spin"></div>
       <div>
-        <h3 className="text-xl sm:text-2xl font-light text-content mb-2">Processando Pagamento</h3>
-        <p className="text-content-3 text-sm">Aguarde enquanto confirmamos sua assinatura...</p>
+        <h3 className="text-xl sm:text-2xl font-light text-content mb-2">Ativando sua assinatura</h3>
+        <p className="text-content-3 text-sm">Cartão confirmado! Criando sua assinatura...</p>
       </div>
     </div>
   );
@@ -455,16 +413,16 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     switch (step) {
       case 'loading': return renderLoadingStep();
       case 'selecting': return renderSelectingStep();
-      case 'subscribing': return renderSubscribingStep();
+      case 'setup': return renderSetupStep();
       case 'payment': return renderPaymentStep();
-      case 'processing': return renderProcessingStep();
+      case 'activating': return renderActivatingStep();
       case 'success': return renderSuccessStep();
       case 'active': return renderActiveStep();
     }
   };
 
   // Show summary sidebar only when a plan is selected and we're in payment/subscribing/active steps
-  const showSummary = plan && ['subscribing', 'payment', 'active'].includes(step);
+  const showSummary = plan && ['setup', 'payment', 'activating', 'active'].includes(step);
   const summaryPlan = step === 'active' ? { name: billing?.plan_name || plan?.name, description: billing?.plan_description || plan?.description, amount_cents: billing?.amount_cents || plan?.amount_cents, currency: billing?.currency || plan?.currency, trial_days: plan?.trial_days } : plan;
 
   return (

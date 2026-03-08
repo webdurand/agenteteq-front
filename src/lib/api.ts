@@ -131,11 +131,19 @@ export async function updateDefaultPayment(token: string, paymentMethodId: strin
   });
 }
 
-export async function subscribeBilling(token: string, priceId?: string) {
-  return fetchApi("/billing/subscribe", {
+export async function setupBilling(token: string, planCode?: string) {
+  return fetchApi("/billing/setup", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(priceId ? { price_id: priceId } : {}),
+    body: JSON.stringify(planCode ? { plan_code: planCode } : {}),
+  });
+}
+
+export async function activateBilling(token: string, planCode: string, setupIntentId: string) {
+  return fetchApi("/billing/activate", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ plan_code: planCode, setup_intent_id: setupIntentId }),
   });
 }
 

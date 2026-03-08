@@ -48,7 +48,7 @@ export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: Subscrip
     setError(null);
     try {
       // Cria a assinatura no backend e pega o clientSecret
-      const data = await api.subscribeBilling(token);
+      const data = await api.setupBilling(token);
       setClientSecret(data.client_secret);
     } catch (err: any) {
       setError(err.message || 'Erro ao iniciar assinatura');

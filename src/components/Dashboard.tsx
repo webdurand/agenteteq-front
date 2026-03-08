@@ -101,8 +101,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       const bestRatio = (mostCritical[1].remaining ?? 0) / (mostCritical[1].limit ?? 1);
       if (ratio < bestRatio) mostCritical = entry;
     }
-    const f = mostCritical[1];
-    return `${f.label} ${f.remaining}/${f.limit}`;
+    return "Limites e cotas";
   })();
 
   useEffect(() => {
