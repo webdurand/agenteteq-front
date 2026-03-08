@@ -13,6 +13,7 @@ import { Spinner } from "./components/ui/Spinner";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { TermsConsentModal } from "./components/TermsConsentModal";
 import { LegalPage } from "./components/LegalPage";
+import { LandingPage } from "./components/LandingPage";
 
 const CURRENT_TERMS_VERSION = "1.0";
 
@@ -74,23 +75,21 @@ export default function App() {
     );
   }
 
-  if (auth.screen === "login") {
-    return (
-      <>
-        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
-        <AuthLayout>
-          <LoginForm auth={auth} />
-        </AuthLayout>
-      </>
-    );
-  }
+  if (auth.screen === "login" || auth.screen === "register") {
+    if (auth.screen === "login" && !auth.showAuthForm) {
+      return (
+        <LandingPage
+          onLogin={() => auth.setShowAuthForm(true)}
+          onRegister={() => { auth.setScreen("register"); auth.setShowAuthForm(true); }}
+        />
+      );
+    }
 
-  if (auth.screen === "register") {
     return (
       <>
         <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
-          <RegisterForm auth={auth} />
+          {auth.screen === "login" ? <LoginForm auth={auth} /> : <RegisterForm auth={auth} />}
         </AuthLayout>
       </>
     );

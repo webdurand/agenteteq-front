@@ -46,6 +46,7 @@ export function useAuth() {
   const [loading, setLoading] = useState<boolean>(true);
   const [registerMode, setRegisterMode] = useState<"register" | "google">("register");
   const [pendingRegistration, setPendingRegistration] = useState<any>(null);
+  const [showAuthForm, setShowAuthForm] = useState(false);
   const initialCheckDone = useRef(false);
 
   const saveTokenAndAuth = useCallback(async (newToken: string) => {
@@ -259,6 +260,8 @@ export function useAuth() {
   return {
     screen,
     setScreen,
+    showAuthForm,
+    setShowAuthForm,
     token,
     phone,
     user,
