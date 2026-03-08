@@ -72,6 +72,13 @@ export async function resendCode(phone: string, purpose: string) {
   });
 }
 
+export async function acceptTerms(token: string) {
+  return fetchApi("/auth/accept-terms", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export async function getMe(token: string) {
   return fetchApi("/auth/me", {
     method: "GET",

@@ -31,6 +31,7 @@ export interface UserInfo {
   cancel_at_period_end?: boolean;
   plan_code?: string | null;
   has_stripe_subscription?: boolean;
+  terms_accepted_version?: string | null;
 }
 
 const TOKEN_KEY = "teq_token";

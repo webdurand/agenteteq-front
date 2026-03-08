@@ -11,6 +11,10 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { SubscriptionPage } from "./components/SubscriptionPage";
 import { Spinner } from "./components/ui/Spinner";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
+import { TermsConsentModal } from "./components/TermsConsentModal";
+import { LegalPage } from "./components/LegalPage";
+
+const CURRENT_TERMS_VERSION = "1.0";
 
 const FIXED_TOGGLE_CLASS = "fixed top-5 right-5 z-50 w-9 h-9 rounded-full flex items-center justify-center bg-surface-card border border-line text-content-3 hover:text-content transition-colors duration-200";
 
@@ -57,6 +61,10 @@ function PendingVerification({ auth }: { auth: ReturnType<typeof useAuth> }) {
 export default function App() {
   const auth = useAuth();
   const [isAdminView, setIsAdminView] = useState(false);
+  const pathname = window.location.pathname;
+
+  if (pathname === "/terms") return <LegalPage type="terms" />;
+  if (pathname === "/privacy") return <LegalPage type="privacy" />;
 
   if (auth.loading) {
     return (
@@ -137,13 +145,25 @@ export default function App() {
   }
 
   if (auth.screen === "authenticated" && auth.token) {
+    const needsTerms = auth.user && auth.user.terms_accepted_version !== CURRENT_TERMS_VERSION;
+
     if (isAdminView && auth.user?.role === "admin") {
-      return <AdminDashboard token={auth.token} onLogout={auth.logout} onExitAdmin={() => setIsAdminView(false)} />;
+      return (
+        <>
+          {needsTerms && <TermsConsentModal token={auth.token} onAccepted={auth.refreshUser} />}
+          <AdminDashboard token={auth.token} onLogout={auth.logout} onExitAdmin={() => setIsAdminView(false)} />
+        </>
+      );
     }
     if (!auth.user) {
       return null;
     }
-    return <Dashboard token={auth.token} user={auth.user} onLogout={auth.logout} onOpenAdmin={auth.user.role === "admin" ? () => setIsAdminView(true) : undefined} onRefreshUser={auth.refreshUser} />;
+    return (
+      <>
+        {needsTerms && <TermsConsentModal token={auth.token} onAccepted={auth.refreshUser} />}
+        <Dashboard token={auth.token} user={auth.user} onLogout={auth.logout} onOpenAdmin={auth.user.role === "admin" ? () => setIsAdminView(true) : undefined} onRefreshUser={auth.refreshUser} />
+      </>
+    );
   }
 
   return null;

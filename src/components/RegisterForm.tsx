@@ -29,6 +29,7 @@ export function RegisterForm({ auth }: RegisterFormProps) {
   });
 
   const [localError, setLocalError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,9 +194,28 @@ export function RegisterForm({ auth }: RegisterFormProps) {
           </div>
         )}
 
+        <label className="flex items-start gap-2 cursor-pointer mt-2">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-0.5 accent-content"
+          />
+          <span className="text-xs text-content-3 leading-relaxed">
+            Li e aceito os{" "}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-content-2 hover:text-content">
+              Termos de Serviço
+            </a>{" "}
+            e a{" "}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-content-2 hover:text-content">
+              Política de Privacidade
+            </a>
+          </span>
+        </label>
+
         <button
           type="submit"
-          disabled={auth.loading}
+          disabled={auth.loading || !acceptedTerms}
           className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
