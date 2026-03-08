@@ -167,7 +167,9 @@ export function useAuth() {
     try {
       const res = await api.login(email, pass);
       setPhone(res.phone);
-      if (res.purpose === "register") {
+      if (res.token) {
+        await saveTokenAndAuth(res.token);
+      } else if (res.purpose === "register") {
         setScreen("verify_whatsapp");
       } else {
         setScreen("verify_2fa");
