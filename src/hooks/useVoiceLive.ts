@@ -204,7 +204,7 @@ export function useVoiceLive(token: string | null) {
 
   const sendPcmChunk = useCallback((pcmBuffer: ArrayBuffer) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || isMutedRef.current) return;
-    if (stateRef.current === "processing") return;
+    if (stateRef.current === "processing" || stateRef.current === "speaking") return;
 
     const pcmData = new Int16Array(pcmBuffer);
     let sum = 0;
@@ -212,12 +212,7 @@ export function useVoiceLive(token: string | null) {
     const rmsVal = Math.sqrt(sum / pcmData.length) / 32768;
     if (rmsVal > MIC_ACTIVITY_THRESHOLD) {
       markActivity();
-      if (stateRef.current !== "speaking" && stateRef.current !== "connecting" && stateRef.current !== "listening") {
-        setStateSync("listening");
-        setStatusText("Ouvindo...");
-      }
-      if (stateRef.current === "speaking") {
-        playerRef.current?.stop();
+      if (stateRef.current !== "connecting" && stateRef.current !== "listening") {
         setStateSync("listening");
         setStatusText("Ouvindo...");
       }
