@@ -3,24 +3,20 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
   let label = 'Desconhecido';
   let color = 'bg-gray-100 text-gray-800';
 
-  if ((!status || status === 'unknown' || status === 'incomplete') && planActive) {
-    status = trialEnd ? 'trialing' : 'active';
-  }
-
   // Se tem assinatura Stripe ativa (mesmo em trial pago), é Premium
   const isPro = hasStripeSubscription && (status === 'trialing' || status === 'active');
-  const isFreeTrial = !hasStripeSubscription && status === 'trialing';
+  const isFree = !hasStripeSubscription && (status === 'free' || status === 'incomplete' || !status || status === 'unknown');
 
-  if (isPro || (hasStripeSubscription && status === 'active')) {
+  if (isPro) {
     label = 'Premium';
     color = 'bg-green-500/15 border border-green-500/30 text-green-500';
-  } else if (isFreeTrial) {
-    label = 'Trial';
-    color = 'bg-surface border border-line text-content-2';
-    if (trialEnd) {
+    if (status === 'trialing' && trialEnd) {
       const days = Math.ceil((new Date(trialEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      if (days > 0) label = `Trial (${days}d)`;
+      if (days > 0) label = `Premium (Trial ${days}d)`;
     }
+  } else if (isFree) {
+    label = 'Free';
+    color = 'bg-surface border border-line text-content-2';
   } else if (status === 'past_due') {
     label = 'Pagamento Pendente';
     color = 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500';
@@ -34,7 +30,7 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
       <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-wider font-medium whitespace-nowrap ${color}`}>
         {label}
       </span>
-      {isFreeTrial && onSubscribeClick && (
+      {isFree && onSubscribeClick && (
         <button 
           onClick={onSubscribeClick}
           className="text-[9px] sm:text-[10px] font-bold tracking-wider uppercase text-surface bg-accent hover:bg-accent/90 transition-colors px-2 py-0.5 rounded-full whitespace-nowrap"

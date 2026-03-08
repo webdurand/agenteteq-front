@@ -20,9 +20,11 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
   const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<any>(null);
+  const [allPlans, setAllPlans] = useState<any[]>([]);
   const [billing, setBilling] = useState<any>(null);
   const [activeView, setActiveView] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
@@ -34,6 +36,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
       setPaymentStatus('idle');
       setBilling(null);
       setActiveView(false);
+      setAllPlans([]);
+      setUpgradeLoading(false);
       return;
     }
     
@@ -50,7 +54,9 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
         
         if (!isMounted) return;
         
-        const activePlan = plansData.plans.find((p: any) => priceId ? p.code === priceId : true) || plansData.plans[0];
+        const paidPlans = (plansData.plans || []).filter((p: any) => p.code !== "free" && p.is_active);
+        setAllPlans(paidPlans);
+        const activePlan = paidPlans.find((p: any) => priceId ? p.code === priceId : true) || paidPlans[0];
         setPlan(activePlan);
         setBilling(billingData);
 
@@ -207,6 +213,58 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
                   )}
                 </div>
               </div>
+
+              {/* Upgrade to other plans */}
+              {allPlans.filter(p => p.code !== billing?.plan_code).length > 0 && (
+                <div className="rounded-2xl border border-line bg-surface-card p-6 space-y-4">
+                  <p className="text-[11px] uppercase tracking-wider text-content-3">Trocar de plano</p>
+                  <div className="space-y-3">
+                    {allPlans.filter(p => p.code !== billing?.plan_code).map((p: any) => {
+                      const limits = (() => { try { return JSON.parse(p.limits_json || "{}"); } catch { return {}; } })();
+                      return (
+                        <div key={p.code} className="rounded-xl border border-line p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-content">{p.name}</h4>
+                            <p className="text-xs text-content-3 mt-0.5">{p.description}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+                              {limits.max_tasks_per_user_daily && <span className="text-[10px] text-content-4">{limits.max_tasks_per_user_daily} imagens/dia</span>}
+                              {limits.voice_live_enabled && <span className="text-[10px] text-content-4">Voz real-time</span>}
+                              {limits.tts_enabled && <span className="text-[10px] text-content-4">TTS</span>}
+                              {limits.max_searches_daily && <span className="text-[10px] text-content-4">{limits.max_searches_daily} buscas/dia</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-light text-accent whitespace-nowrap">
+                              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.amount_cents / 100)}
+                              <span className="text-[10px] text-content-4">/{p.interval === "year" ? "ano" : "mês"}</span>
+                            </span>
+                            <button
+                              disabled={upgradeLoading}
+                              onClick={async () => {
+                                if (!confirm(`Trocar para ${p.name}? O valor será ajustado proporcionalmente.`)) return;
+                                setUpgradeLoading(true);
+                                setError(null);
+                                try {
+                                  await api.upgradePlan(token, p.code);
+                                  setPaymentStatus('success');
+                                  setActiveView(false);
+                                } catch (err: any) {
+                                  setError(err.message || "Erro ao trocar de plano");
+                                } finally {
+                                  setUpgradeLoading(false);
+                                }
+                              }}
+                              className="px-4 py-2 rounded-xl bg-accent text-surface text-xs font-medium uppercase tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {upgradeLoading ? "Trocando..." : "Trocar"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ) : paymentStatus === 'processing' ? (
             <div className="relative w-full flex-1 flex flex-col items-center justify-center gap-5 text-center animate-in fade-in duration-500 py-12">

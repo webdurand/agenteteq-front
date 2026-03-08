@@ -33,7 +33,7 @@ function writePrefs(userKey: string, prefs: TourPrefs) {
 }
 
 export function useProductTourPreferences(userKey: string) {
-  const [prefs, setPrefs] = useState<TourPrefs>(DEFAULT_PREFS);
+  const [prefs, setPrefs] = useState<TourPrefs>(() => readPrefs(userKey));
 
   useEffect(() => {
     setPrefs(readPrefs(userKey));

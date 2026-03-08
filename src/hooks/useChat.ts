@@ -122,7 +122,7 @@ export function useChat(token: string | null) {
         case "limit_reached": {
           const payload = JSON.stringify({
             message: msg.message ?? "",
-            plan_type: msg.plan_type ?? "trial",
+            plan_type: msg.plan_type ?? "free",
           });
           addMessage("agent", `__LIMIT_REACHED__${payload}`);
           setStatusText("");

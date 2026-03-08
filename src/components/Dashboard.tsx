@@ -35,7 +35,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const [showLimitsHighlight, setShowLimitsHighlight] = useState(false);
   const [limitsExpanded, setLimitsExpanded] = useState(false);
   const [limits, setLimits] = useState<{
-    plan_name: "free" | "premium";
+    plan_name: string;
+    plan_code: string;
     resets_at: string | null;
     features: Record<string, {
       enabled: boolean;
@@ -245,7 +246,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                     <div className="absolute top-full left-0 mt-2 w-72 rounded-2xl border border-line bg-surface-up shadow-xl p-3 z-50">
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
-                        <p className="text-xs text-content">{limits.plan_name === "premium" ? "Premium" : "Free Tier"}</p>
+                        <p className="text-xs text-content">{limits.plan_name || "Free"}</p>
                       </div>
                       <div className="flex flex-col gap-2.5">
                         {Object.entries(limits.features).map(([key, f]) => {
@@ -292,7 +293,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                       <p className="mt-3 text-[10px] text-content-4">
                         {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : ""}
                       </p>
-                      {limits.plan_name === "free" && (
+                      {limits.plan_code === "free" && (
                         <button
                           onClick={() => { setLimitsExpanded(false); openCheckout(); }}
                           className="mt-2.5 w-full px-3 py-2 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
@@ -402,7 +403,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                 <div className="absolute top-full left-0 mt-2 w-[calc(100vw-1.5rem)] max-w-xs rounded-2xl border border-line bg-surface-up shadow-xl p-4 z-50">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
-                    <p className="text-xs text-content">{limits.plan_name === "premium" ? "Premium" : "Free Tier"}</p>
+                    <p className="text-xs text-content">{limits.plan_name || "Free"}</p>
                   </div>
                   <div className="flex flex-col gap-2.5">
                     {Object.entries(limits.features).map(([key, f]) => {
@@ -449,7 +450,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   <p className="mt-3 text-[10px] text-content-4">
                     {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : ""}
                   </p>
-                  {limits.plan_name === "free" && (
+                  {limits.plan_code === "free" && (
                     <button
                       onClick={() => { setLimitsExpanded(false); openCheckout(); }}
                       className="mt-3 w-full px-3 py-2.5 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"

@@ -169,6 +169,14 @@ export async function getPlanFeatures(token: string) {
   });
 }
 
+export async function upgradePlan(token: string, planCode: string) {
+  return fetchApi("/billing/upgrade", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ plan_code: planCode }),
+  });
+}
+
 export async function getActiveCampaign(token: string) {
   return fetchApi("/api/campaigns/active", {
     method: "GET",

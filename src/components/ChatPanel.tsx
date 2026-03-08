@@ -189,7 +189,7 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
       const payload = JSON.parse(msg.text.slice(LIMIT_REACHED_PREFIX.length));
       return <LimitReachedBubble message={payload.message} planType={payload.plan_type} onOpenCheckout={onOpenCheckout} />;
     } catch {
-      return <LimitReachedBubble message="Seu limite de gerações acabou." planType="trial" onOpenCheckout={onOpenCheckout} />;
+      return <LimitReachedBubble message="Seu limite de gerações acabou." planType="free" onOpenCheckout={onOpenCheckout} />;
     }
   }
 

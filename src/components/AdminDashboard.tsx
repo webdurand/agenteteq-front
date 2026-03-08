@@ -28,20 +28,23 @@ const CONFIG_TOOLTIPS: Record<string, string> = {
   max_deep_research_daily: "Limite diário de pesquisas profundas (deep research) por usuário.",
 };
 
-type ConfigCategory = "infra" | "plan";
-const CONFIG_CATEGORY: Record<string, ConfigCategory> = {
-  max_concurrent_images: "infra",
-  max_image_workers: "infra",
-  max_global_processing: "infra",
-  task_timeout_minutes: "infra",
-  max_tasks_per_user: "plan",
-  max_tasks_per_user_daily: "plan",
-  voice_live_enabled: "plan",
-  voice_live_max_minutes_daily: "plan",
-  tts_enabled: "plan",
-  max_searches_daily: "plan",
-  max_deep_research_daily: "plan",
-};
+const INFRA_KEYS = new Set([
+  "max_concurrent_images",
+  "max_image_workers",
+  "max_global_processing",
+  "task_timeout_minutes",
+  "admin_bypass_limits",
+]);
+
+const LIMIT_FIELDS: { key: string; label: string; type: "number" | "boolean" }[] = [
+  { key: "max_tasks_per_user", label: "Tarefas simultâneas", type: "number" },
+  { key: "max_tasks_per_user_daily", label: "Imagens por dia", type: "number" },
+  { key: "voice_live_enabled", label: "Voz real-time", type: "boolean" },
+  { key: "voice_live_max_minutes_daily", label: "Minutos de voz/dia", type: "number" },
+  { key: "tts_enabled", label: "Síntese de voz (TTS)", type: "boolean" },
+  { key: "max_searches_daily", label: "Buscas na web/dia", type: "number" },
+  { key: "max_deep_research_daily", label: "Pesquisa profunda/dia", type: "number" },
+];
 
 function Tooltip({ text }: { text: string }) {
   return (
@@ -81,7 +84,6 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const [systemTasks, setSystemTasks] = useState<any[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<any>(null);
   const [metricsDays, setMetricsDays] = useState(7);
-  const [selectedPlan, setSelectedPlan] = useState<"trial" | "paid">("trial");
   
   const [searchUser, setSearchUser] = useState("");
   const [newAdminPhone, setNewAdminPhone] = useState("");
@@ -97,6 +99,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
     trial_days: 7,
     stripe_price_id: "",
     features_json: '["Acesso completo","WhatsApp","Tarefas","Lembretes","Chat por voz"]',
+    limits_json: '{}',
   });
   const [campaignForm, setCampaignForm] = useState({
     id: 0,
@@ -242,6 +245,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           trial_days: planForm.trial_days,
           stripe_price_id: planForm.stripe_price_id,
           features_json: planForm.features_json,
+          limits_json: planForm.limits_json,
           is_active: true,
         }),
       });
@@ -262,7 +266,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
       showToast("Plano apagado com sucesso", "success");
       if (planForm.code === code) {
         setPlanForm({
-          code: "", name: "", description: "", amount_cents: 0, trial_days: 0, stripe_price_id: "", features_json: '[]'
+          code: "", name: "", description: "", amount_cents: 0, trial_days: 0, stripe_price_id: "", features_json: '[]', limits_json: '{}'
         });
       }
       fetchAdminData();
@@ -720,10 +724,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Infraestrutura (Global)</h3>
                 <div className="bg-surface-card border border-line rounded-2xl p-4 space-y-4">
                   {Object.entries(systemConfigs)
-                    .filter(([key]) => {
-                      const base = key.split(":")[0];
-                      return CONFIG_CATEGORY[base] === "infra";
-                    })
+                    .filter(([key]) => INFRA_KEYS.has(key.split(":")[0]))
                     .map(([key, val]: any) => (
                       <div key={key} className="flex flex-col gap-1">
                         <div className="flex items-center">
@@ -762,78 +763,14 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Limites por Plano */}
+                {/* Limites por Plano — agora configurados dentro de cada plano na aba Planos */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-medium tracking-wide text-content-2">Limites por Plano</h3>
-                    <div className="flex bg-surface border border-line rounded-lg overflow-hidden">
-                      <button 
-                        onClick={() => setSelectedPlan("trial")}
-                        className={`px-4 py-1.5 text-xs font-medium tracking-wide transition-colors ${selectedPlan === "trial" ? "bg-accent/15 text-accent" : "text-content-3 hover:text-content"}`}
-                      >
-                        Free / Trial
-                      </button>
-                      <button 
-                        onClick={() => setSelectedPlan("paid")}
-                        className={`px-4 py-1.5 text-xs font-medium tracking-wide transition-colors ${selectedPlan === "paid" ? "bg-accent/15 text-accent" : "text-content-3 hover:text-content"}`}
-                      >
-                        Pago (R$19,90)
-                      </button>
-                    </div>
-                  </div>
-                  <div className="bg-surface-card border border-line rounded-2xl p-4 space-y-4">
-                    {Object.entries(systemConfigs)
-                      .filter(([key]) => {
-                        const base = key.split(":")[0];
-                        return CONFIG_CATEGORY[base] === "plan" && key.endsWith(`:${selectedPlan}`);
-                      })
-                      .map(([key, val]: any) => {
-                        const base = key.split(":")[0];
-                        return (
-                          <div key={key} className="flex flex-col gap-1">
-                            <div className="flex items-center">
-                              <label className="text-xs text-content font-mono">{base}</label>
-                              {CONFIG_TOOLTIPS[base] && <Tooltip text={CONFIG_TOOLTIPS[base]} />}
-                            </div>
-                            <div className="flex gap-2">
-                              <input 
-                                type="text" 
-                                className="flex-1 bg-surface border border-line rounded-lg px-3 py-1.5 text-sm text-content focus:border-accent outline-none"
-                                value={val}
-                                onChange={(e) => setSystemConfigs({...systemConfigs, [key]: e.target.value})}
-                              />
-                              <button 
-                                onClick={async () => {
-                                  try {
-                                    await api.fetchWithAuth("/admin/system/config", {
-                                      method: "PUT", token, body: JSON.stringify({ key, value: systemConfigs[key] })
-                                    });
-                                    showToast("Salvo", "success");
-                                  } catch(e) {
-                                    showToast("Erro", "error");
-                                  }
-                                }}
-                                className="px-3 py-1.5 bg-accent/10 text-accent text-xs rounded-lg hover:bg-accent/20"
-                              >
-                                Salvar
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    {Object.entries(systemConfigs)
-                      .filter(([key]) => {
-                        const base = key.split(":")[0];
-                        return CONFIG_CATEGORY[base] === "plan" && key.endsWith(`:${selectedPlan}`);
-                      }).length === 0 && (
-                        <div className="text-sm text-content-4 italic">Nenhum limite configurado para este plano.</div>
-                      )}
-                    <div className="mt-2 p-3 bg-amber-500/10 text-amber-400 text-xs rounded-lg border border-amber-500/20">
-                      {selectedPlan === "trial" 
-                        ? "Plano gratuito / trial. Limites mais restritivos para controlar custo."
-                        : "Plano pago (R$19,90/mês). Limites mais generosos para quem assina."
-                      }
-                    </div>
+                  <h3 className="text-sm font-medium tracking-wide text-content-2">Limites por Plano</h3>
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
+                    <p className="text-sm text-content-3">Os limites de uso agora são configurados diretamente em cada plano.</p>
+                    <button onClick={() => setTab("planos")} className="px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium uppercase tracking-wider hover:bg-accent/20 transition-colors">
+                      Ir para Planos
+                    </button>
                   </div>
                 </div>
 
@@ -983,21 +920,17 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                           <span className={`text-xs px-2 py-1 rounded-full border ${
                             u.subscription_status === 'active'    ? 'border-green-500 text-green-500 bg-green-500/10' :
                             u.subscription_status === 'pro_trial' ? 'border-green-500 text-green-500 bg-green-500/10' :
-                            u.subscription_status === 'trialing'  ? 'border-blue-500 text-blue-500 bg-blue-500/10' :
                             u.subscription_status === 'past_due'  ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
                             u.subscription_status === 'canceled'  ? 'border-red-500 text-red-500 bg-red-500/10' :
-                            u.subscription_status === 'expired'   ? 'border-orange-500 text-orange-500 bg-orange-500/10' :
                             'border-line text-content-3 bg-surface'
                           }`}>
                             {{
                               active:    'Premium',
-                              pro_trial: 'Premium',
-                              trialing:  'Trial',
+                              pro_trial: 'Premium (Trial)',
                               past_due:  'Pendente',
                               canceled:  'Cancelado',
-                              expired:   'Expirado',
-                              none:      'Sem plano',
-                            }[u.subscription_status as string] ?? u.subscription_status ?? 'Sem plano'}
+                              free:      'Free',
+                            }[u.subscription_status as string] ?? u.subscription_status ?? 'Free'}
                           </span>
                         </td>
                         <td className="p-4 text-sm text-content-3">
@@ -1113,28 +1046,94 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   <input value={planForm.stripe_price_id} onChange={(e) => setPlanForm((prev) => ({ ...prev, stripe_price_id: e.target.value }))} placeholder="stripe price id" className="md:col-span-2 w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
                   <input value={planForm.description} onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="descricao" className="md:col-span-2 w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
                 </div>
+
+                {/* Limites do plano */}
+                <div className="border-t border-line pt-4">
+                  <h4 className="text-xs uppercase tracking-wider text-content-3 mb-3">Limites de uso</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {LIMIT_FIELDS.map((field) => {
+                      const limits = (() => { try { return JSON.parse(planForm.limits_json || "{}"); } catch { return {}; } })();
+                      if (field.type === "boolean") {
+                        const val = !!limits[field.key];
+                        return (
+                          <label key={field.key} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={val}
+                              onChange={(e) => {
+                                const updated = { ...limits, [field.key]: e.target.checked };
+                                setPlanForm((prev) => ({ ...prev, limits_json: JSON.stringify(updated) }));
+                              }}
+                              className="accent-accent w-4 h-4"
+                            />
+                            <span className="text-xs text-content">{field.label}</span>
+                            {CONFIG_TOOLTIPS[field.key] && <Tooltip text={CONFIG_TOOLTIPS[field.key]} />}
+                          </label>
+                        );
+                      }
+                      return (
+                        <div key={field.key} className="flex flex-col gap-1">
+                          <div className="flex items-center">
+                            <label className="text-xs text-content">{field.label}</label>
+                            {CONFIG_TOOLTIPS[field.key] && <Tooltip text={CONFIG_TOOLTIPS[field.key]} />}
+                          </div>
+                          <input
+                            type="number"
+                            min={0}
+                            value={limits[field.key] ?? 0}
+                            onChange={(e) => {
+                              const updated = { ...limits, [field.key]: Number(e.target.value) || 0 };
+                              setPlanForm((prev) => ({ ...prev, limits_json: JSON.stringify(updated) }));
+                            }}
+                            className="w-full bg-surface border border-line rounded-lg px-3 py-1.5 text-sm text-content focus:border-accent outline-none"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex gap-3">
                   <button onClick={handleCreatePlan} className="px-4 py-2 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity">Criar plano</button>
                   <button onClick={() => handleUpdatePlan(planForm.code)} className="px-4 py-2 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface transition-colors">Salvar alterações</button>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plansData.map((p, i) => (
-                  <div key={i} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xl text-content">{p.name}</span>
-                    <span className="text-sm text-content-3">{p.description}</span>
-                    <span className="text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
-                    <span className="text-xs uppercase tracking-wider text-content-3">Trial: {p.trial_days} dias</span>
-                    <div className="flex items-center gap-4 mt-2">
-                      <button onClick={() => setPlanForm((prev) => ({ ...prev, ...p }))} className="text-left text-xs text-accent hover:underline">
-                        Editar este plano
-                      </button>
-                      <button onClick={() => handleDeletePlan(p.code)} className="text-left text-xs text-red-500 hover:underline">
-                        Apagar plano
-                      </button>
+                {plansData.map((p, i) => {
+                  const planLimits = (() => { try { return JSON.parse(p.limits_json || "{}"); } catch { return {}; } })();
+                  return (
+                    <div key={i} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xl text-content">{p.name}</span>
+                        {p.code === "free" && <span className="text-[10px] uppercase tracking-wider text-content-4 border border-line px-2 py-0.5 rounded-full">Padrão</span>}
+                      </div>
+                      <span className="text-sm text-content-3">{p.description}</span>
+                      <span className="text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
+                      <span className="text-xs uppercase tracking-wider text-content-3">Trial: {p.trial_days} dias</span>
+                      {/* Limites resumidos */}
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                        {LIMIT_FIELDS.map((f) => (
+                          <div key={f.key} className="flex justify-between text-[11px]">
+                            <span className="text-content-3">{f.label}</span>
+                            <span className="text-content font-mono">
+                              {f.type === "boolean" ? (planLimits[f.key] ? "✓" : "✗") : (planLimits[f.key] ?? "—")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 mt-2">
+                        <button onClick={() => setPlanForm((prev) => ({ ...prev, ...p, limits_json: p.limits_json || "{}" }))} className="text-left text-xs text-accent hover:underline">
+                          Editar este plano
+                        </button>
+                        {p.code !== "free" && (
+                          <button onClick={() => handleDeletePlan(p.code)} className="text-left text-xs text-red-500 hover:underline">
+                            Apagar plano
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
