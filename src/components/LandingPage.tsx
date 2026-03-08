@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ThemeToggle } from "./ui/ThemeToggle";
 
-const FIXED_TOGGLE_CLASS =
-  "fixed top-5 left-5 z-50 w-9 h-9 rounded-full flex items-center justify-center bg-surface-card border border-line text-content-3 hover:text-content transition-colors duration-200";
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -125,7 +123,6 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-surface text-content overflow-x-hidden">
-      <ThemeToggle className={FIXED_TOGGLE_CLASS} />
 
       {/* ── NAV ── */}
       <nav className="fixed top-0 inset-x-0 z-40 backdrop-blur-xl bg-surface/80 border-b border-line/50">
@@ -137,6 +134,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
             <span className="text-base font-light tracking-[0.25em] uppercase">Teq</span>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle className="w-8 h-8 rounded-full flex items-center justify-center text-content-3 hover:text-content transition-colors duration-200" />
             <button
               onClick={onLogin}
               className="px-4 py-1.5 text-xs tracking-wider uppercase text-content-2 hover:text-content transition-colors"
