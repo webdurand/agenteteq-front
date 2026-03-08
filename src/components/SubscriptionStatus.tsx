@@ -1,4 +1,4 @@
-export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubscription, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, onSubscribeClick?: () => void }) => {
+export const SubscriptionStatus = ({ status, trialEnd, hasStripeSubscription, onSubscribeClick }: { status: string, trialEnd: string | null, planActive?: boolean, hasStripeSubscription?: boolean, onSubscribeClick?: () => void }) => {
   
   let label = 'Desconhecido';
   let color = 'bg-gray-100 text-gray-800';
