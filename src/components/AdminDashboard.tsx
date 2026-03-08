@@ -83,18 +83,19 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const [systemConfigs, setSystemConfigs] = useState<any>({});
   const [systemTasks, setSystemTasks] = useState<any[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<any>(null);
+  const [costData, setCostData] = useState<any>(null);
   const [metricsDays, setMetricsDays] = useState(7);
   
   const [searchUser, setSearchUser] = useState("");
   const [newAdminPhone, setNewAdminPhone] = useState("");
   const [manualSubPhone, setManualSubPhone] = useState("");
-  const [manualSubPlan, setManualSubPlan] = useState("pro_mensal");
+  const [manualSubPlan, setManualSubPlan] = useState("premium");
   const [manualSubDays, setManualSubDays] = useState(30);
 
   const [planForm, setPlanForm] = useState({
-    code: "pro_mensal",
-    name: "Plano Premium Mensal",
-    description: "Acesso completo ao Teq com 7 dias gratis.",
+    code: "premium",
+    name: "Plano Premium",
+    description: "Acesso completo ao Teq com tudo liberado e 7 dias grátis.",
     amount_cents: 4990,
     trial_days: 7,
     stripe_price_id: "",
@@ -143,8 +144,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   const fetchAdminData = async () => {
     try {
       if (tab === "negocio") {
-        const analytics = await api.fetchWithAuth(`/admin/business/analytics?days=${metricsDays}`, { token });
+        const [analytics, costs] = await Promise.all([
+          api.fetchWithAuth(`/admin/business/analytics?days=${metricsDays}`, { token }),
+          api.fetchWithAuth(`/admin/business/cost-per-user?days=${metricsDays}`, { token }),
+        ]);
         setAnalyticsData(analytics);
+        setCostData(costs);
       } else if (tab === "saude") {
         const health = await api.fetchWithAuth("/admin/health/summary", { token });
         setHealthData(health);
@@ -583,6 +588,66 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Custo Aproximado por Usuário */}
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <h3 className="text-sm font-medium tracking-wide text-content-2">Custo Aproximado ({metricsDays} dias)</h3>
+                  <Tooltip text="Estimativa de custo de API (Gemini) por usuário baseada no uso real. Valores aproximados — sem tracking de tokens exato." />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Custo Total Estimado</span>
+                    <span className="text-3xl font-light text-red-400">R$ {costData?.total_cost_brl?.toFixed(2) ?? "—"}</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Custo Médio / Usuário</span>
+                    <span className="text-3xl font-light text-orange-400">R$ {costData?.avg_cost_per_user_brl?.toFixed(2) ?? "—"}</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Usuários com Consumo</span>
+                    <span className="text-3xl font-light text-accent">{costData?.active_users ?? "—"}</span>
+                  </div>
+                </div>
+
+                {costData?.top_users?.length > 0 && (
+                  <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-line/50">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Top Usuários por Custo</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-line/50 text-left text-xs text-content-4 uppercase tracking-wider">
+                            <th className="px-4 py-2">Usuário</th>
+                            <th className="px-4 py-2 text-right">Chat</th>
+                            <th className="px-4 py-2 text-right">Voz</th>
+                            <th className="px-4 py-2 text-right">TTS</th>
+                            <th className="px-4 py-2 text-right">Imagens</th>
+                            <th className="px-4 py-2 text-right">Pesquisa</th>
+                            <th className="px-4 py-2 text-right font-semibold">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {costData.top_users.map((u: any, i: number) => (
+                            <tr key={i} className="border-b border-line/30 last:border-0 hover:bg-surface/50">
+                              <td className="px-4 py-2">
+                                <span className="font-mono text-xs">{u.name || u.user_id}</span>
+                              </td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.chat > 0 ? `R$${u.breakdown.chat.toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.voice > 0 ? `R$${u.breakdown.voice.toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.tts > 0 ? `R$${u.breakdown.tts.toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.images > 0 ? `R$${u.breakdown.images.toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{(u.breakdown.search + u.breakdown.deep_research) > 0 ? `R$${(u.breakdown.search + u.breakdown.deep_research).toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs font-semibold text-red-400">R${u.cost_brl.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Operacional */}

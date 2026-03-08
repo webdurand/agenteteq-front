@@ -25,6 +25,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   const [code, setCode] = useState("");
   const [phoneStep, setPhoneStep] = useState<"idle" | "editing" | "confirming" | "verify">("idle");
   const [phoneLoading, setPhoneLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -57,8 +58,11 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   if (!open) return null;
 
   const refreshBilling = () => {
-    api.getBillingOverview(token)
-      .then((data) => setBilling(data))
+    Promise.all([api.getBillingOverview(token), api.getBillingPlans(token)])
+      .then(([billingData, plansData]) => {
+        setBilling(billingData);
+        setPlans(plansData.plans || []);
+      })
       .catch(() => {});
   };
 
@@ -333,6 +337,65 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                     )}
                   </div>
                 </div>
+
+                {/* Plan switching for active subscribers */}
+                <div className="pt-4 border-t border-line">
+                  <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Trocar de plano</h3>
+                  {billing.cancel_at_period_end && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 mb-3">
+                      <p className="text-xs text-amber-400">Assinatura será cancelada em {billing.current_period_end ? new Date(billing.current_period_end).toLocaleDateString("pt-BR") : "—"}. Após essa data, seu plano voltará para Free.</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {plans.filter(p => p.code !== billing.plan_code).map((plan) => (
+                      <div key={plan.code} className="rounded-2xl border border-line p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1">
+                          <div className="text-content text-sm font-medium">{plan.name}</div>
+                          <div className="text-content-3 text-xs">{plan.description}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-accent text-lg font-light whitespace-nowrap">
+                            {plan.amount_cents > 0
+                              ? <>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(plan.amount_cents / 100)}<span className="text-[10px] text-content-4">/mês</span></>
+                              : "Grátis"}
+                          </span>
+                          <button
+                            disabled={upgradeLoading}
+                            onClick={async () => {
+                              const isDowngrade = plan.code === "free";
+                              const msg = isDowngrade
+                                ? "Seu plano atual continuará ativo até o fim do período. Depois disso, voltará para o Free. Confirmar?"
+                                : `Trocar para ${plan.name}? O valor será ajustado proporcionalmente.`;
+                              if (!confirm(msg)) return;
+                              setUpgradeLoading(true);
+                              setMessage("");
+                              try {
+                                const result = await api.upgradePlan(token, plan.code);
+                                if (result.status === "downgrading_to_free" && result.effective_date) {
+                                  setMessage(`Plano será alterado para Free em ${new Date(result.effective_date).toLocaleDateString("pt-BR")}.`);
+                                } else {
+                                  setMessage(`Plano alterado para ${result.plan_name || plan.name} com sucesso.`);
+                                }
+                                refreshBilling();
+                              } catch (err: any) {
+                                setMessage(err.message || "Erro ao trocar de plano");
+                              } finally {
+                                setUpgradeLoading(false);
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-medium uppercase tracking-wider transition-opacity disabled:opacity-50 whitespace-nowrap ${
+                              plan.code === "free"
+                                ? "border border-line text-content hover:bg-surface-card"
+                                : "bg-accent text-surface hover:opacity-90"
+                            }`}
+                          >
+                            {upgradeLoading ? "Processando..." : plan.code === "free" ? "Mudar para Free" : "Fazer upgrade"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </>
             ) : (
               <>
@@ -363,29 +426,63 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                 <div className="pt-4 border-t border-line">
                   <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Planos disponíveis</h3>
                   <div className="space-y-3">
-                    {plans.map((plan) => (
-                      <div key={plan.code} className="rounded-2xl border border-line p-5 space-y-3">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <div className="text-content text-lg">{plan.name}</div>
-                            <div className="text-content-3 text-sm">{plan.description}</div>
+                    {plans.map((plan) => {
+                      const isCurrent = plan.code === (billing?.plan_code || "free");
+                      const limits = (() => { try { return JSON.parse(plan.limits_json || "{}"); } catch { return {}; } })();
+                      return (
+                        <div key={plan.code} className={`rounded-2xl border p-5 space-y-3 ${isCurrent ? "border-accent/40 bg-accent/5" : "border-line"}`}>
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-content text-lg">{plan.name}</span>
+                                {isCurrent && <span className="text-[10px] uppercase tracking-wider text-accent border border-accent/30 px-2 py-0.5 rounded-full">Atual</span>}
+                              </div>
+                              <div className="text-content-3 text-sm">{plan.description}</div>
+                            </div>
+                            <div className="text-accent text-xl font-light whitespace-nowrap">
+                              {plan.amount_cents > 0
+                                ? <>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: (plan.currency || "BRL").toUpperCase() }).format(plan.amount_cents / 100)}<span className="text-xs text-content-4">/mês</span></>
+                                : <span className="text-content-3">Grátis</span>}
+                            </div>
                           </div>
-                          <div className="text-accent text-xl font-light whitespace-nowrap">
-                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: (plan.currency || "BRL").toUpperCase() }).format(plan.amount_cents / 100)}
-                            <span className="text-xs text-content-4">/mês</span>
-                          </div>
+                          {/* Limits grid */}
+                          {Object.keys(limits).length > 0 && (
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs border-t border-line pt-3">
+                              {limits.max_tasks_per_user != null && (
+                                <div className="flex justify-between"><span className="text-content-3">Tarefas simultâneas</span><span className="text-content">{limits.max_tasks_per_user}</span></div>
+                              )}
+                              {limits.max_tasks_per_user_daily != null && (
+                                <div className="flex justify-between"><span className="text-content-3">Imagens por dia</span><span className="text-content">{limits.max_tasks_per_user_daily}</span></div>
+                              )}
+                              <div className="flex justify-between"><span className="text-content-3">Voz real-time</span><span className={limits.voice_live_enabled ? "text-green-400" : "text-content-4"}>{ limits.voice_live_enabled ? "✓" : "✗"}</span></div>
+                              {limits.voice_live_max_minutes_daily != null && (
+                                <div className="flex justify-between"><span className="text-content-3">Minutos de voz/dia</span><span className="text-content">{limits.voice_live_max_minutes_daily}</span></div>
+                              )}
+                              <div className="flex justify-between"><span className="text-content-3">Síntese de voz (TTS)</span><span className={limits.tts_enabled ? "text-green-400" : "text-content-4"}>{ limits.tts_enabled ? "✓" : "✗"}</span></div>
+                              {limits.max_searches_daily != null && (
+                                <div className="flex justify-between"><span className="text-content-3">Buscas na web/dia</span><span className="text-content">{limits.max_searches_daily}</span></div>
+                              )}
+                              {limits.max_deep_research_daily != null && (
+                                <div className="flex justify-between"><span className="text-content-3">Pesquisa profunda/dia</span><span className="text-content">{limits.max_deep_research_daily}</span></div>
+                              )}
+                            </div>
+                          )}
+                          {plan.trial_days > 0 && !isCurrent && (
+                            <div className="text-xs text-content-3">{plan.trial_days} dias grátis para testar</div>
+                          )}
+                          {isCurrent ? (
+                            <div className="w-full px-4 py-3 rounded-xl bg-surface-card border border-line text-content-3 text-center text-sm">Plano atual</div>
+                          ) : plan.code === "free" ? null : (
+                            <button
+                              onClick={() => onOpenCheckout && onOpenCheckout(plan.code)}
+                              className="w-full px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+                            >
+                              Assinar plano
+                            </button>
+                          )}
                         </div>
-                        {plan.trial_days > 0 && (
-                          <div className="text-xs text-content-3">{plan.trial_days} dias grátis para testar</div>
-                        )}
-                        <button
-                          onClick={() => onOpenCheckout && onOpenCheckout(plan.code)}
-                          className="w-full px-4 py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
-                        >
-                          Assinar plano
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </>
