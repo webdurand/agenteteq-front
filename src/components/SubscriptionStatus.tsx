@@ -11,7 +11,7 @@ export const SubscriptionStatus = ({ status, trialEnd, planActive, hasStripeSubs
   const isPro = hasStripeSubscription && (status === 'trialing' || status === 'active');
   const isFreeTrial = !hasStripeSubscription && status === 'trialing';
 
-  if (isPro || status === 'active') {
+  if (isPro || (hasStripeSubscription && status === 'active')) {
     label = 'Premium';
     color = 'bg-green-500/15 border border-green-500/30 text-green-500';
   } else if (isFreeTrial) {

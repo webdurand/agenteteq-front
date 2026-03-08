@@ -21,6 +21,11 @@ const CONFIG_TOOLTIPS: Record<string, string> = {
   task_timeout_minutes: "Tempo máximo que uma task pode ficar 'processando' antes de ser considerada travada e re-enfileirada. Se suas gerações demoram mais de 5 min, aumente.",
   max_tasks_per_user: "Quantos pedidos simultâneos (pendentes + processando) um usuário pode ter. Evita que um usuário monopolize a fila. Ex: 2 = no máximo 2 carrosséis na fila ao mesmo tempo.",
   max_tasks_per_user_daily: "Limite de gerações de imagens por dia por usuário. Controla o custo da API do Gemini. Quando atinge, o usuário recebe uma mensagem e só pode usar novamente no dia seguinte.",
+  voice_live_enabled: "Habilita ou desabilita o modo Voz Real-time (Gemini Live) para este plano. Valores: true / false.",
+  voice_live_max_minutes_daily: "Limite diário de minutos de voz real-time por usuário. 0 = desabilitado.",
+  tts_enabled: "Habilita ou desabilita a síntese de voz (TTS) para este plano. Valores: true / false.",
+  max_searches_daily: "Limite diário de buscas na web por usuário.",
+  max_deep_research_daily: "Limite diário de pesquisas profundas (deep research) por usuário.",
 };
 
 type ConfigCategory = "infra" | "plan";
@@ -31,6 +36,11 @@ const CONFIG_CATEGORY: Record<string, ConfigCategory> = {
   task_timeout_minutes: "infra",
   max_tasks_per_user: "plan",
   max_tasks_per_user_daily: "plan",
+  voice_live_enabled: "plan",
+  voice_live_max_minutes_daily: "plan",
+  tts_enabled: "plan",
+  max_searches_daily: "plan",
+  max_deep_research_daily: "plan",
 };
 
 function Tooltip({ text }: { text: string }) {

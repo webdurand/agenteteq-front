@@ -153,6 +153,16 @@ export function useVoiceLive(token: string | null) {
         case "interrupted":
           playerRef.current?.stop();
           break;
+        case "feature_blocked":
+          console.log("[VOICE LIVE] Feature bloqueada:", msg.feature, msg.message);
+          setStatusText(msg.message || "Funcionalidade não disponível no seu plano.");
+          setStateSync("idle");
+          break;
+        case "error":
+          console.log("[VOICE LIVE] Erro:", msg.message);
+          setStatusText(msg.message || "Erro na conexão.");
+          setStateSync("idle");
+          break;
       }
     };
 

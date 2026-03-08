@@ -162,6 +162,13 @@ export async function getUsageLimits(token: string) {
   });
 }
 
+export async function getPlanFeatures(token: string) {
+  return fetchApi("/api/plan/features", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export async function getActiveCampaign(token: string) {
   return fetchApi("/api/campaigns/active", {
     method: "GET",
