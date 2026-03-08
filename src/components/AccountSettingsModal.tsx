@@ -3,6 +3,7 @@ import * as api from "../lib/api";
 import type { UserInfo } from "../hooks/useAuth";
 import { UpdatePaymentModal } from "./UpdatePaymentModal";
 import { formatPhone } from "../lib/formatters";
+import { IntegrationsTab } from "./IntegrationsTab";
 
 interface AccountSettingsModalProps {
   token: string;
@@ -14,6 +15,7 @@ interface AccountSettingsModalProps {
 }
 
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout, onReplayOnboarding }: AccountSettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<"account" | "integrations">("account");
   const [billing, setBilling] = useState<any>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
@@ -114,7 +116,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
           <div className="flex items-center gap-3">
             <div>
               <h2 className="text-xl font-light text-content">Conta e Assinatura</h2>
-              <p className="text-sm text-content-3">Perfil, plano, pagamento e segurança</p>
+              <p className="text-sm text-content-3">Gerencie seu perfil, plano e integrações</p>
             </div>
             {loading && (
               <div className="w-4 h-4 rounded-full border-2 border-line border-t-content-3 animate-spin ml-1" />
@@ -125,7 +127,27 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+        <div className="flex border-b border-line px-6 pt-2">
+          <button
+            onClick={() => setActiveTab("account")}
+            className={`px-4 py-3 text-sm font-medium uppercase tracking-wider border-b-2 transition-colors ${
+              activeTab === "account" ? "border-accent text-accent" : "border-transparent text-content-3 hover:text-content"
+            }`}
+          >
+            Perfil & Plano
+          </button>
+          <button
+            onClick={() => setActiveTab("integrations")}
+            className={`px-4 py-3 text-sm font-medium uppercase tracking-wider border-b-2 transition-colors ${
+              activeTab === "integrations" ? "border-accent text-accent" : "border-transparent text-content-3 hover:text-content"
+            }`}
+          >
+            Integrações
+          </button>
+        </div>
+
+        {activeTab === "account" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           <div className="bg-glass backdrop-blur-xl border border-glass-border rounded-3xl p-6 space-y-5">
             <div>
               <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Perfil</h3>
@@ -370,7 +392,10 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
             ))}
             </div>
           </div>
-        </div>
+          </div>
+        ) : (
+          <IntegrationsTab token={token} />
+        )}
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
       </div>

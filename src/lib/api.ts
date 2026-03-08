@@ -192,6 +192,36 @@ export async function deleteAdminCampaign(token: string, campaignId: number) {
   });
 }
 
+export async function getIntegrations(token: string) {
+  return fetchApi("/integrations", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createIntegration(token: string, payload: any) {
+  return fetchApi("/integrations", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateIntegration(token: string, integrationId: number, payload: any) {
+  return fetchApi(`/integrations/${integrationId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function removeIntegration(token: string, integrationId: number) {
+  return fetchApi(`/integrations/${integrationId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // --- Tasks ---
 
 export async function fetchWithAuth(endpoint: string, options: { token: string; method?: string; body?: any }) {
