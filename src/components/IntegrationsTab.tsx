@@ -91,6 +91,57 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
     client.requestCode();
   }, [token, loadData]);
 
+  const initSlackAuth = useCallback(() => {
+    const clientId = import.meta.env.VITE_SLACK_CLIENT_ID || "";
+    if (!clientId) {
+      alert("VITE_SLACK_CLIENT_ID não configurado.");
+      return;
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const redirectUri = `${apiUrl}/integrations/slack/callback`;
+    const scopes = "channels:history,channels:read,groups:history,groups:read,im:history,mpim:history,search:read,users:read";
+    const state = Math.random().toString(36).substring(2);
+    sessionStorage.setItem("slack_oauth_state", state);
+
+    const slackUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&user_scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+
+    const w = 600, h = 700;
+    const left = window.screenX + (window.innerWidth - w) / 2;
+    const top = window.screenY + (window.innerHeight - h) / 2;
+    window.open(slackUrl, "slack_oauth", `width=${w},height=${h},left=${left},top=${top}`);
+
+    const handler = async (event: MessageEvent) => {
+      if (!event.data || event.data.type !== "slack_oauth") return;
+      window.removeEventListener("message", handler);
+
+      if (event.data.error) {
+        alert(`Autorização do Slack cancelada: ${event.data.error}`);
+        return;
+      }
+
+      if (event.data.state !== sessionStorage.getItem("slack_oauth_state")) {
+        alert("Erro de segurança: state mismatch.");
+        return;
+      }
+
+      if (event.data.code) {
+        try {
+          await api.createIntegration(token, {
+            provider: "slack",
+            code: event.data.code,
+            redirect_uri: redirectUri,
+          });
+          loadData();
+        } catch (err: any) {
+          alert(err.message || "Erro ao vincular conta do Slack");
+        }
+      }
+    };
+
+    window.addEventListener("message", handler);
+  }, [token, loadData]);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-1">
@@ -136,6 +187,13 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
                         <path fill="#4285f4" d="M152 40c4.4 0 8 3.6 8 8v136c0 4.4-3.6 8-8 8" opacity=".2"/>
                         <path fill="#1a73e8" d="M48 40c-4.4 0-8 3.6-8 8v136c0 4.4 3.6 8 8 8" opacity=".2"/>
                       </svg>
+                    ) : provider.icon === "slack" ? (
+                      <svg viewBox="0 0 124 124" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M26.4 78.9c0 7.1-5.8 12.9-12.9 12.9S.6 86 .6 78.9c0-7.1 5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V78.9z" fill="#e01e5a"/>
+                        <path d="M45.8 26.4c-7.1 0-12.9-5.8-12.9-12.9S38.7.6 45.8.6s12.9 5.8 12.9 12.9v12.9H45.8zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H13.5C6.4 58.7.6 52.9.6 45.8s5.8-12.9 12.9-12.9h32.3z" fill="#36c5f0"/>
+                        <path d="M97.6 45.8c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97.6V45.8zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V13.5C65.3 6.4 71.1.6 78.2.6s12.9 5.8 12.9 12.9v32.3z" fill="#2eb67d"/>
+                        <path d="M78.2 97.6c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97.6h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H78.2z" fill="#ecb22e"/>
+                      </svg>
                     ) : (
                       <span className="text-xs uppercase tracking-wider font-bold text-content-2">
                         {provider.name.charAt(0)}
@@ -174,6 +232,8 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
                     onClick={() => {
                       if (provider.id === "gmail" || provider.id === "google_calendar") {
                         initGoogleAuth(provider.id);
+                      } else if (provider.id === "slack") {
+                        initSlackAuth();
                       } else {
                         alert("Integração não implementada ainda.");
                       }

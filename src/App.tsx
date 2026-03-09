@@ -66,6 +66,13 @@ export default function App() {
 
   if (pathname === "/terms") return <LegalPage type="terms" />;
   if (pathname === "/privacy") return <LegalPage type="privacy" />;
+  if (pathname === "/integrations/slack/callback") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <Spinner size="lg" label="Conectando Slack..." />
+      </div>
+    );
+  }
 
   if (auth.loading) {
     return (
