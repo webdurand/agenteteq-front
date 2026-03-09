@@ -227,7 +227,7 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
                   )}
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                   <button
                     onClick={() => {
                       if (provider.id === "gmail" || provider.id === "google_calendar") {
@@ -241,8 +241,13 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
                     className="w-full px-4 py-2.5 rounded-xl border border-line bg-surface-card text-content hover:bg-line text-sm font-medium uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Conectar Conta
+                    Conectar {provider.id === "slack" ? "Workspace" : "Conta"}
                   </button>
+                  {provider.id === "slack" && (
+                    <p className="text-[11px] text-content-4 leading-relaxed px-1">
+                      Esteja logado no workspace desejado no navegador antes de conectar. Para adicionar mais workspaces, clique novamente e selecione outro.
+                    </p>
+                  )}
                 </div>
               </div>
             );
