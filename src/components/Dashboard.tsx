@@ -657,6 +657,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
         onClose={() => setAccountOpen(false)}
         onOpenCheckout={openCheckout}
         onReplayOnboarding={handleReplayOnboarding}
+        onLogout={onLogout}
       />
       <CheckoutModal token={token} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} priceId={checkoutPriceId} onPaymentSuccess={onRefreshUser} />
       <BlogPreviewModal />

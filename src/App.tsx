@@ -15,7 +15,7 @@ import { TermsConsentModal } from "./components/TermsConsentModal";
 import { LegalPage } from "./components/LegalPage";
 import { LandingPage } from "./components/LandingPage";
 
-const CURRENT_TERMS_VERSION = "1.0";
+const CURRENT_TERMS_VERSION = "1.1";
 
 const FIXED_TOGGLE_CLASS = "fixed top-5 right-5 z-50 w-9 h-9 rounded-full flex items-center justify-center bg-surface-card border border-line text-content-3 hover:text-content transition-colors duration-200";
 

@@ -12,9 +12,10 @@ interface AccountSettingsModalProps {
   onClose: () => void;
   onOpenCheckout?: (priceId?: string) => void;
   onReplayOnboarding?: () => void;
+  onLogout?: () => void;
 }
 
-export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout, onReplayOnboarding }: AccountSettingsModalProps) {
+export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout, onReplayOnboarding, onLogout }: AccountSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"account" | "integrations">("account");
   const [billing, setBilling] = useState<any>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
@@ -26,6 +27,43 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   const [phoneStep, setPhoneStep] = useState<"idle" | "editing" | "confirming" | "verify">("idle");
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportData = async () => {
+    setExportLoading(true);
+    setMessage("");
+    try {
+      const data = await api.exportData(token);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `teq-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage("Dados exportados com sucesso.");
+    } catch (err: any) {
+      setMessage(err.message || "Erro ao exportar dados.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setMessage("");
+    try {
+      await api.deleteAccount(token);
+      if (onLogout) onLogout();
+    } catch (err: any) {
+      setMessage(err.message || "Erro ao excluir conta.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) {
@@ -35,6 +73,8 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
       setPhoneStep("idle");
       setNewPhone("");
       setCode("");
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
       return;
     }
     setLoading(true);
@@ -261,6 +301,26 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                 </div>
               </div>
               )}
+            </div>
+
+            <div className="border-t border-line pt-4">
+              <h3 className="text-sm uppercase tracking-wider text-content-3 mb-3">Seus dados (LGPD)</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleExportData}
+                  disabled={exportLoading}
+                  className="px-3 py-1.5 rounded-lg border border-line text-content-2 text-xs font-medium uppercase tracking-wider hover:bg-surface-card transition-colors disabled:opacity-40 flex items-center gap-2"
+                >
+                  {exportLoading && <span className="w-3 h-3 rounded-full border-2 border-content-3/40 border-t-content-3 animate-spin" />}
+                  Baixar meus dados
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 text-xs font-medium uppercase tracking-wider hover:bg-red-500/10 transition-colors"
+                >
+                  Excluir minha conta
+                </button>
+              </div>
             </div>
           </div>
 
@@ -503,6 +563,45 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
         onClose={() => setShowUpdatePayment(false)}
         onSuccess={refreshBilling}
       />
+
+      {/* Popup de confirmação de exclusão de conta */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-up border border-line rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="text-base font-medium text-red-400">Excluir conta permanentemente</h3>
+            <p className="text-sm text-content-3 leading-relaxed">
+              Todos os seus dados serão removidos permanentemente: mensagens, tarefas, lembretes, integrações e assinatura. <strong className="text-content">Essa ação não pode ser desfeita.</strong>
+            </p>
+            <div>
+              <label className="text-xs text-content-3 uppercase tracking-wider">Digite EXCLUIR para confirmar</label>
+              <input
+                autoFocus
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="EXCLUIR"
+                className="w-full mt-1 bg-transparent border-b border-red-500/30 focus:border-red-500 py-1.5 text-content placeholder-content-4 focus:outline-none transition-colors text-sm"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== "EXCLUIR" || deleteLoading}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {deleteLoading && <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
+                {deleteLoading ? "Excluindo..." : "Excluir conta"}
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-3 rounded-xl border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface-card transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Popup de confirmação de número */}
       {phoneStep === "confirming" && (

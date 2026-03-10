@@ -328,3 +328,19 @@ export async function cancelReminder(token: string, id: number) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+// --- LGPD ---
+
+export async function deleteAccount(token: string) {
+  return fetchApi("/auth/account", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function exportData(token: string) {
+  return fetchApi("/auth/export-data", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}

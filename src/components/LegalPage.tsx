@@ -13,7 +13,7 @@ export function LegalPage({ type }: LegalPageProps) {
           <h1 className="text-3xl font-light text-content tracking-tight md:text-4xl">
             {type === "terms" ? "Termos de Serviço" : "Política de Privacidade"}
           </h1>
-          <p className="text-sm text-content-3">Última atualização: 7 de março de 2026</p>
+          <p className="text-sm text-content-3">Última atualização: 10 de março de 2026</p>
         </header>
 
         <article className="prose-legal space-y-6 text-content-2 leading-relaxed text-[15px]">
@@ -42,8 +42,23 @@ function PrivacyContent() {
     <>
       <p>
         Esta Política de Privacidade descreve como o <strong className="text-content">Teq</strong> ("nós", "nosso"),
-        desenvolvido por Pedro Durand, coleta, usa, armazena e protege as informações pessoais dos
+        operado por Pedro Durand — Pessoa Física, coleta, usa, armazena e protege as informações pessoais dos
         usuários ("você") ao utilizar nosso aplicativo e serviços.
+      </p>
+
+      <SectionTitle>Controlador de dados</SectionTitle>
+      <p>
+        <strong className="text-content">Pedro Durand</strong> — Pessoa Física<br />
+        E-mail:{" "}
+        <a href="mailto:contato@diarioteq.com" className="underline underline-offset-4 text-content hover:opacity-80">
+          contato@diarioteq.com
+        </a>
+      </p>
+      <p>
+        <strong className="text-content">Encarregado de Proteção de Dados (DPO):</strong> Pedro Durand —{" "}
+        <a href="mailto:contato@diarioteq.com" className="underline underline-offset-4 text-content hover:opacity-80">
+          contato@diarioteq.com
+        </a>
       </p>
 
       <SectionTitle>1. Dados que coletamos</SectionTitle>
@@ -56,13 +71,11 @@ function PrivacyContent() {
         <li><strong className="text-content">Dados técnicos:</strong> endereço IP, tipo de dispositivo e informações de navegador para fins de segurança e diagnóstico.</li>
       </ul>
 
-      <SectionTitle>2. Como usamos seus dados</SectionTitle>
+      <SectionTitle>2. Como usamos seus dados e base legal (LGPD Art. 7)</SectionTitle>
       <ul className="list-disc pl-5 space-y-1.5">
-        <li>Fornecer e personalizar os serviços do Teq (assistente pessoal de IA).</li>
-        <li>Autenticar sua identidade e proteger sua conta.</li>
-        <li>Enviar mensagens proativas (lembretes, agendamentos) pelos canais que você configurar.</li>
-        <li>Acessar serviços integrados (Gmail, Google Calendar) sob sua autorização explícita.</li>
-        <li>Melhorar a qualidade do serviço e corrigir problemas técnicos.</li>
+        <li><strong className="text-content">Execução de contrato (Art. 7, V):</strong> fornecer e personalizar os serviços do Teq (assistente pessoal de IA), autenticar sua identidade e proteger sua conta.</li>
+        <li><strong className="text-content">Consentimento (Art. 7, I):</strong> enviar mensagens proativas (lembretes, agendamentos) pelos canais que você configurar; acessar serviços integrados (Gmail, Google Calendar) sob sua autorização explícita.</li>
+        <li><strong className="text-content">Legítimo interesse (Art. 7, IX):</strong> melhorar a qualidade do serviço, corrigir problemas técnicos e garantir a segurança da plataforma.</li>
       </ul>
 
       <SectionTitle>3. Integrações com terceiros</SectionTitle>
@@ -81,17 +94,18 @@ function PrivacyContent() {
         <li>O acesso aos dados é restrito à equipe de desenvolvimento e não é compartilhado com terceiros para fins comerciais.</li>
       </ul>
 
-      <SectionTitle>5. Seus direitos (LGPD)</SectionTitle>
+      <SectionTitle>5. Seus direitos (LGPD Art. 18)</SectionTitle>
       <p>Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018), você tem direito a:</p>
       <ul className="list-disc pl-5 space-y-1.5">
         <li>Acessar seus dados pessoais armazenados.</li>
         <li>Corrigir dados incompletos ou incorretos.</li>
-        <li>Solicitar a exclusão dos seus dados.</li>
+        <li>Solicitar a exclusão dos seus dados (disponível em Configurações &gt; Conta).</li>
         <li>Revogar consentimento de integrações a qualquer momento.</li>
-        <li>Solicitar portabilidade dos seus dados.</li>
+        <li>Solicitar portabilidade dos seus dados (disponível em Configurações &gt; Conta &gt; Baixar meus dados).</li>
       </ul>
       <p>
-        Para exercer qualquer desses direitos, entre em contato pelo e-mail:{" "}
+        Você pode exercer os direitos de exclusão e portabilidade diretamente pelo aplicativo.
+        Para outros direitos ou dúvidas, entre em contato pelo e-mail:{" "}
         <a href="mailto:contato@diarioteq.com" className="underline underline-offset-4 text-content hover:opacity-80">
           contato@diarioteq.com
         </a>
@@ -115,9 +129,10 @@ function PrivacyContent() {
         você será notificado dentro do aplicativo e precisará aceitar os novos termos para continuar usando o serviço.
       </p>
 
-      <SectionTitle>9. Contato</SectionTitle>
+      <SectionTitle>9. Contato e Encarregado de Dados</SectionTitle>
       <p>
-        Se tiver dúvidas sobre esta política, entre em contato:<br />
+        Se tiver dúvidas sobre esta política ou quiser exercer seus direitos, entre em contato com o
+        Encarregado de Proteção de Dados (DPO):<br />
         <strong className="text-content">Pedro Durand</strong><br />
         E-mail:{" "}
         <a href="mailto:contato@diarioteq.com" className="underline underline-offset-4 text-content hover:opacity-80">
