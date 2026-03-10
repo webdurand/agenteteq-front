@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { wsClient } from "./useWebSocket";
 import { useHistory } from "./useHistory";
+import { fetchWithAuth } from "../lib/api";
 import type { Message } from "./chatTypes";
 
 export function useChat(token: string | null) {
@@ -17,6 +18,9 @@ export function useChat(token: string | null) {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
   const [imageEditingPrompt, setImageEditingPrompt] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   const addMessage = useCallback((role: Message["role"], text: string) => {
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role, text, timestamp: new Date() }]);
@@ -211,12 +215,89 @@ export function useChat(token: string | null) {
     const cleanupClose = wsClient.on("close", () => {
       setStatusText("");
     });
+    const cleanupOpen = wsClient.on("open", () => {
+      reconcileStalePlaceholders();
+    });
 
     return () => {
       cleanupMsg();
       cleanupClose();
+      cleanupOpen();
     };
   }, [addMessage, setMessages]);
+
+  // Polling fallback: fetch latest messages from DB to reconcile stale placeholders
+  const reconcileStalePlaceholders = useCallback(async () => {
+    if (!token) return;
+    const current = messagesRef.current;
+    const hasGenerating = current.some((m) => m.text.startsWith("__CAROUSEL_GENERATING__"));
+    const hasEditing = current.some((m) => m.text.startsWith("__IMAGE_EDITING__"));
+    if (!hasGenerating && !hasEditing) return;
+
+    try {
+      const res = await fetchWithAuth("/api/chat/history?limit=10", { token });
+      const dbMessages: Array<{ id: string; role: string; text: string }> = res.messages ?? [];
+
+      setMessages((prev) => {
+        let changed = false;
+        const updated = prev.map((m) => {
+          if (m.text.startsWith("__CAROUSEL_GENERATING__")) {
+            // Extract carousel_id from placeholder
+            try {
+              const payload = JSON.parse(m.text.slice("__CAROUSEL_GENERATING__".length));
+              const cid = payload.carousel_id;
+              // Look for a READY or FAILED message in DB with the same carousel_id
+              const match = dbMessages.find(
+                (db) =>
+                  (db.text.startsWith("__CAROUSEL_READY__") || db.text.startsWith("__CAROUSEL_FAILED__")) &&
+                  db.text.includes(cid)
+              );
+              if (match) {
+                changed = true;
+                return { ...m, text: match.text };
+              }
+            } catch { /* ignore parse errors */ }
+          }
+          if (m.text.startsWith("__IMAGE_EDITING__")) {
+            // Look for an image edit result in recent DB messages
+            const match = dbMessages.find(
+              (db) => db.role === "agent" && !db.text.startsWith("__IMAGE_EDITING__") &&
+                (db.text.includes("imagem editada") || db.text.includes("Erro ao editar"))
+            );
+            if (match) {
+              changed = true;
+              return { ...m, text: match.text };
+            }
+          }
+          return m;
+        });
+        return changed ? updated : prev;
+      });
+    } catch (e) {
+      console.warn("[useChat] Erro ao reconciliar placeholders:", e);
+    }
+  }, [token, setMessages]);
+
+  // Start/stop polling when generating/editing placeholders exist
+  useEffect(() => {
+    const hasPlaceholder = messages.some(
+      (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__")
+    );
+
+    if (hasPlaceholder && !pollRef.current) {
+      pollRef.current = setInterval(reconcileStalePlaceholders, 8000);
+    } else if (!hasPlaceholder && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [messages, reconcileStalePlaceholders]);
 
   const sendName = useCallback((name: string) => {
     wsClient.send(JSON.stringify({ type: "name", value: name }));

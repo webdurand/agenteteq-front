@@ -32,6 +32,9 @@ class WSClient {
     this.ws.onopen = () => {
       console.log("[WS] Conectado (Shared)");
       this.isConnecting = false;
+      if (this.listeners.has("open")) {
+        this.listeners.get("open")?.forEach((cb) => cb({}));
+      }
     };
 
     this.ws.onmessage = (event) => {

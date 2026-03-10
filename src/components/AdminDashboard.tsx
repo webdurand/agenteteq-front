@@ -484,24 +484,38 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               {/* Financeiro */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Financeiro</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
                     <div className="flex items-center">
-                      <span className="text-xs uppercase tracking-wider text-content-3">MRR (Receita Recorrente)</span>
+                      <span className="text-xs uppercase tracking-wider text-content-3">MRR</span>
                       <Tooltip text="Receita Mensal Recorrente, soma do valor dos planos com assinaturas ativas." />
                     </div>
                     <span className="text-3xl font-light text-green-500">{formatBRL(analyticsData?.financial?.mrr_cents || 0)}</span>
                   </div>
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
                     <div className="flex items-center">
-                      <span className="text-xs uppercase tracking-wider text-content-3">Assinantes Ativos</span>
+                      <span className="text-xs uppercase tracking-wider text-content-3">Assinantes</span>
                       <Tooltip text="Total de assinaturas ativas ou em período de teste pago." />
                     </div>
                     <span className="text-3xl font-light text-accent">{analyticsData?.financial?.active_subs || 0}</span>
                   </div>
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
                     <div className="flex items-center">
-                      <span className="text-xs uppercase tracking-wider text-content-3">Status de Assinaturas</span>
+                      <span className="text-xs uppercase tracking-wider text-content-3">Conversão</span>
+                      <Tooltip text="Taxa de conversão: % de usuários que fizeram trial e se tornaram pagantes." />
+                    </div>
+                    <span className="text-3xl font-light text-blue-500">{analyticsData?.financial?.conversion_rate || 0}%</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Churn</span>
+                      <Tooltip text="Taxa de cancelamento no período selecionado: % de assinantes que cancelaram." />
+                    </div>
+                    <span className="text-3xl font-light text-red-400">{analyticsData?.financial?.churn_rate || 0}%</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Status</span>
                       <Tooltip text="Distribuição dos status das assinaturas (ativa, teste, cancelada, etc)." />
                     </div>
                     <div className="flex-1 -mx-4 -mt-2">
@@ -518,16 +532,27 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               {/* Engajamento */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Engajamento de Usuários</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                    <div className="flex items-center">
+                      <span className="text-xs uppercase tracking-wider text-content-3">Novos Usuários por Dia</span>
+                      <Tooltip text="Quantidade de novos cadastros por dia (baseado na data de início do trial)." />
+                    </div>
+                    {analyticsData?.engagement?.new_users_by_day?.length > 0 ? (
+                      <BarChart data={analyticsData.engagement.new_users_by_day} xKey="date" barKey="users" barName="Novos" color="#f59e0b" height={220} />
+                    ) : (
+                      <div className="h-[220px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                    )}
+                  </div>
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Usuários Ativos por Dia (DAU)</span>
                       <Tooltip text="Daily Active Users (DAU): Quantidade de usuários únicos que interagiram com o Teq a cada dia." />
                     </div>
                     {analyticsData?.engagement?.dau?.length > 0 ? (
-                      <BarChart data={analyticsData.engagement.dau} xKey="date" barKey="users" barName="Usuários" color="#3b82f6" height={250} />
+                      <BarChart data={analyticsData.engagement.dau} xKey="date" barKey="users" barName="Usuários" color="#3b82f6" height={220} />
                     ) : (
-                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                      <div className="h-[220px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
                     )}
                   </div>
                   <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
@@ -543,10 +568,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                           { key: 'received', name: 'Recebidas (Usuário)', color: '#8b5cf6' },
                           { key: 'sent', name: 'Enviadas (Agente)', color: '#10b981' }
                         ]} 
-                        height={250} 
+                        height={220} 
                       />
                     ) : (
-                      <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                      <div className="h-[220px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
                     )}
                   </div>
                 </div>
@@ -593,12 +618,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               {/* Custo Aproximado por Usuário */}
               <div className="space-y-4">
                 <div className="flex items-center">
-                  <h3 className="text-sm font-medium tracking-wide text-content-2">Custo Aproximado ({metricsDays} dias)</h3>
-                  <Tooltip text="Estimativa de custo de API (Gemini) por usuário baseada no uso real. Valores aproximados — sem tracking de tokens exato." />
+                  <h3 className="text-sm font-medium tracking-wide text-content-2">Custo de API ({metricsDays} dias)</h3>
+                  <Tooltip text="Custo de API (Gemini) por usuário. Dados 'reais' usam tokens reportados pelo LLM. Dados 'estimados' usam contagem de mensagens × custo médio." />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
-                    <span className="text-xs uppercase tracking-wider text-content-3">Custo Total Estimado</span>
+                    <span className="text-xs uppercase tracking-wider text-content-3">Custo Total</span>
                     <span className="text-3xl font-light text-red-400">R$ {costData?.total_cost_brl?.toFixed(2) ?? "—"}</span>
                   </div>
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
@@ -608,6 +633,13 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
                     <span className="text-xs uppercase tracking-wider text-content-3">Usuários com Consumo</span>
                     <span className="text-3xl font-light text-accent">{costData?.active_users ?? "—"}</span>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <span className="text-xs uppercase tracking-wider text-content-3">Fonte dos Dados</span>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <span className="text-sm text-green-500">{costData?.real_data_users ?? 0} reais (tokens)</span>
+                      <span className="text-sm text-content-4">{costData?.estimated_data_users ?? 0} estimados</span>
+                    </div>
                   </div>
                 </div>
 
@@ -621,11 +653,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                         <thead>
                           <tr className="border-b border-line/50 text-left text-xs text-content-4 uppercase tracking-wider">
                             <th className="px-4 py-2">Usuário</th>
-                            <th className="px-4 py-2 text-right">Chat</th>
-                            <th className="px-4 py-2 text-right">Voz</th>
-                            <th className="px-4 py-2 text-right">TTS</th>
+                            <th className="px-4 py-2 text-center">Fonte</th>
+                            <th className="px-4 py-2 text-right">LLM</th>
                             <th className="px-4 py-2 text-right">Imagens</th>
-                            <th className="px-4 py-2 text-right">Pesquisa</th>
+                            <th className="px-4 py-2 text-right">Tokens</th>
                             <th className="px-4 py-2 text-right font-semibold">Total</th>
                           </tr>
                         </thead>
@@ -635,11 +666,22 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                               <td className="px-4 py-2">
                                 <span className="font-mono text-xs">{u.name || u.user_id}</span>
                               </td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.chat > 0 ? `R$${u.breakdown.chat.toFixed(2)}` : "—"}</td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.voice > 0 ? `R$${u.breakdown.voice.toFixed(2)}` : "—"}</td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.tts > 0 ? `R$${u.breakdown.tts.toFixed(2)}` : "—"}</td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{u.breakdown.images > 0 ? `R$${u.breakdown.images.toFixed(2)}` : "—"}</td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{(u.breakdown.search + u.breakdown.deep_research) > 0 ? `R$${(u.breakdown.search + u.breakdown.deep_research).toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-center">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.source === "real" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"}`}>
+                                  {u.source === "real" ? "real" : "est."}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">
+                                {u.source === "real"
+                                  ? (u.breakdown.llm > 0 ? `R$${u.breakdown.llm.toFixed(2)}` : "—")
+                                  : ((u.breakdown.chat || 0) + (u.breakdown.voice || 0) + (u.breakdown.tts || 0) > 0
+                                    ? `R$${((u.breakdown.chat || 0) + (u.breakdown.voice || 0) + (u.breakdown.tts || 0)).toFixed(2)}`
+                                    : "—")}
+                              </td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-3">{(u.breakdown.images || 0) > 0 ? `R$${u.breakdown.images.toFixed(2)}` : "—"}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-content-4">
+                                {u.source === "real" && u.breakdown.total_tokens ? u.breakdown.total_tokens.toLocaleString("pt-BR") : "—"}
+                              </td>
                               <td className="px-4 py-2 text-right font-mono text-xs font-semibold text-red-400">R${u.cost_brl.toFixed(2)}</td>
                             </tr>
                           ))}

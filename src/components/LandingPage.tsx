@@ -422,28 +422,28 @@ const FEATURES = [
   {
     label: "Chat inteligente",
     title: "Converse.\nEle resolve.",
-    desc: "Crie tarefas, pesquise na web, gere e edite imagens, publique no blog — tudo numa conversa natural. Envie fotos e o Teq entende o contexto.",
+    desc: "Crie tarefas, pesquise na internet, crie e edite imagens, publique no blog — tudo conversando normalmente. Mande fotos e o Teq entende o que você precisa.",
     screen: <MockupDashboardChat />,
     glowColor: "rgba(100, 180, 255, 0.06)",
   },
   {
     label: "Voz ao vivo",
     title: "Fale.\nEle ouve.",
-    desc: "Áudio bidirecional nativo com Gemini Live — sem cadeia STT→LLM→TTS. Latência abaixo de 1s, interrupção natural e execução de ferramentas por voz.",
+    desc: "Conversa por voz em tempo real — você fala e ele responde na hora, como um telefonema. Pode interromper a qualquer momento e pedir qualquer coisa falando.",
     screen: <MockupDashboardVoice />,
     glowColor: "rgba(140, 120, 255, 0.06)",
   },
   {
     label: "Tarefas & agendamentos",
     title: "Delegue.\nEle executa.",
-    desc: "Crie tarefas e agendamentos por voz ou texto. No horário, o agente roda suas instruções e entrega o resultado — na web, no WhatsApp ou em ambos.",
+    desc: "Crie tarefas e agendamentos falando ou digitando. No horário certo, o Teq faz o que você pediu e te entrega o resultado — no app, no WhatsApp ou nos dois.",
     screen: <MockupDashboardTasks />,
     glowColor: "rgba(100, 255, 180, 0.05)",
   },
   {
     label: "WhatsApp + Slack + Google",
     title: "Um agente.\nTodos os canais.",
-    desc: "Web, voz, WhatsApp e Slack integrados. Gmail e Google Agenda conectados. Histórico, memória e tarefas sincronizados entre tudo.",
+    desc: "Use pelo app, por voz, pelo WhatsApp ou pelo Slack. Conecte seu Gmail e Google Agenda. Tudo sempre atualizado em todos os lugares.",
     screen: <MockupWhatsApp />,
     glowColor: "rgba(0, 168, 132, 0.06)",
   },
@@ -490,14 +490,13 @@ function FeatureSection({ label, title, desc, screen, glowColor, index }: {
    Bento Feature Cards
    ═══════════════════════════════════════════ */
 const BENTO_ITEMS = [
-  { icon: "🧠", title: "Memória de longo prazo", desc: "O agente extrai e guarda fatos sobre você automaticamente. Cada conversa fica mais personalizada." },
-  { icon: "🎨", title: "Imagens & carrosséis", desc: "Geração e edição de imagens por texto. Carrosséis para Instagram em paralelo, entregues por notificação." },
-  { icon: "�", title: "Deep Research", desc: "Pesquisa profunda com múltiplos sub-agentes em paralelo. Resultados sintetizados e salvos na memória." },
-  { icon: "📧", title: "Gmail & Google Agenda", desc: "Leia e-mails, consulte e crie eventos no calendário — tudo por conversa. Integração OAuth pronta." },
-  { icon: "�", title: "Slack integrado", desc: "Conecte o Teq ao seu workspace Slack. Mesmo assistente, mesmo contexto, mais um canal." },
-  { icon: "📝", title: "Blog & conteúdo", desc: "Publique posts no blog por comando. O Teq gera o conteúdo, converte em MDX e faz deploy automático." },
-  { icon: "🌤️", title: "Previsão do tempo", desc: "Consulte o tempo de qualquer cidade. Inclua automaticamente na saudação diária." },
-  { icon: "⚡", title: "Execução em background", desc: "Imagens, carrosséis e pesquisas rodam em fila persistente. Resultado entregue em tempo real via WebSocket." },
+  { icon: "🧠", title: "Ele lembra de você", desc: "O Teq aprende suas preferências e guarda o que importa. Quanto mais você usa, mais ele te conhece." },
+  { icon: "🎨", title: "Crie imagens em lote", desc: "Crie e edite imagens só pedindo. Carrosséis para Instagram são gerados de uma vez — você recebe tudo pronto por notificação.", highlight: true },
+  { icon: "🔍", title: "Pesquisa completa", desc: "Peça uma pesquisa e o Teq busca em várias fontes ao mesmo tempo. Você recebe um resumo pronto e organizado." },
+  { icon: "📧", title: "Gmail & Google Agenda", desc: "Leia e-mails, consulte e crie eventos no calendário — tudo por conversa. É só conectar sua conta Google." },
+  { icon: "💬", title: "Slack integrado", desc: "Conecte o Teq ao seu Slack. O mesmo assistente, com tudo que ele já sabe sobre você, agora no Slack também." },
+  { icon: "📝", title: "Blog & conteúdo", desc: "Publique no blog só pedindo. O Teq escreve o texto e publica automaticamente para você." },
+  { icon: "⚡", title: "Faz tudo sem você esperar", desc: "Imagens, pesquisas e tarefas são processadas enquanto você cuida de outra coisa. Quando termina, você recebe na hora." },
 ];
 
 /* ═══════════════════════════════════════════
@@ -550,7 +549,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
         <div className={`relative z-10 max-w-4xl mx-auto transition-all duration-[1.2s] ease-out ${heroReady ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-line/60 bg-surface-card/40 backdrop-blur-sm text-[10px] md:text-xs tracking-wider uppercase text-content-3 mb-8 transition-all duration-[1.2s] delay-100 ${heroReady ? "opacity-100" : "opacity-0"}`}>
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Assistente pessoal de IA
+            Seu secretário pessoal de IA
           </div>
 
           <h1 className={`text-[3.5rem] leading-[1.02] md:text-[5.5rem] lg:text-[7.5rem] font-extralight tracking-tight mb-8 transition-all duration-[1.4s] delay-200 ${heroReady ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
@@ -559,7 +558,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           </h1>
 
           <p className={`text-lg md:text-2xl text-content-2 font-light leading-relaxed max-w-2xl mx-auto mb-10 transition-all duration-[1.4s] delay-300 ${heroReady ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-            Seu assistente que você aciona por <strong className="text-content font-normal">voz</strong> ou{" "}
+            Seu secretário pessoal que você aciona por <strong className="text-content font-normal">voz</strong> ou{" "}
             <strong className="text-content font-normal">mensagem</strong> — na web ou no WhatsApp.
           </p>
 
@@ -594,17 +593,17 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
         <div className="section-glow top-0 left-0" />
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 reveal-up">
-            <p className="text-[11px] md:text-xs tracking-[0.3em] uppercase text-content-3 mb-4">Diferenciais</p>
-            <h2 className="text-3xl md:text-5xl lg:text-6xl font-extralight tracking-tight">
-              Não é chatbot. É co-piloto.
+            <p className="text-xs md:text-sm tracking-[0.3em] uppercase text-content-3 mb-4">Diferenciais</p>
+            <h2 className="text-3xl md:text-5xl lg:text-6xl font-extralight tracking-tight whitespace-nowrap">
+              Não é chatbot. É secretário pessoal.
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
             {BENTO_ITEMS.map((item, i) => (
-              <div key={i} className="bento-card rounded-2xl md:rounded-3xl border border-line/60 bg-surface-card/30 p-6 md:p-8 backdrop-blur-sm">
-                <span className="text-2xl mb-4 block">{item.icon}</span>
-                <h4 className="text-base md:text-lg font-medium text-content mb-2">{item.title}</h4>
-                <p className="text-sm text-content-3 leading-relaxed">{item.desc}</p>
+              <div key={i} className={`bento-card rounded-2xl md:rounded-3xl border bg-surface-card/30 p-6 md:p-8 backdrop-blur-sm ${(item as any).highlight ? "border-accent/40 ring-1 ring-accent/20 bg-accent/[0.04]" : "border-line/60"}`}>
+                <span className="text-3xl mb-4 block">{item.icon}</span>
+                <h4 className="text-lg md:text-xl font-medium text-content mb-2">{item.title}</h4>
+                <p className="text-sm md:text-base text-content-3 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -616,7 +615,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
         <div className="section-glow top-0 left-0" />
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-14 reveal-up">
-            <p className="text-[11px] md:text-xs tracking-[0.3em] uppercase text-content-3 mb-4">Na prática</p>
+            <p className="text-xs md:text-sm tracking-[0.3em] uppercase text-content-3 mb-4">Na prática</p>
             <h2 className="text-3xl md:text-5xl font-extralight tracking-tight">
               Você fala. O Teq executa.
             </h2>
@@ -624,16 +623,16 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           <div className="space-y-3">
             {[
               { cmd: '"Adiciona reunião com João amanhã às 14h"', res: "Cria a tarefa, agenda lembrete e te avisa no horário — na web, WhatsApp ou ambos." },
-              { cmd: '"Todo dia às 8h me manda tarefas e previsão do tempo"', res: "Agendamento recorrente: o agente roda, compila tudo e entrega o resultado pronto." },
-              { cmd: '"Pesquisa tendências de IA em 2025"', res: "Deep Research com múltiplos sub-agentes em paralelo. Resultado sintetizado e salvo na memória." },
-              { cmd: '"Gera um carrossel sobre produtividade"', res: "5 imagens geradas em background via Gemini e entregues por notificação em tempo real." },
-              { cmd: '"O que tem na minha agenda amanhã?"', res: "Consulta o Google Calendar conectado e lista os compromissos do dia." },
+              { cmd: '"Todo dia às 8h me manda tarefas e previsão do tempo"', res: "Agendamento automático: todo dia o Teq junta tudo e te manda um resumo pronto." },
+              { cmd: '"Pesquisa tendências de IA em 2025"', res: "O Teq busca em várias fontes ao mesmo tempo e te entrega um resumo completo e organizado." },
+              { cmd: '"Gera um carrossel sobre produtividade"', res: "5 imagens criadas automaticamente e entregues por notificação assim que ficam prontas." },
+              { cmd: '"O que tem na minha agenda amanhã?"', res: "Consulta sua agenda do Google conectada e lista os compromissos do dia." },
               { cmd: '"Coloca um dragão nessa cena" (com foto)', res: "Edita a imagem enviada com IA e devolve o resultado em segundos." },
             ].map((uc, i) => (
               <div key={i} className="reveal-up" style={{ transitionDelay: `${i * 0.06}s` }}>
                 <div className="group rounded-2xl border border-line/50 bg-surface-card/20 backdrop-blur-sm p-5 md:p-6 hover:border-line-strong hover:bg-surface-card/40 transition-all duration-500">
-                  <p className="text-sm font-mono text-content mb-1.5 tracking-tight">{uc.cmd}</p>
-                  <p className="text-sm text-content-3 leading-relaxed">{uc.res}</p>
+                  <p className="text-base font-mono text-content mb-1.5 tracking-tight">{uc.cmd}</p>
+                  <p className="text-sm md:text-base text-content-3 leading-relaxed">{uc.res}</p>
                 </div>
               </div>
             ))}
@@ -647,10 +646,10 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] rounded-full bg-content/[0.02] blur-[100px] pointer-events-none" />
         <div className="max-w-3xl mx-auto text-center relative z-10 reveal-up">
           <h2 className="text-4xl md:text-6xl lg:text-7xl font-extralight tracking-tight mb-6 leading-tight">
-            Seu co-piloto<br />está pronto.
+            Seu secretário pessoal<br />está pronto.
           </h2>
-          <p className="text-base md:text-xl text-content-2 font-light leading-relaxed mb-10 max-w-xl mx-auto">
-            7 dias grátis. Sem cartão para começar. Cancele quando quiser.
+          <p className="text-lg md:text-2xl text-content-2 font-light leading-relaxed mb-10 max-w-xl mx-auto">
+            Comece agora mesmo. Sem complicação.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button onClick={onRegister} className="group w-full sm:w-auto px-10 py-4 rounded-full bg-content text-surface text-sm tracking-wider uppercase font-medium hover:opacity-90 transition-all hover:shadow-lg hover:shadow-content/10 hover:scale-[1.02] active:scale-[0.98]">
@@ -670,7 +669,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           <div className="flex items-center gap-2">
             <span className="tracking-[0.2em] uppercase font-medium">Teq</span>
             <span className="text-content-4">·</span>
-            <span>Assistente pessoal de IA</span>
+            <span>Secretário pessoal de IA</span>
           </div>
           <div className="flex items-center gap-5">
             <a href="/privacy" className="hover:text-content transition-colors">Privacidade</a>
