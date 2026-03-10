@@ -265,6 +265,13 @@ export async function fetchWithAuth(endpoint: string, options: { token: string; 
   return fetchApi(endpoint, reqOptions);
 }
 
+export async function cancelCarousel(token: string, carouselId: string) {
+  return fetchApi(`/carousel/${carouselId}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export async function fetchTasks(token: string, status?: string, limit?: number, offset?: number) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);

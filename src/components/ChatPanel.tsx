@@ -15,6 +15,7 @@ interface ChatPanelProps {
   onOpenCheckout?: () => void;
   isProcessing?: boolean;
   onStop?: () => void;
+  onCancelGeneration?: (carouselId: string) => void;
 }
 
 // Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
@@ -48,6 +49,7 @@ function parseMessageContent(text: string) {
 const CAROUSEL_GENERATING_PREFIX = "__CAROUSEL_GENERATING__";
 const CAROUSEL_READY_PREFIX = "__CAROUSEL_READY__";
 const CAROUSEL_FAILED_PREFIX = "__CAROUSEL_FAILED__";
+const CAROUSEL_CANCELLED_PREFIX = "__CAROUSEL_CANCELLED__";
 const IMAGE_EDITING_PREFIX = "__IMAGE_EDITING__";
 const LIMIT_REACHED_PREFIX = "__LIMIT_REACHED__";
 
@@ -81,7 +83,7 @@ function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: st
   );
 }
 
-function ImageEditingBubble({ prompt }: { prompt: string }) {
+function ImageEditingBubble({ prompt, onCancel }: { prompt: string; onCancel?: () => void }) {
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
@@ -106,13 +108,18 @@ function ImageEditingBubble({ prompt }: { prompt: string }) {
           <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
             <div className="h-full rounded-full bg-accent/60 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: "40%" }} />
           </div>
+          {onCancel && (
+            <button onClick={onCancel} className="mt-2 text-[11px] text-content-4 hover:text-content-2 transition-colors">
+              Cancelar
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: number; slidesDone?: number }) {
+function CarouselGeneratingBubble({ numSlides, slidesDone = 0, onCancel }: { numSlides: number; slidesDone?: number; onCancel?: () => void }) {
   const allDone = slidesDone >= numSlides && numSlides > 0;
   const statusText = allDone
     ? "Finalizando..."
@@ -160,6 +167,11 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: nu
               );
             })}
           </div>
+          {onCancel && (
+            <button onClick={onCancel} className="mt-2 text-[11px] text-content-4 hover:text-content-2 transition-colors">
+              Cancelar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -222,19 +234,25 @@ function CarouselReadyBubble({ slides }: { slides: Array<{ slide_number: number;
   );
 }
 
-function CarouselFailedBubble() {
+function CarouselFailedBubble({ cancelled = false }: { cancelled?: boolean }) {
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
       <div className="max-w-[90%]">
-        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-red-500/20 shadow-sm">
+        <div className={`px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card shadow-sm ${cancelled ? "border border-line" : "border border-red-500/20"}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 flex-shrink-0 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
-                <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" />
-              </svg>
+            <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center ${cancelled ? "bg-content-4/10 border border-line" : "bg-red-500/10 border border-red-500/20"}`}>
+              {cancelled ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-content-3">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                  <circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+              )}
             </div>
-            <span className="text-sm text-content">Erro ao gerar o carrossel. Tente novamente.</span>
+            <span className="text-sm text-content">{cancelled ? "Geração cancelada." : "Erro ao gerar o carrossel. Tente novamente."}</span>
           </div>
         </div>
       </div>
@@ -257,7 +275,7 @@ function SystemNotification({ msg }: { msg: Message }) {
   );
 }
 
-function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?: () => void }) {
+function MessageBubble({ msg, onOpenCheckout, onCancelGeneration }: { msg: Message; onOpenCheckout?: () => void; onCancelGeneration?: (carouselId: string) => void }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (msg.role === "system") {
@@ -276,7 +294,8 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(CAROUSEL_GENERATING_PREFIX.length));
-      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} />;
+      const cid = payload.carousel_id;
+      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} onCancel={onCancelGeneration && cid ? () => onCancelGeneration(cid) : undefined} />;
     } catch {
       return <CarouselGeneratingBubble numSlides={0} />;
     }
@@ -291,6 +310,10 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
     }
   }
 
+  if (msg.text.startsWith(CAROUSEL_CANCELLED_PREFIX)) {
+    return <CarouselFailedBubble cancelled />;
+  }
+
   if (msg.text.startsWith(CAROUSEL_FAILED_PREFIX)) {
     return <CarouselFailedBubble />;
   }
@@ -298,7 +321,7 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
   if (msg.text.startsWith(IMAGE_EDITING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(IMAGE_EDITING_PREFIX.length));
-      return <ImageEditingBubble prompt={payload.prompt ?? ""} />;
+      return <ImageEditingBubble prompt={payload.prompt ?? ""} onCancel={undefined} />;
     } catch {
       return <ImageEditingBubble prompt="" />;
     }
@@ -379,7 +402,8 @@ export function ChatPanel({
   isInitialLoading,
   onOpenCheckout,
   isProcessing = false,
-  onStop
+  onStop,
+  onCancelGeneration
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -561,7 +585,7 @@ export function ChatPanel({
             <p className="text-sm italic">O que vamos fazer hoje?</p>
           </div>
         ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} />)
+          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} onCancelGeneration={onCancelGeneration} />)
         )}
         
         {statusText && !statusText.includes("Teq") && (

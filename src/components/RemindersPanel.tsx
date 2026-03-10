@@ -371,14 +371,14 @@ export function RemindersPanel({ token, isMinimized, onToggleMinimize }: { token
   return (
     <div className={`flex flex-col p-6 text-content ${isMinimized ? "" : "h-full"}`}>
       <div className={`flex items-center justify-between ${isMinimized ? "" : "mb-4"}`}>
-        <div className="flex items-center gap-2">
+        <button onClick={onToggleMinimize} className="flex items-center gap-2 flex-1 text-left cursor-pointer">
           <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Avisos</h2>
           {!loading && displayCount > 0 && (
             <span className="text-[10px] text-content-3 bg-line/40 px-1.5 py-0.5 rounded-full">
               {displayCount}{hasMore ? "+" : ""}
             </span>
           )}
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {!isMinimized && (
             <button

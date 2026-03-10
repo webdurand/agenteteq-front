@@ -506,7 +506,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 bg-surface">
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-8 bg-surface">
           {tab === "negocio" && (
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="flex justify-between items-center">
@@ -689,7 +689,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     <div className="px-4 py-3 border-b border-line/50">
                       <span className="text-xs uppercase tracking-wider text-content-3">Top Usuários por Custo</span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto scrollbar-thin">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-line/50 text-left text-xs text-content-4 uppercase tracking-wider">
@@ -943,7 +943,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   <h3 className="text-sm font-medium tracking-wide text-content-2">Tasks Recentes (Fila)</h3>
                   <Tooltip text="Últimas tarefas que passaram ou estão aguardando na fila do sistema." />
                 </div>
-                <div className="bg-surface-card border border-line rounded-2xl overflow-x-auto">
+                <div className="bg-surface-card border border-line rounded-2xl overflow-x-auto scrollbar-thin">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-line/50 text-content-3 text-xs uppercase tracking-wider">

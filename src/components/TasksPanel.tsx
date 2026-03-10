@@ -19,18 +19,14 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
 
   return (
     <div className={`flex flex-col p-6 text-content ${isMinimized ? "" : "h-full"}`}>
-      <div className={`flex items-center justify-between ${isMinimized ? "" : "mb-6"}`}>
+      <button onClick={onToggleMinimize} className={`flex items-center justify-between w-full text-left cursor-pointer ${isMinimized ? "" : "mb-6"}`}>
         <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Tarefas</h2>
-        <button 
-          onClick={onToggleMinimize}
-          className="w-6 h-6 flex items-center justify-center text-content-3 hover:text-content transition-colors"
-          title={isMinimized ? "Maximizar" : "Minimizar"}
-        >
+        <span className="w-6 h-6 flex items-center justify-center text-content-3">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {isMinimized ? <polyline points="6 9 12 15 18 9"></polyline> : <polyline points="18 15 12 9 6 15"></polyline>}
           </svg>
-        </button>
-      </div>
+        </span>
+      </button>
       
       {!isMinimized && (
         <>

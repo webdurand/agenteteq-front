@@ -133,7 +133,9 @@ export function useChat(token: string | null) {
 
         case "carousel_failed": {
           const failedCarouselId = msg.carousel_id ?? "";
-          const failedText = `__CAROUSEL_FAILED__${failedCarouselId}`;
+          const failedText = msg.cancelled
+            ? `__CAROUSEL_CANCELLED__${failedCarouselId}`
+            : `__CAROUSEL_FAILED__${failedCarouselId}`;
           setMessages((prev) => {
             let genIdx = prev.findIndex((m) => m.id === `carousel_gen_${failedCarouselId}`);
             if (genIdx < 0 && failedCarouselId) {

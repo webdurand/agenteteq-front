@@ -155,8 +155,8 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl bg-surface-up border border-line shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-line">
+      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-surface-up border border-line shadow-2xl">
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-line">
           <div className="flex items-center gap-3">
             <div>
               <h2 className="text-xl font-light text-content">Conta e Assinatura</h2>
@@ -171,7 +171,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
           </button>
         </div>
 
-        <div className="flex border-b border-line px-6 pt-2">
+        <div className="flex-shrink-0 flex border-b border-line px-6 pt-2">
           <button
             onClick={() => setActiveTab("account")}
             className={`px-4 py-3 text-sm font-medium uppercase tracking-wider border-b-2 transition-colors ${
@@ -190,6 +190,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
           </button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
         {activeTab === "account" ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           <div className="bg-glass backdrop-blur-xl border border-glass-border rounded-3xl p-6 space-y-5">
@@ -555,6 +556,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
         )}
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
+        </div>
       </div>
 
       <UpdatePaymentModal

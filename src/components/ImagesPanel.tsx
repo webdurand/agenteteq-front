@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 import { useCarousels, type Carousel, type Slide } from "../hooks/useCarousels";
@@ -74,8 +74,10 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
   isMinimized: boolean;
   onToggleMinimize: () => void;
 }) {
+  const SLIDES_PER_PAGE = 10;
   const { carousels, loading, loadingMore, hasMore, loadMore, refresh, deleteCarousel } = useCarousels(token);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(SLIDES_PER_PAGE);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useWSEvent("carousel_generated", () => refresh());
@@ -92,17 +94,29 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
     (c) => c.status === "generating" && !isStaleGenerating(c)
   );
 
+  const hasMoreSlides = visibleCount < allSlides.length || hasMore;
+
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
-    if (!el || loadingMore || !hasMore) return;
+    if (!el || loadingMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+      if (visibleCount < allSlides.length) {
+        setVisibleCount(prev => prev + SLIDES_PER_PAGE);
+      } else if (hasMore) {
+        loadMore();
+      }
+    }
+  }, [loadMore, loadingMore, hasMore, visibleCount, allSlides.length]);
+
+  useEffect(() => {
+    if (!loadingMore && visibleCount > allSlides.length && hasMore) {
       loadMore();
     }
-  }, [loadMore, loadingMore, hasMore]);
+  }, [visibleCount, allSlides.length, hasMore, loadingMore, loadMore]);
 
   return (
     <div className={`flex flex-col p-4 text-content ${isMinimized ? "" : "h-full"}`}>
-      <div className={`flex items-center justify-between ${isMinimized ? "" : "mb-4"}`}>
+      <button onClick={onToggleMinimize} className={`flex items-center justify-between w-full text-left cursor-pointer ${isMinimized ? "" : "mb-4"}`}>
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Imagens</h2>
           {allSlides.length > 0 && (
@@ -112,15 +126,12 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
             <span className="text-[10px] text-accent animate-pulse">gerando...</span>
           )}
         </div>
-        <button
-          onClick={onToggleMinimize}
-          className="w-6 h-6 flex items-center justify-center text-content-3 hover:text-content transition-colors"
-        >
+        <span className="w-6 h-6 flex items-center justify-center text-content-3">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {isMinimized ? <polyline points="6 9 12 15 18 9" /> : <polyline points="18 15 12 9 6 15" />}
           </svg>
-        </button>
-      </div>
+        </span>
+      </button>
 
       {!isMinimized && (
         <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto scrollbar-thin">
@@ -134,7 +145,7 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
             <p className="text-sm text-content-3 text-center py-8">Nenhuma imagem ainda.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              {allSlides.map(({ slide, carousel }, idx) => (
+              {allSlides.slice(0, visibleCount).map(({ slide, carousel }, idx) => (
                 <GalleryImage
                   key={`${carousel.id}-${idx}`}
                   slide={slide}
@@ -147,7 +158,7 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
                   }}
                 />
               ))}
-              {loadingMore && [0, 1].map(i => (
+              {(loadingMore || (hasMoreSlides && visibleCount >= allSlides.length)) && [0, 1].map(i => (
                 <Skeleton key={`more-${i}`} className="aspect-[4/3] rounded-xl" delay={i * 100} />
               ))}
             </div>

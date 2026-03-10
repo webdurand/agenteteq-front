@@ -5,7 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { ChatPanel } from "./ChatPanel";
 import { BlogPreviewModal } from "./BlogPreviewModal";
 import { OnboardingModal } from "./OnboardingModal";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SubscriptionStatus } from "./SubscriptionStatus";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { AccountSettingsModal } from "./AccountSettingsModal";
@@ -70,6 +70,14 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     sendName, sendMessageText, stopGeneration,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
   } = useChat(token);
+
+  const handleCancelGeneration = useCallback(async (carouselId: string) => {
+    try {
+      await api.cancelCarousel(token, carouselId);
+    } catch (e) {
+      console.error("Erro ao cancelar geração:", e);
+    }
+  }, [token]);
 
   const {
     state,
@@ -577,6 +585,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   onOpenCheckout={() => openCheckout()}
                   isProcessing={!!chatStatus}
                   onStop={stopGeneration}
+                  onCancelGeneration={handleCancelGeneration}
                 />
               </div>
             ) : null}
