@@ -569,6 +569,13 @@ const FEATURES = [
     glowColor: "rgba(100, 180, 255, 0.06)",
   },
   {
+    label: "Imagens em lote",
+    title: "Peça.\nEle cria.",
+    desc: "Carrosséis para Instagram, edição de fotos, imagens do zero — é só pedir. O Teq gera tudo de uma vez e te avisa quando fica pronto.",
+    screen: <MockupDashboardImages />,
+    glowColor: "rgba(255, 140, 80, 0.06)",
+  },
+  {
     label: "Voz ao vivo",
     title: "Fale.\nEle ouve.",
     desc: "Conversa por voz em tempo real — você fala e ele responde na hora, como um telefonema. Pode interromper a qualquer momento e pedir qualquer coisa falando.",
