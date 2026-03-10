@@ -13,6 +13,8 @@ interface ChatPanelProps {
   hasMore?: boolean;
   isInitialLoading?: boolean;
   onOpenCheckout?: () => void;
+  isProcessing?: boolean;
+  onStop?: () => void;
 }
 
 // Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
@@ -375,7 +377,9 @@ export function ChatPanel({
   isLoadingMore,
   hasMore,
   isInitialLoading,
-  onOpenCheckout
+  onOpenCheckout,
+  isProcessing = false,
+  onStop
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -384,6 +388,9 @@ export function ChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const lastSentRef = useRef(0);
+  const SEND_COOLDOWN_MS = 1500;
+  const didInitialScroll = useRef(false);
 
   // Preserva posição do scroll ao carregar mensagens antigas; rola para o fim em novas
   useEffect(() => {
@@ -394,6 +401,12 @@ export function ChatPanel({
       const prev = parseInt(el.dataset.scrollHeight, 10);
       el.scrollTop = el.scrollHeight - prev;
       delete el.dataset.scrollHeight;
+    } else if (!didInitialScroll.current && messages.length > 0) {
+      // First load: scroll to bottom after content renders
+      didInitialScroll.current = true;
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
     } else {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -408,7 +421,10 @@ export function ChatPanel({
   }, [text]);
 
   const handleSubmit = () => {
+    if (isProcessing) return;
+    if (Date.now() - lastSentRef.current < SEND_COOLDOWN_MS) return;
     if (!text.trim() && pendingImages.length === 0) return;
+    lastSentRef.current = Date.now();
     onSendMessage(text.trim(), pendingImages.length > 0 ? pendingImages : undefined);
     setText("");
     setPendingImages([]);
@@ -612,12 +628,24 @@ export function ChatPanel({
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder="Pergunte alguma coisa (Shift+Enter para nova linha)"
-                className="flex-1 bg-transparent py-3 text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-y-auto scrollbar-thin leading-relaxed min-h-[44px]"
+                disabled={isProcessing}
+                placeholder={isProcessing ? "Aguarde a resposta..." : "Pergunte alguma coisa (Shift+Enter para nova linha)"}
+                className={`flex-1 bg-transparent py-3 text-sm focus:outline-none placeholder:text-content-4 resize-none overflow-y-auto scrollbar-thin leading-relaxed min-h-[44px] ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
               />
               
               <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center pr-1">
-                {text.trim() || pendingImages.length > 0 ? (
+                {isProcessing && onStop ? (
+                  <button 
+                    type="button"
+                    onClick={onStop}
+                    className="w-8 h-8 flex items-center justify-center text-surface bg-content hover:bg-content/80 transition-colors rounded-full p-0"
+                    title="Parar geração"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="4" y="4" width="16" height="16" rx="2" />
+                    </svg>
+                  </button>
+                ) : text.trim() || pendingImages.length > 0 ? (
                   <button 
                     type="button"
                     onClick={handleSubmit}

@@ -67,7 +67,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     messages,
     statusText: chatStatus,
     needsOnboarding, onboardingPrompt, 
-    sendName, sendMessageText,
+    sendName, sendMessageText, stopGeneration,
     historyLoading, historyInitialLoading, historyHasMore, historyLoadMore
   } = useChat(token);
 
@@ -575,6 +575,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                   isInitialLoading={historyInitialLoading}
                   hasMore={historyHasMore}
                   onOpenCheckout={() => openCheckout()}
+                  isProcessing={!!chatStatus}
+                  onStop={stopGeneration}
                 />
               </div>
             ) : null}

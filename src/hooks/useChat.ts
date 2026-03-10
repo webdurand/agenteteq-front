@@ -66,7 +66,11 @@ export function useChat(token: string | null) {
           const placeholderId = `carousel_gen_${msg.carousel_id}`;
           const numSlides = msg.num_slides ?? 0;
           const placeholderText = `__CAROUSEL_GENERATING__${JSON.stringify({ carousel_id: msg.carousel_id, num_slides: numSlides, slides_done: 0 })}`;
-          setMessages((prev) => [...prev, { id: placeholderId, role: "agent", text: placeholderText, timestamp: new Date() }]);
+          setMessages((prev) => {
+            // Avoid duplicate if already loaded from DB history
+            if (prev.some((m) => m.id === placeholderId || (m.text.startsWith("__CAROUSEL_GENERATING__") && m.text.includes(msg.carousel_id)))) return prev;
+            return [...prev, { id: placeholderId, role: "agent", text: placeholderText, timestamp: new Date() }];
+          });
           break;
         }
 
@@ -285,7 +289,9 @@ export function useChat(token: string | null) {
     );
 
     if (hasPlaceholder && !pollRef.current) {
-      pollRef.current = setInterval(reconcileStalePlaceholders, 8000);
+      // Run immediate reconciliation in case WS event was missed
+      reconcileStalePlaceholders();
+      pollRef.current = setInterval(reconcileStalePlaceholders, 4000);
     } else if (!hasPlaceholder && pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -301,6 +307,11 @@ export function useChat(token: string | null) {
 
   const sendName = useCallback((name: string) => {
     wsClient.send(JSON.stringify({ type: "name", value: name }));
+  }, []);
+
+  const stopGeneration = useCallback(() => {
+    wsClient.send(JSON.stringify({ type: "cancel" }));
+    setStatusText("");
   }, []);
 
   const sendMessageText = useCallback((text: string, images?: string[]) => {
@@ -329,6 +340,7 @@ export function useChat(token: string | null) {
     imageEditingPrompt,
     sendName,
     sendMessageText,
+    stopGeneration,
     historyLoading,
     historyInitialLoading,
     historyHasMore,
