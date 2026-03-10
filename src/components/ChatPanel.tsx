@@ -15,7 +15,6 @@ interface ChatPanelProps {
   onOpenCheckout?: () => void;
   isProcessing?: boolean;
   onStop?: () => void;
-  onCancelGeneration?: (carouselId: string) => void;
 }
 
 // Detecta linhas com URL de imagem do Cloudinary/https/dataURI e separa texto de imagens
@@ -83,7 +82,7 @@ function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: st
   );
 }
 
-function ImageEditingBubble({ prompt, onCancel }: { prompt: string; onCancel?: () => void }) {
+function ImageEditingBubble({ prompt }: { prompt: string }) {
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
@@ -108,18 +107,13 @@ function ImageEditingBubble({ prompt, onCancel }: { prompt: string; onCancel?: (
           <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
             <div className="h-full rounded-full bg-accent/60 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: "40%" }} />
           </div>
-          {onCancel && (
-            <button onClick={onCancel} className="mt-2 text-[11px] text-content-4 hover:text-content-2 transition-colors">
-              Cancelar
-            </button>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-function CarouselGeneratingBubble({ numSlides, slidesDone = 0, onCancel }: { numSlides: number; slidesDone?: number; onCancel?: () => void }) {
+function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: number; slidesDone?: number }) {
   const allDone = slidesDone >= numSlides && numSlides > 0;
   const statusText = allDone
     ? "Finalizando..."
@@ -167,11 +161,6 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0, onCancel }: { num
               );
             })}
           </div>
-          {onCancel && (
-            <button onClick={onCancel} className="mt-2 text-[11px] text-content-4 hover:text-content-2 transition-colors">
-              Cancelar
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -275,7 +264,7 @@ function SystemNotification({ msg }: { msg: Message }) {
   );
 }
 
-function MessageBubble({ msg, onOpenCheckout, onCancelGeneration }: { msg: Message; onOpenCheckout?: () => void; onCancelGeneration?: (carouselId: string) => void }) {
+function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?: () => void }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (msg.role === "system") {
@@ -294,8 +283,7 @@ function MessageBubble({ msg, onOpenCheckout, onCancelGeneration }: { msg: Messa
   if (msg.text.startsWith(CAROUSEL_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(CAROUSEL_GENERATING_PREFIX.length));
-      const cid = payload.carousel_id;
-      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} onCancel={onCancelGeneration && cid ? () => onCancelGeneration(cid) : undefined} />;
+      return <CarouselGeneratingBubble numSlides={payload.num_slides ?? 0} slidesDone={payload.slides_done ?? 0} />;
     } catch {
       return <CarouselGeneratingBubble numSlides={0} />;
     }
@@ -321,7 +309,7 @@ function MessageBubble({ msg, onOpenCheckout, onCancelGeneration }: { msg: Messa
   if (msg.text.startsWith(IMAGE_EDITING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(IMAGE_EDITING_PREFIX.length));
-      return <ImageEditingBubble prompt={payload.prompt ?? ""} onCancel={undefined} />;
+      return <ImageEditingBubble prompt={payload.prompt ?? ""} />;
     } catch {
       return <ImageEditingBubble prompt="" />;
     }
@@ -402,8 +390,7 @@ export function ChatPanel({
   isInitialLoading,
   onOpenCheckout,
   isProcessing = false,
-  onStop,
-  onCancelGeneration
+  onStop
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
@@ -585,7 +572,7 @@ export function ChatPanel({
             <p className="text-sm italic">O que vamos fazer hoje?</p>
           </div>
         ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} onCancelGeneration={onCancelGeneration} />)
+          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} />)
         )}
         
         {statusText && !statusText.includes("Teq") && (

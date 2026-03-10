@@ -19,6 +19,7 @@ export function useChat(token: string | null) {
   const [onboardingPrompt, setOnboardingPrompt] = useState("");
   const [imageEditingPrompt, setImageEditingPrompt] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const suppressNextResponseRef = useRef(false);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
@@ -41,7 +42,11 @@ export function useChat(token: string | null) {
 
         case "response":
           if (msg.mime_type === "none" && msg.text) {
-            addMessage("agent", msg.text);
+            if (suppressNextResponseRef.current) {
+              suppressNextResponseRef.current = false;
+            } else {
+              addMessage("agent", msg.text);
+            }
           }
           setStatusText("");
           break;
@@ -63,6 +68,7 @@ export function useChat(token: string | null) {
           break;
 
         case "carousel_generating": {
+          suppressNextResponseRef.current = true;
           const placeholderId = `carousel_gen_${msg.carousel_id}`;
           const numSlides = msg.num_slides ?? 0;
           const placeholderText = `__CAROUSEL_GENERATING__${JSON.stringify({ carousel_id: msg.carousel_id, num_slides: numSlides, slides_done: 0 })}`;
@@ -154,6 +160,7 @@ export function useChat(token: string | null) {
         }
 
         case "image_editing": {
+          suppressNextResponseRef.current = true;
           const editPrompt = msg.prompt ?? "";
           setImageEditingPrompt(editPrompt);
           const editingText = `__IMAGE_EDITING__${JSON.stringify({ prompt: editPrompt })}`;
@@ -311,10 +318,29 @@ export function useChat(token: string | null) {
     wsClient.send(JSON.stringify({ type: "name", value: name }));
   }, []);
 
-  const stopGeneration = useCallback(() => {
+  const hasActiveGeneration = messages.some(
+    (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__")
+  );
+
+  const stopGeneration = useCallback(async () => {
     wsClient.send(JSON.stringify({ type: "cancel" }));
     setStatusText("");
-  }, []);
+
+    // Also cancel any active carousel generation via REST
+    const current = messagesRef.current;
+    for (const m of current) {
+      if (m.text.startsWith("__CAROUSEL_GENERATING__")) {
+        try {
+          const payload = JSON.parse(m.text.slice("__CAROUSEL_GENERATING__".length));
+          const cid = payload.carousel_id;
+          if (cid && token) {
+            const { cancelCarousel } = await import("../lib/api");
+            cancelCarousel(token, cid).catch(() => {});
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }, [token]);
 
   const sendMessageText = useCallback((text: string, images?: string[]) => {
     const messageParts = [text];
@@ -343,6 +369,7 @@ export function useChat(token: string | null) {
     sendName,
     sendMessageText,
     stopGeneration,
+    hasActiveGeneration,
     historyLoading,
     historyInitialLoading,
     historyHasMore,
