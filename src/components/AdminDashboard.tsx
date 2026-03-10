@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as api from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { ThemeToggle } from "./ui/ThemeToggle";
@@ -58,6 +58,50 @@ function Tooltip({ text }: { text: string }) {
         {text}
         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-surface-up border-r border-b border-line rotate-45" />
       </div>
+    </div>
+  );
+}
+
+function PeriodSelect({ value, onChange, options }: { value: number; onChange: (v: number) => void; options: { value: number; label: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = options.find(o => o.value === value);
+
+  const close = useCallback((e: MouseEvent) => {
+    if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [close]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-sm text-content hover:text-accent transition-colors cursor-pointer"
+      >
+        {current?.label}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? "rotate-180" : ""}`}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] py-1 rounded-xl bg-surface-up border border-line shadow-lg">
+          {options.map(o => (
+            <button
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer ${
+                o.value === value ? "text-accent" : "text-content-2 hover:text-content hover:bg-surface-card"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -467,18 +511,15 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-light text-content">Métricas de Negócio</h2>
-                <div className="flex gap-2 items-center">
-                  <span className="text-xs text-content-4">Período:</span>
-                  <select 
-                    className="bg-surface-card border border-line text-sm rounded-lg px-3 py-1 text-content"
-                    value={metricsDays}
-                    onChange={e => setMetricsDays(parseInt(e.target.value))}
-                  >
-                    <option value={7}>Últimos 7 dias</option>
-                    <option value={30}>Últimos 30 dias</option>
-                    <option value={90}>Últimos 90 dias</option>
-                  </select>
-                </div>
+                <PeriodSelect
+                  value={metricsDays}
+                  onChange={setMetricsDays}
+                  options={[
+                    { value: 7, label: "Últimos 7 dias" },
+                    { value: 30, label: "Últimos 30 dias" },
+                    { value: 90, label: "Últimos 90 dias" },
+                  ]}
+                />
               </div>
 
               {/* Financeiro */}
@@ -731,18 +772,15 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-light text-content">Sistema e Fila</h2>
-                <div className="flex gap-2 items-center">
-                  <span className="text-xs text-content-4">Período:</span>
-                  <select 
-                    className="bg-surface-card border border-line text-sm rounded-lg px-3 py-1 text-content"
-                    value={metricsDays}
-                    onChange={e => setMetricsDays(parseInt(e.target.value))}
-                  >
-                    <option value={1}>Hoje</option>
-                    <option value={7}>Últimos 7 dias</option>
-                    <option value={30}>Últimos 30 dias</option>
-                  </select>
-                </div>
+                <PeriodSelect
+                  value={metricsDays}
+                  onChange={setMetricsDays}
+                  options={[
+                    { value: 1, label: "Hoje" },
+                    { value: 7, label: "Últimos 7 dias" },
+                    { value: 30, label: "Últimos 30 dias" },
+                  ]}
+                />
               </div>
               
               {/* Fila Real-time */}
