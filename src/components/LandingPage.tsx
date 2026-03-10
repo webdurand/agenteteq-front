@@ -351,6 +351,148 @@ function MockupDashboardTasks() {
   );
 }
 
+function MockupDashboardImages() {
+  return (
+    <div className="h-full w-full flex flex-col bg-surface overflow-hidden">
+      {/* Topbar */}
+      <header className="flex-shrink-0 px-3 pt-8 pb-1.5 z-20 bg-surface">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="text-[9px] font-bold tracking-[0.4em] uppercase text-content flex-shrink-0">TEQ</h1>
+            <span className="text-[6px] tracking-widest uppercase text-content-3 border border-line px-1.5 py-0.5 rounded-full flex-shrink-0">Dashboard</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 flex flex-col px-2 pb-0.5 overflow-hidden min-h-0 z-10">
+        <div className="flex-1 flex flex-col min-h-0 relative rounded-2xl overflow-hidden bg-surface-up shadow-2xl border border-line">
+          {/* Mode toggle */}
+          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 flex justify-center">
+            <div className="bg-surface/80 backdrop-blur-md rounded-full p-0.5 border border-line flex items-center gap-0.5 shadow-sm">
+              <div className="p-1 rounded-full bg-accent/10 text-accent shadow-sm">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div className="p-1 rounded-full text-content-3">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 min-h-0 overflow-hidden p-2.5 pt-7 flex flex-col gap-2">
+            {/* User request */}
+            <div className="flex flex-col gap-0.5 items-end">
+              <span className="text-[5px] tracking-wider uppercase text-content-4 px-0.5">Você</span>
+              <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-tr-sm bg-surface-card text-[8px] leading-relaxed text-content shadow-sm">
+                Gera um carrossel sobre gatos capoeiristas, estilo Netflix
+              </div>
+            </div>
+
+            {/* Bot confirmation */}
+            <div className="flex flex-col gap-0.5 items-start">
+              <span className="text-[5px] tracking-wider uppercase text-content-4 px-0.5">Teq</span>
+              <div className="max-w-[90%] px-2.5 py-1.5 rounded-2xl rounded-tl-sm bg-surface-card text-[8px] leading-relaxed text-content border border-line shadow-sm">
+                Show de bola! 🎬 Seu carrossel <strong>"Gatos Capoeiristas"</strong> com 5 slides já está na fila! Deve ficar pronto em menos de 1 minuto.
+              </div>
+            </div>
+
+            {/* Notification banner — carousel ready */}
+            <div className="mx-auto my-1">
+              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                <span className="text-[6px] text-green-400">🖼️ Carrossel pronto! 5 imagens</span>
+              </div>
+            </div>
+
+            {/* Image grid — colorful gradient placeholders simulating generated images */}
+            <div className="grid grid-cols-3 gap-1 px-0.5">
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/80 via-red-600/70 to-purple-700/80" />
+                <div className="absolute inset-0 flex flex-col items-center justify-end p-1">
+                  <div className="w-full h-[3px] bg-red-500/80 rounded-full mb-0.5" />
+                  <span className="text-[4px] text-white/80 font-bold tracking-wider uppercase">NETFLIX</span>
+                </div>
+              </div>
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/70 via-purple-600/70 to-pink-500/60" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center">
+                    <span className="text-[6px]">🐱</span>
+                  </div>
+                </div>
+              </div>
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/70 via-orange-600/60 to-red-600/70" />
+                <div className="absolute inset-0 flex items-end justify-center pb-2">
+                  <div className="w-[80%] h-[2px] bg-white/20 rounded-full" />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-1 px-0.5">
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/70 via-cyan-600/60 to-blue-700/70" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded bg-white/10" />
+                </div>
+              </div>
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/80 via-pink-600/60 to-red-500/70" />
+                <div className="absolute bottom-1 left-1 right-1">
+                  <div className="w-full h-[2px] bg-white/15 rounded-full mb-0.5" />
+                  <div className="w-[60%] h-[2px] bg-white/10 rounded-full" />
+                </div>
+              </div>
+              <div className="aspect-[9/16] rounded-lg overflow-hidden relative border border-dashed border-line/40 bg-surface-card/30 flex items-center justify-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-content-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span className="text-[4px] text-content-4">Baixar todas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Input bar */}
+          <div className="flex-shrink-0 p-2 border-t border-line bg-surface/30 backdrop-blur-md">
+            <div className="flex flex-col bg-surface border border-line rounded-xl shadow-inner overflow-hidden">
+              <div className="flex items-center gap-0">
+                <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center">
+                  <div className="text-content-4">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  </div>
+                </div>
+                <span className="flex-1 text-[7px] text-content-4 py-1.5">Pergunte alguma coisa...</span>
+                <div className="w-7 h-7 flex-shrink-0 flex items-center justify-center pr-0.5">
+                  <div className="w-5 h-5 flex items-center justify-center text-content-4">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Bottom Tab Bar */}
+      <div className="flex-shrink-0 bg-surface border-t border-line">
+        <div className="flex justify-around items-center h-9 px-2">
+          <button className="flex flex-col items-center justify-center w-full h-full gap-0.5 text-content-3">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            <span className="text-[5px] font-medium tracking-wider uppercase">Painéis</span>
+          </button>
+          <button className="flex flex-col items-center justify-center w-full h-full gap-0.5 text-accent">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span className="text-[5px] font-medium tracking-wider uppercase">Chat</span>
+          </button>
+          <button className="flex flex-col items-center justify-center w-full h-full gap-0.5 text-content-3">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MockupWhatsApp() {
   return (
     <div className="h-full flex flex-col" style={{ background: "#0b141a" }}>
