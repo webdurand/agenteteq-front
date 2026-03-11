@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as api from "../lib/api";
 import { useToast } from "../contexts/ToastContext";
 import { ThemeToggle } from "./ui/ThemeToggle";
-import { LineChart, BarChart, PieChart } from "./MetricsCharts";
+import { LineChart, BarChart, PieChart, StackedBarChart } from "./MetricsCharts";
 
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -617,6 +617,210 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   </div>
                 </div>
               </div>
+
+              {/* Por Canal */}
+              {analyticsData?.channel_metrics && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium tracking-wide text-content-2">Por Canal</h3>
+
+                {/* KPI cards — mensagens por canal */}
+                {(() => {
+                  const ch = analyticsData.channel_metrics;
+                  const CHANNEL_LABELS: Record<string, string> = { whatsapp: "WhatsApp", web: "Web", web_live: "Voz" };
+                  const CHANNEL_COLORS: Record<string, string> = { whatsapp: "text-green-500", web: "text-blue-500", web_live: "text-purple-500" };
+                  const msgs = ch.messages_by_channel || [];
+                  const totalReceived = msgs.reduce((s: number, m: any) => s + (m.received || 0), 0);
+                  return (
+                    <>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {msgs.map((m: any) => {
+                        const label = CHANNEL_LABELS[m.channel] || m.channel;
+                        const colorCls = CHANNEL_COLORS[m.channel] || "text-accent";
+                        const pct = totalReceived > 0 ? Math.round((m.received / totalReceived) * 100) : 0;
+                        return (
+                          <div key={m.channel} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs uppercase tracking-wider text-content-3">{label}</span>
+                              <span className="text-[10px] text-content-4">{pct}%</span>
+                            </div>
+                            <span className={`text-3xl font-light ${colorCls}`}>{m.received || 0}</span>
+                            <span className="text-[10px] text-content-4">{m.sent || 0} respostas</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mensagens por dia por canal — stacked */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">Mensagens / Dia / Canal</span>
+                          <Tooltip text="Volume diário de mensagens por canal. Barras sólidas = usuário (recebidas). Barras claras = agente (enviadas)." />
+                        </div>
+                        {ch.messages_by_day_channel?.length > 0 ? (
+                          <StackedBarChart
+                            data={ch.messages_by_day_channel}
+                            xKey="date"
+                            bars={[
+                              { key: "whatsapp_received", name: "WhatsApp ↓", color: "#22c55e" },
+                              { key: "web_received", name: "Web ↓", color: "#3b82f6" },
+                              { key: "web_live_received", name: "Voz ↓", color: "#8b5cf6" },
+                              { key: "whatsapp_sent", name: "WhatsApp ↑", color: "#86efac" },
+                              { key: "web_sent", name: "Web ↑", color: "#93c5fd" },
+                              { key: "web_live_sent", name: "Voz ↑", color: "#c4b5fd" },
+                            ]}
+                            height={250}
+                          />
+                        ) : (
+                          <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                        )}
+                      </div>
+
+                      {/* DAU por canal */}
+                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">DAU por Canal</span>
+                          <Tooltip text="Usuários ativos únicos por dia em cada canal." />
+                        </div>
+                        {ch.dau_by_channel?.length > 0 ? (
+                          <LineChart
+                            data={ch.dau_by_channel}
+                            xKey="date"
+                            lines={[
+                              { key: "whatsapp", name: "WhatsApp", color: "#22c55e" },
+                              { key: "web", name: "Web", color: "#3b82f6" },
+                              { key: "web_live", name: "Voz", color: "#8b5cf6" },
+                            ]}
+                            height={250}
+                          />
+                        ) : (
+                          <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tool calls por canal + WhatsApp media mix */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">Tool Calls por Canal</span>
+                          <Tooltip text="Quantidade total de ferramentas acionadas pelo agente em cada canal." />
+                        </div>
+                        {ch.tools_by_channel?.length > 0 ? (
+                          <BarChart
+                            data={ch.tools_by_channel.map((t: any) => ({ ...t, channel: CHANNEL_LABELS[t.channel] || t.channel }))}
+                            xKey="channel"
+                            barKey="calls"
+                            barName="Chamadas"
+                            color="#f59e0b"
+                            height={250}
+                          />
+                        ) : (
+                          <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                        )}
+                      </div>
+
+                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">WhatsApp: Mix de Mídia</span>
+                          <Tooltip text="Proporção de mensagens recebidas via WhatsApp por tipo: texto puro, áudio e imagem." />
+                        </div>
+                        {ch.whatsapp_media_mix?.some((m: any) => m.value > 0) ? (
+                          <PieChart data={ch.whatsapp_media_mix} height={250} innerRadius="55%" outerRadius="75%" />
+                        ) : (
+                          <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Top tools por canal — tabela lado a lado */}
+                    <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
+                      <div className="px-4 py-3 border-b border-line/50">
+                        <span className="text-xs uppercase tracking-wider text-content-3">Top Tools por Canal</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line/50">
+                        {(["whatsapp", "web", "web_live"] as const).map((chKey) => (
+                          <div key={chKey} className="p-4">
+                            <span className={`text-xs font-medium uppercase tracking-wider ${CHANNEL_COLORS[chKey] || "text-content-2"}`}>
+                              {CHANNEL_LABELS[chKey] || chKey}
+                            </span>
+                            <div className="mt-3 space-y-2">
+                              {(ch.top_tools_per_channel?.[chKey] || []).length > 0 ? (
+                                ch.top_tools_per_channel[chKey].map((t: any, i: number) => (
+                                  <div key={i} className="flex justify-between items-center">
+                                    <span className="text-xs text-content-2 font-mono truncate">{t.name}</span>
+                                    <span className="text-xs font-mono text-content-3 bg-surface px-1.5 py-0.5 rounded-md ml-2">{t.calls}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-xs text-content-4">Sem dados</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Latência, erro e voz stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {(ch.latency_by_channel || []).map((l: any) => (
+                        <div key={l.channel} className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                          <span className="text-[10px] uppercase tracking-wider text-content-3">
+                            Latência {CHANNEL_LABELS[l.channel] || l.channel}
+                          </span>
+                          <span className={`text-2xl font-light ${l.avg_ms > 5000 ? 'text-red-500' : l.avg_ms > 2000 ? 'text-orange-500' : 'text-green-500'}`}>
+                            {(l.avg_ms / 1000).toFixed(1)}s
+                          </span>
+                          <span className="text-[10px] text-content-4">{l.count} msgs</span>
+                        </div>
+                      ))}
+                      {(ch.error_by_channel || []).map((e: any) => (
+                        <div key={e.channel} className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
+                          <span className="text-[10px] uppercase tracking-wider text-content-3">
+                            Erro {CHANNEL_LABELS[e.channel] || e.channel}
+                          </span>
+                          <span className={`text-2xl font-light ${e.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
+                            {e.error_rate}%
+                          </span>
+                          <span className="text-[10px] text-content-4">{e.failed}/{e.total} tools</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Voice Live + Custo LLM */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">Sessões Voz Live</span>
+                          <Tooltip text="Total de sessões de voz real-time (Gemini Live) e duração média." />
+                        </div>
+                        <span className="text-3xl font-light text-purple-500">{ch.voice_live_stats?.sessions || 0}</span>
+                        <span className="text-xs text-content-4">Duração média: {ch.voice_live_stats?.avg_duration_s || 0}s</span>
+                      </div>
+                      <div className="md:col-span-2 bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                        <div className="flex items-center">
+                          <span className="text-xs uppercase tracking-wider text-content-3">Custo LLM por Canal</span>
+                          <Tooltip text="Custo estimado de API do LLM (USD) separado por canal de origem." />
+                        </div>
+                        {ch.cost_by_channel?.length > 0 ? (
+                          <BarChart
+                            data={ch.cost_by_channel.map((c: any) => ({ ...c, channel: CHANNEL_LABELS[c.channel] || c.channel }))}
+                            xKey="channel"
+                            barKey="cost_usd"
+                            barName="USD"
+                            color="#ef4444"
+                            height={200}
+                          />
+                        ) : (
+                          <div className="h-[200px] flex items-center justify-center text-sm text-content-4">Sem dados de custo</div>
+                        )}
+                      </div>
+                    </div>
+                    </>
+                  );
+                })()}
+              </div>
+              )}
 
               {/* Features */}
               <div className="space-y-4">

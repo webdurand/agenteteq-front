@@ -85,6 +85,41 @@ export function BarChart({ data, xKey = "name", barKey = "value", barName = "Val
   );
 }
 
+export function StackedBarChart({ data, xKey = "name", bars, height = 300, stacked = true }: BaseChartProps & { bars: { key: string; name: string; color: string }[]; stacked?: boolean }) {
+  const { dark } = useTheme();
+  const textColor = dark ? "#9ca3af" : "#6b7280";
+  const gridColor = dark ? "#374151" : "#e5e7eb";
+  const tooltipBg = dark ? "#1f2937" : "#ffffff";
+  const tooltipBorder = dark ? "#374151" : "#e5e7eb";
+
+  return (
+    <div style={{ height, width: '100%' }}>
+      <ResponsiveContainer>
+        <RechartsBarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+          <XAxis dataKey={xKey} axisLine={false} tickLine={false} tick={{ fill: textColor, fontSize: 12 }} dy={10} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fill: textColor, fontSize: 12 }} />
+          <Tooltip 
+            contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', fontSize: '14px', color: dark ? '#f3f4f6' : '#111827' }} 
+            cursor={{ fill: dark ? '#374151' : '#f3f4f6' }}
+          />
+          <Legend wrapperStyle={{ fontSize: '12px', color: textColor, paddingTop: '10px' }} />
+          {bars.map((bar, i) => (
+            <Bar
+              key={bar.key}
+              dataKey={bar.key}
+              name={bar.name}
+              fill={bar.color || COLORS[i % COLORS.length]}
+              stackId={stacked ? "stack" : undefined}
+              radius={stacked && i === bars.length - 1 ? [4, 4, 0, 0] : stacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
+            />
+          ))}
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function PieChart({ data, nameKey = "name", dataKey = "value", height = 300, innerRadius = "60%", outerRadius = "80%" }: BaseChartProps & { nameKey?: string; dataKey?: string; innerRadius?: number | string; outerRadius?: number | string }) {
   const { dark } = useTheme();
   const textColor = dark ? "#9ca3af" : "#6b7280";
