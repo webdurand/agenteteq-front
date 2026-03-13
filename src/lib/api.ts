@@ -336,6 +336,51 @@ export async function cancelReminder(token: string, id: number) {
   });
 }
 
+// --- Social Monitoring ---
+
+export async function fetchTrackedAccounts(token: string, platform?: string) {
+  const params = new URLSearchParams();
+  if (platform) params.set("platform", platform);
+  const qs = params.toString();
+  return fetchApi(`/api/social/accounts${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function trackAccount(token: string, data: { platform: string; username: string }) {
+  return fetchApi("/api/social/accounts", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function untrackAccount(token: string, accountId: number) {
+  return fetchApi(`/api/social/accounts/${accountId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getAccountContent(token: string, accountId: number, sort?: string, limit?: number) {
+  const params = new URLSearchParams();
+  if (sort) params.set("sort", sort);
+  if (limit) params.set("limit", String(limit));
+  const qs = params.toString();
+  return fetchApi(`/api/social/accounts/${accountId}/content${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function refreshAccount(token: string, accountId: number) {
+  return fetchApi(`/api/social/accounts/${accountId}/refresh`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // --- LGPD ---
 
 export async function deleteAccount(token: string) {
