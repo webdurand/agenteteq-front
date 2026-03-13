@@ -3,9 +3,10 @@ import { TasksPanel } from "./TasksPanel";
 import { RemindersPanel } from "./RemindersPanel";
 import { ImagesPanel } from "./ImagesPanel";
 import { SocialPanel } from "./SocialPanel";
+import { ContentCalendarPanel } from "./ContentCalendarPanel";
 import { GlassCard } from "./GlassCard";
 
-type Section = "tasks" | "reminders" | "images" | "social";
+type Section = "tasks" | "reminders" | "images" | "social" | "calendar";
 
 const TABS: { key: Section; label: string; icon: React.ReactNode }[] = [
   {
@@ -50,6 +51,18 @@ const TABS: { key: Section; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    key: "calendar",
+    label: "Calendario",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
 ];
 
 export function Sidebar({ token }: { token: string }) {
@@ -57,13 +70,13 @@ export function Sidebar({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col h-full w-full lg:max-w-[320px] min-h-0">
-      {/* Tab bar */}
+      {/* Tab bar — icon-only for compact layout */}
       <div className="flex border-b border-line mb-3 lg:mb-4">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActive(tab.key)}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-1 text-xs transition-all cursor-pointer
+            className={`flex-1 flex items-center justify-center py-2.5 px-1 transition-all cursor-pointer
               ${
                 active === tab.key
                   ? "text-accent border-b-2 border-accent -mb-px"
@@ -72,7 +85,6 @@ export function Sidebar({ token }: { token: string }) {
             title={tab.label}
           >
             {tab.icon}
-            <span className="hidden sm:inline truncate">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -90,6 +102,9 @@ export function Sidebar({ token }: { token: string }) {
         )}
         {active === "social" && (
           <SocialPanel token={token} isMinimized={false} onToggleMinimize={() => {}} />
+        )}
+        {active === "calendar" && (
+          <ContentCalendarPanel token={token} isMinimized={false} onToggleMinimize={() => {}} />
         )}
       </GlassCard>
     </div>

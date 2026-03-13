@@ -381,6 +381,44 @@ export async function refreshAccount(token: string, accountId: number) {
   });
 }
 
+// --- Content Plans ---
+
+export async function fetchContentPlans(token: string, status?: string, fromDate?: string, toDate?: string, limit?: number) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (fromDate) params.set("from_date", fromDate);
+  if (toDate) params.set("to_date", toDate);
+  if (limit) params.set("limit", String(limit));
+  const qs = params.toString();
+  return fetchApi(`/api/content-plans${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createContentPlan(token: string, data: { title: string; content_type?: string; platforms?: string[]; scheduled_at?: string; description?: string }) {
+  return fetchApi("/api/content-plans", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateContentPlan(token: string, planId: number, data: any) {
+  return fetchApi(`/api/content-plans/${planId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteContentPlan(token: string, planId: number) {
+  return fetchApi(`/api/content-plans/${planId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // --- LGPD ---
 
 export async function deleteAccount(token: string) {
