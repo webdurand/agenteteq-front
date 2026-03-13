@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSocial, type TrackedAccount } from "../hooks/useSocial";
 import { Skeleton } from "./ui/Skeleton";
 
-const PLATFORM_ICONS: Record<string, string> = {
-  instagram: "\u{1F4F8}",
-  youtube: "\u{1F3AC}",
-  tiktok: "\u{1F3B5}",
-};
+const PLATFORMS = [
+  { value: "instagram", label: "Instagram", icon: "\u{1F4F8}" },
+  { value: "youtube", label: "YouTube", icon: "\u{1F3AC}" },
+] as const;
+
+type PlatformValue = typeof PLATFORMS[number]["value"];
+
+const PLATFORM_ICONS: Record<string, string> = Object.fromEntries(
+  PLATFORMS.map((p) => [p.value, p.icon])
+);
 
 function formatRelativeTime(isoStr: string | null): string {
   if (!isoStr) return "nunca";
@@ -41,9 +46,25 @@ export function SocialPanel({
   const { accounts, loading, addAccount, removeAccount, refresh } = useSocial(token);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
+  const [newPlatform, setNewPlatform] = useState<PlatformValue>("instagram");
+  const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setPlatformDropdownOpen(false);
+      }
+    };
+    if (platformDropdownOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [platformDropdownOpen]);
+
+  const selectedPlatform = PLATFORMS.find((p) => p.value === newPlatform) || PLATFORMS[0];
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +72,9 @@ export function SocialPanel({
     setAddLoading(true);
     setAddError("");
     try {
-      await addAccount("instagram", newUsername.trim());
+      await addAccount(newPlatform, newUsername.trim());
       setNewUsername("");
+      setNewPlatform("instagram");
       setShowAddForm(false);
     } catch (err: any) {
       setAddError(err.message || "Erro ao adicionar conta");
@@ -103,11 +125,42 @@ export function SocialPanel({
           <div className="mb-4">
             {showAddForm ? (
               <form onSubmit={handleAdd} className="flex gap-2">
+                {/* Platform dropdown */}
+                <div className="relative flex-shrink-0" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setPlatformDropdownOpen(!platformDropdownOpen)}
+                    className="flex items-center gap-1 bg-surface-card border border-line rounded-xl px-2.5 py-3 text-sm hover:border-content/30 transition-colors"
+                    title={selectedPlatform.label}
+                  >
+                    <span>{selectedPlatform.icon}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-content-3">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {platformDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-surface-up border border-line rounded-xl overflow-hidden shadow-lg z-50 min-w-[140px]">
+                      {PLATFORMS.map((p) => (
+                        <button
+                          key={p.value}
+                          type="button"
+                          onClick={() => { setNewPlatform(p.value); setPlatformDropdownOpen(false); }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+                            newPlatform === p.value ? "text-accent bg-accent/10" : "text-content hover:bg-surface-up"
+                          }`}
+                        >
+                          <span>{p.icon}</span>
+                          <span>{p.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="@username"
+                  placeholder={newPlatform === "youtube" ? "@canal" : "@username"}
                   className="flex-1 min-w-0 bg-surface-card border border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-content transition-colors placeholder:text-content-3"
                   disabled={addLoading}
                   autoFocus
@@ -246,17 +299,18 @@ function AccountCard({
         onClick={onToggle}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-surface-card/80 transition-colors cursor-pointer"
       >
-        {account.profile_pic_url ? (
-          <img
-            src={account.profile_pic_url}
-            alt={account.username}
-            className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-          />
-        ) : (
-          <span className="w-9 h-9 flex items-center justify-center rounded-full bg-surface-card text-lg flex-shrink-0">
-            {icon}
-          </span>
-        )}
+        <span className="w-10 h-10 rounded-full bg-surface-card flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {account.profile_pic_url ? (
+            <img
+              src={account.profile_pic_url}
+              alt={account.username}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="text-lg">{icon}</span>
+          )}
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-medium truncate">
@@ -267,7 +321,7 @@ function AccountCard({
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-content-3 mt-0.5">
-            <span>{formatNumber(account.followers_count)} seguidores</span>
+            <span>{formatNumber(account.followers_count)} {account.platform === "youtube" ? "inscritos" : "seguidores"}</span>
             <span>·</span>
             <span>{formatRelativeTime(account.last_fetched_at)} atras</span>
           </div>
