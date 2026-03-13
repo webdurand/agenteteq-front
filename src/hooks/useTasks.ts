@@ -9,6 +9,8 @@ export interface Task {
   due_date: string;
   location: string;
   notes: string;
+  priority: "high" | "medium" | "low" | null;
+  category: string | null;
   status: "pending" | "done";
   created_at: string;
 }

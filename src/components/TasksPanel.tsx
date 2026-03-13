@@ -1,14 +1,28 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useTasks, type Task } from "../hooks/useTasks";
 import { Skeleton } from "./ui/Skeleton";
+
+const PRIORITY_CONFIG = {
+  high: { color: "bg-red-500", label: "Alta" },
+  medium: { color: "bg-yellow-500", label: "Média" },
+  low: { color: "bg-green-500", label: "Baixa" },
+} as const;
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+function sortByPriority(tasks: Task[]): Task[] {
+  return [...tasks].sort(
+    (a, b) => (PRIORITY_ORDER[a.priority ?? ""] ?? 9) - (PRIORITY_ORDER[b.priority ?? ""] ?? 9),
+  );
+}
 
 export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: string, isMinimized: boolean, onToggleMinimize: () => void }) {
   const { tasks, loading, loadingMore, hasMore, loadMore, addTask, toggleTask, removeTask, editTask } = useTasks(token);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const pendingTasks = tasks.filter((t) => t.status === "pending");
-  const doneTasks = tasks.filter((t) => t.status === "done");
+  const pendingTasks = useMemo(() => sortByPriority(tasks.filter((t) => t.status === "pending")), [tasks]);
+  const doneTasks = useMemo(() => tasks.filter((t) => t.status === "done"), [tasks]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +41,7 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
           </svg>
         </span>
       </button>
-      
+
       {!isMinimized && (
         <>
           <form onSubmit={handleAdd} className="mb-6 flex gap-2">
@@ -78,7 +92,7 @@ export function TasksPanel({ token, isMinimized, onToggleMinimize }: { token: st
             ) : (
               <>
                 <TaskList items={pendingTasks} onToggle={toggleTask} onRemove={removeTask} onEdit={editTask} />
-                
+
                 {doneTasks.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-xs font-medium tracking-wider uppercase text-content-3 mb-4">Concluídas</h3>
@@ -118,9 +132,11 @@ function TaskItem({ task, onToggle, onRemove, onEdit }: {
     setEditing(false);
   };
 
+  const prio = task.priority && PRIORITY_CONFIG[task.priority];
+
   return (
     <div className="flex items-start gap-3 group">
-      <button 
+      <button
         onClick={() => onToggle(task.id, task.status)}
         className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border border-line flex items-center justify-center text-accent hover:border-content transition-colors"
       >
@@ -130,44 +146,56 @@ function TaskItem({ task, onToggle, onRemove, onEdit }: {
           </svg>
         )}
       </button>
-      
+
       <div className="flex-1 min-w-0">
-        {editing ? (
-          <input
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") save();
-              if (e.key === "Escape") { setEditValue(task.title); setEditing(false); }
-            }}
-            onBlur={save}
-            autoFocus
-            className="w-full bg-surface border border-line rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-content transition-colors"
-          />
-        ) : (
-          <p 
-            onClick={() => { setEditValue(task.title); setEditing(true); }}
-            className={`text-sm leading-snug cursor-pointer hover:text-accent/80 transition-colors ${task.status === "done" ? "text-content-3 line-through" : "text-content"}`}
-            title="Clique para editar"
-          >
-            {task.title}
-          </p>
-        )}
-        {task.due_date && (
-          <p className="text-[10px] text-content-3 mt-1 flex items-center gap-1">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            {task.due_date}
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {prio && task.status !== "done" && (
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${prio.color}`} title={prio.label} />
+          )}
+          {editing ? (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+                if (e.key === "Escape") { setEditValue(task.title); setEditing(false); }
+              }}
+              onBlur={save}
+              autoFocus
+              className="w-full bg-surface border border-line rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-content transition-colors"
+            />
+          ) : (
+            <p
+              onClick={() => { setEditValue(task.title); setEditing(true); }}
+              className={`text-sm leading-snug cursor-pointer hover:text-accent/80 transition-colors ${task.status === "done" ? "text-content-3 line-through" : "text-content"}`}
+              title="Clique para editar"
+            >
+              {task.title}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {task.category && (
+            <span className="text-[9px] uppercase tracking-wider text-content-4 bg-surface-card px-1.5 py-0.5 rounded">
+              {task.category}
+            </span>
+          )}
+          {task.due_date && (
+            <span className="text-[10px] text-content-3 flex items-center gap-1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              {task.due_date}
+            </span>
+          )}
+        </div>
       </div>
 
-      <button 
+      <button
         onClick={() => onRemove(task.id)}
         className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-content-3 hover:text-red-500 transition-all"
         title="Excluir tarefa"
