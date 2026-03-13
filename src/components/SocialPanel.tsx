@@ -292,6 +292,7 @@ function AccountCard({
   onRefresh: () => void;
 }) {
   const icon = PLATFORM_ICONS[account.platform] || "\u{1F310}";
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="rounded-xl border border-line bg-surface-card/50 overflow-hidden transition-all">
@@ -300,12 +301,13 @@ function AccountCard({
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-surface-card/80 transition-colors cursor-pointer"
       >
         <span className="w-10 h-10 rounded-full bg-surface-card flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {account.profile_pic_url ? (
+          {account.profile_pic_url && !imgError ? (
             <img
               src={account.profile_pic_url}
               alt={account.username}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
             />
           ) : (
             <span className="text-lg">{icon}</span>
