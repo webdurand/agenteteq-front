@@ -396,3 +396,51 @@ export async function exportData(token: string) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+// --- Branding ---
+
+export async function fetchBrandProfiles(token: string) {
+  return fetchApi("/api/branding", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createBrandProfile(token: string, data: any) {
+  return fetchApi("/api/branding", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateBrandProfile(token: string, profileId: number, data: any) {
+  return fetchApi(`/api/branding/${profileId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteBrandProfile(token: string, profileId: number) {
+  return fetchApi(`/api/branding/${profileId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function uploadBrandLogo(token: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/branding/upload-logo`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    let message = "Erro ao fazer upload";
+    try { const data = await res.json(); message = data.detail || message; } catch {}
+    throw new Error(message);
+  }
+  return res.json();
+}

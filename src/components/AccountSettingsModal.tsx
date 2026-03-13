@@ -4,6 +4,7 @@ import type { UserInfo } from "../hooks/useAuth";
 import { UpdatePaymentModal } from "./UpdatePaymentModal";
 import { formatPhone } from "../lib/formatters";
 import { IntegrationsTab } from "./IntegrationsTab";
+import { BrandingTab } from "./BrandingTab";
 
 interface AccountSettingsModalProps {
   token: string;
@@ -16,7 +17,7 @@ interface AccountSettingsModalProps {
 }
 
 export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckout, onReplayOnboarding, onLogout }: AccountSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<"account" | "integrations">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "integrations" | "branding">("account");
   const [billing, setBilling] = useState<any>(null);
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
@@ -187,6 +188,14 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
             }`}
           >
             Integrações
+          </button>
+          <button
+            onClick={() => setActiveTab("branding")}
+            className={`px-4 py-3 text-sm font-medium uppercase tracking-wider border-b-2 transition-colors ${
+              activeTab === "branding" ? "border-accent text-accent" : "border-transparent text-content-3 hover:text-content"
+            }`}
+          >
+            Marca
           </button>
         </div>
 
@@ -551,8 +560,10 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
             </div>
           </div>
           </div>
-        ) : (
+        ) : activeTab === "integrations" ? (
           <IntegrationsTab token={token} />
+        ) : (
+          <BrandingTab token={token} />
         )}
 
         {message && <div className="px-6 pb-6 text-sm text-content-3">{message}</div>}
