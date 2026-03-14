@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Message } from "../hooks/chatTypes";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 
@@ -354,13 +356,44 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
           return (
             <div
               key={i}
-              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                 isUser
-                  ? "bg-content text-surface rounded-tr-sm"
+                  ? "bg-content text-surface rounded-tr-sm whitespace-pre-wrap"
                   : "bg-surface-card text-content border border-line rounded-tl-sm shadow-sm"
               }`}
             >
-              {part.content}
+              {isUser ? (
+                part.content
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold text-content">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                    code: ({ children, className: cn }) => {
+                      const isBlock = cn?.includes("language-");
+                      return isBlock ? (
+                        <pre className="bg-black/20 rounded-lg p-3 my-2 overflow-x-auto"><code className="text-xs">{children}</code></pre>
+                      ) : (
+                        <code className="bg-black/10 rounded px-1.5 py-0.5 text-xs">{children}</code>
+                      );
+                    },
+                    a: ({ href, children }) => (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-accent underline">{children}</a>
+                    ),
+                    hr: () => <hr className="border-line my-3" />,
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-2 border-accent/40 pl-3 my-2 text-content-2 italic">{children}</blockquote>
+                    ),
+                  }}
+                >
+                  {part.content}
+                </ReactMarkdown>
+              )}
             </div>
           );
         })}
@@ -379,7 +412,67 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
   );
 }
 
-export function ChatPanel({ 
+function StatusIndicator({ text }: { text: string }) {
+  const lower = text.toLowerCase();
+
+  // Pick contextual icon based on status text keywords
+  let iconPath: React.ReactNode;
+  if (lower.includes("buscando") || lower.includes("pesquisando") || lower.includes("procurando")) {
+    // Search icon
+    iconPath = <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>;
+  } else if (lower.includes("analisando") || lower.includes("insight") || lower.includes("comparando")) {
+    // Chart icon
+    iconPath = <><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>;
+  } else if (lower.includes("renderizando") || lower.includes("slide") || lower.includes("imagem") || lower.includes("gerando")) {
+    // Image icon
+    iconPath = <><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>;
+  } else if (lower.includes("upload") || lower.includes("enviando")) {
+    // Upload icon
+    iconPath = <><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></>;
+  } else if (lower.includes("calendario") || lower.includes("adicionando") || lower.includes("agenda")) {
+    // Calendar icon
+    iconPath = <><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>;
+  } else if (lower.includes("roteiro") || lower.includes("criando") || lower.includes("escrevendo")) {
+    // Pen icon
+    iconPath = <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>;
+  } else if (lower.includes("coletando") || lower.includes("dados")) {
+    // Database icon
+    iconPath = <><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></>;
+  } else {
+    // Default thinking — pulsing dot (no SVG icon)
+    return (
+      <div className="flex flex-col gap-1 items-start">
+        <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+        <div className="px-4 py-3 rounded-2xl text-sm bg-surface-card text-content border border-line rounded-tl-sm shadow-sm flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="text-content-2 italic">{text}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="px-4 py-3 rounded-2xl text-sm bg-surface-card text-content border border-line rounded-tl-sm shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative w-8 h-8 flex-shrink-0">
+            <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin" style={{ animationDuration: "2s" }}>
+              <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="2" className="text-line" />
+              <path d="M16 3a13 13 0 0 1 13 13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-accent" />
+            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-content-2">
+              {iconPath}
+            </svg>
+          </div>
+          <span className="text-content-2 text-sm">{text}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ChatPanel({
   messages, 
   onSendMessage, 
   statusText, 
@@ -576,12 +669,7 @@ export function ChatPanel({
         )}
         
         {statusText && !statusText.includes("Teq") && (
-          <div className="flex items-start gap-2 opacity-50">
-             <div className="px-4 py-2.5 rounded-2xl text-sm bg-surface-card text-content border border-line rounded-tl-sm italic flex items-center gap-2 shadow-sm">
-               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-               {statusText}
-             </div>
-          </div>
+          <StatusIndicator text={statusText} />
         )}
 
         <div ref={bottomRef} />

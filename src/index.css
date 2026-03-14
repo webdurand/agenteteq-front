@@ -158,16 +158,7 @@
 }
 .voice-bar { animation: voiceBar 1.2s ease-in-out infinite; }
 
-/* Bento card hover */
-.bento-card {
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.5s ease;
-}
-.bento-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
-}
+/* Bento card hover (base transform handled by JS tilt; fallback for no-JS) */
 
 /* Gradient text */
 .gradient-text {
@@ -217,4 +208,156 @@
   width: 100%;
   height: 1px;
   background: linear-gradient(90deg, transparent 0%, var(--border) 50%, transparent 100%);
+}
+
+/* ── Landing page — cinematic enhancements ── */
+
+/* Animated gradient text for hero */
+.gradient-text-hero {
+  background: linear-gradient(135deg, var(--fg) 0%, #3b82f6 30%, #8b5cf6 60%, var(--fg) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 8s ease-in-out infinite;
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 200% center; }
+}
+
+/* Button shine sweep */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  transition: left 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.btn-shine:hover::before {
+  left: 125%;
+}
+
+/* Badge shimmer */
+.badge-shine {
+  position: relative;
+  overflow: hidden;
+}
+.badge-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: badgeShine 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes badgeShine {
+  0%, 100% { left: -100%; }
+  50% { left: 150%; }
+}
+
+/* Animated section divider */
+.section-divider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--border) 20%, #3b82f6 50%, var(--border) 80%, transparent 100%);
+  background-size: 200% 100%;
+  animation: dividerShift 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes dividerShift {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 200% 0; }
+}
+
+/* Screen crossfade layers for sticky showcase */
+.screen-layer {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Sticky showcase progress dot */
+.progress-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-4);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.progress-dot.active {
+  background: var(--fg);
+  box-shadow: 0 0 8px var(--fg-3);
+  transform: scale(1.4);
+}
+
+/* Bento card enhanced hover */
+.bento-card {
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.5s ease;
+  will-change: transform;
+}
+
+/* Kinetic text character */
+.kinetic-char {
+  display: inline-block;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom center;
+}
+
+/* CTA glowing buttons */
+.btn-glow {
+  animation: btnGlow 3s ease-in-out infinite;
+}
+@keyframes btnGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(59, 130, 246, 0.05); }
+  50% { box-shadow: 0 0 35px rgba(59, 130, 246, 0.3), 0 0 70px rgba(59, 130, 246, 0.12), 0 0 100px rgba(139, 92, 246, 0.06); }
+}
+
+.btn-outline-glow {
+  animation: btnOutlineGlow 3s ease-in-out infinite 1.5s;
+}
+@keyframes btnOutlineGlow {
+  0%, 100% { box-shadow: none; border-color: rgba(255, 255, 255, 0.08); }
+  50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.1), 0 0 50px rgba(59, 130, 246, 0.04); border-color: rgba(255, 255, 255, 0.18); }
+}
+
+/* CSS scroll-driven parallax (progressive enhancement) */
+@supports (animation-timeline: scroll()) {
+  .parallax-slow {
+    animation: parallaxSlow linear both;
+    animation-timeline: scroll();
+    animation-range: entry 0% exit 100%;
+  }
+  @keyframes parallaxSlow {
+    from { transform: translateY(60px); }
+    to { transform: translateY(-60px); }
+  }
+
+  .parallax-fast {
+    animation: parallaxFast linear both;
+    animation-timeline: scroll();
+    animation-range: entry 0% exit 100%;
+  }
+  @keyframes parallaxFast {
+    from { transform: translateY(120px); }
+    to { transform: translateY(-120px); }
+  }
 }
