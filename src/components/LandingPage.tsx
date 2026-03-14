@@ -187,7 +187,7 @@ function CyclingText({ ready, delay = 0 }: { ready: boolean; delay?: number }) {
       {word.split("").map((char, i) => (
         <span
           key={`${index}-${i}`}
-          className="kinetic-char gradient-text-hero"
+          className={`kinetic-char gradient-text-hero${char === " " ? " !w-[0.3em]" : ""}`}
           style={{
             transitionDelay: (() => {
               if (isInitial) return `${delay + i * 40}ms`;
@@ -1133,10 +1133,10 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           </div>
 
           <h1 className="text-[3.5rem] leading-[1.1] md:text-[5.5rem] lg:text-[7.5rem] font-extralight tracking-tight mb-8">
-            <span className="block overflow-hidden py-1">
+            <span className="block overflow-hidden py-[0.1em]">
               <KineticText text="Fale." ready={heroReady} delay={200} />
             </span>
-            <span className="block overflow-hidden py-2">
+            <span className="block overflow-hidden py-[0.15em]">
               <CyclingText ready={heroReady} delay={500} />
             </span>
           </h1>
