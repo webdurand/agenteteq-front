@@ -218,7 +218,12 @@ function CyclingText({ ready, delay = 0 }: { ready: boolean; delay?: number }) {
    ═══════════════════════════════════════════ */
 function PhoneFrame({ children, className = "", scale = 1 }: { children: ReactNode; className?: string; scale?: number }) {
   return (
-    <div className={`phone-frame mx-auto ${className}`} style={{ width: `min(${280 * scale}px, ${72 * scale}vw)` }}>
+    <div
+      className={`phone-frame mx-auto ${className}`}
+      style={{
+        width: `min(${280 * scale}px, ${72 * scale}vw, calc(65vh * 9 / 19.5))`,
+      }}
+    >
       <div
         className="phone-inner rounded-[2.6rem] bg-[#111] phone-glow overflow-hidden border-[2.5px] border-white/[0.08] relative"
         style={{ aspectRatio: "9/19.5" }}
@@ -900,10 +905,14 @@ function StickyShowcase({ progress }: { progress: number }) {
         style={{ background: feat.glowColor }}
       />
 
-      <div className="max-w-6xl mx-auto w-full px-5 flex flex-col lg:flex-row items-center gap-4 lg:gap-16">
-        {/* Phone */}
-        <div className="w-full lg:w-[45%] flex justify-center" ref={phoneTiltRef}>
-          <div className="animate-float scale-[0.7] sm:scale-[0.85] lg:scale-100 origin-center">
+      {/* Desktop: side-by-side / Mobile: phone centered + text overlaid at bottom */}
+      <div className="max-w-6xl mx-auto w-full px-5 flex flex-col lg:flex-row items-center gap-0 lg:gap-16 h-full relative">
+        {/* Phone — centered on screen */}
+        <div
+          className="w-full lg:w-[45%] flex items-center justify-center flex-1 lg:flex-initial"
+          ref={phoneTiltRef}
+        >
+          <div className="animate-float">
             <PhoneFrame scale={1.08}>
               <div className="relative w-full h-full">
                 {STICKY_FEATURES.map((f, fi) => {
@@ -927,37 +936,54 @@ function StickyShowcase({ progress }: { progress: number }) {
           </div>
         </div>
 
-        {/* Text */}
-        <div className="w-full lg:w-[55%] text-center lg:text-left relative">
-          {STICKY_FEATURES.map((f, fi) => {
-            const isActive = fi === activeIndex;
-            return (
-              <div
-                key={fi}
-                className="transition-all duration-500"
-                style={{
-                  position: fi === 0 ? "relative" : "absolute",
-                  top: fi === 0 ? undefined : 0,
-                  left: fi === 0 ? undefined : 0,
-                  right: fi === 0 ? undefined : 0,
-                  opacity: isActive ? 1 : 0,
-                  transform: isActive ? "translateY(0)" : fi < activeIndex ? "translateY(-30px)" : "translateY(30px)",
-                  pointerEvents: isActive ? "auto" : "none",
-                }}
-              >
-                <p className="text-[11px] md:text-xs tracking-[0.3em] uppercase text-content-3 mb-4">{f.label}</p>
-                <h3 className="text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-extralight tracking-tight mb-3 md:mb-6 leading-[1.05] whitespace-pre-line">{f.title}</h3>
-                <p className="text-sm sm:text-base md:text-xl text-content-2 font-light leading-relaxed max-w-md mx-auto lg:mx-0">{f.desc}</p>
-              </div>
-            );
-          })}
+        {/* Text — on mobile: overlaid at bottom with dark fade; on desktop: normal flow */}
+        <div className="absolute bottom-0 left-0 right-0 lg:relative lg:bottom-auto lg:left-auto lg:right-auto w-full lg:w-[55%] text-center lg:text-left z-20">
+          {/* Dark gradient fade — mobile only */}
+          <div className="absolute inset-0 -top-60 bg-gradient-to-t from-black/95 via-black/80 via-55% to-transparent pointer-events-none lg:hidden" />
+          <div className="relative px-5 pb-8 pt-16 lg:p-0">
+            {STICKY_FEATURES.map((f, fi) => {
+              const isActive = fi === activeIndex;
+              return (
+                <div
+                  key={fi}
+                  className="transition-all duration-500"
+                  style={{
+                    position: fi === 0 ? "relative" : "absolute",
+                    top: fi === 0 ? undefined : 0,
+                    left: fi === 0 ? undefined : 0,
+                    right: fi === 0 ? undefined : 0,
+                    opacity: isActive ? 1 : 0,
+                    transform: isActive
+                      ? "translateY(0)"
+                      : fi < activeIndex
+                        ? "translateY(-30px)"
+                        : "translateY(30px)",
+                    pointerEvents: isActive ? "auto" : "none",
+                  }}
+                >
+                  <p className="text-[11px] md:text-xs tracking-[0.3em] uppercase text-content-3 mb-3 lg:mb-4">
+                    {f.label}
+                  </p>
+                  <h3 className="text-2xl sm:text-3xl md:text-6xl lg:text-7xl font-extralight tracking-tight mb-2 md:mb-6 leading-[1.05] whitespace-pre-line">
+                    {f.title}
+                  </h3>
+                  <p className="text-sm sm:text-base md:text-xl text-content-2 font-light leading-relaxed max-w-md mx-auto lg:mx-0">
+                    {f.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Progress dots */}
       <div className="hidden lg:flex flex-col gap-3 absolute right-8 top-1/2 -translate-y-1/2">
         {STICKY_FEATURES.map((_, i) => (
-          <div key={i} className={`progress-dot ${i === activeIndex ? "active" : ""}`} />
+          <div
+            key={i}
+            className={`progress-dot ${i === activeIndex ? "active" : ""}`}
+          />
         ))}
       </div>
     </div>
