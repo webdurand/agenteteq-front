@@ -482,3 +482,53 @@ export async function uploadBrandLogo(token: string, file: File) {
   }
   return res.json();
 }
+
+// ──────────────────────────── Style References ────────────────────────────
+
+export async function fetchStyleReferences(token: string, brandProfileId?: number) {
+  const params = new URLSearchParams();
+  if (brandProfileId !== undefined) params.set("brand_profile_id", String(brandProfileId));
+  return fetchApi(`/api/branding/references?${params}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createStyleReference(token: string, data: {
+  image_url: string;
+  title?: string;
+  source_url?: string;
+  brand_profile_id?: number;
+  extracted_colors?: Record<string, string>;
+  style_description?: string;
+  tags?: string;
+}) {
+  return fetchApi("/api/branding/references", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteStyleReference(token: string, refId: number) {
+  return fetchApi(`/api/branding/references/${refId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function uploadStyleReferenceImage(token: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/branding/references/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    let message = "Erro ao fazer upload";
+    try { const data = await res.json(); message = data.detail || message; } catch {}
+    throw new Error(message);
+  }
+  return res.json();
+}

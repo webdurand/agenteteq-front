@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useBranding, type BrandProfile } from "../hooks/useBranding";
+import { useStyleReferences } from "../hooks/useStyleReferences";
 import { uploadBrandLogo } from "../lib/api";
 
 /* Map of display name → { family for CSS, Google Fonts family query, weight } */
@@ -360,6 +361,7 @@ function ProfileCard({ profile, onEdit, onDelete, onSetDefault, deleting }: Prof
 
 export function BrandingTab({ token }: { token: string }) {
   const { profiles, loading, create, update, remove } = useBranding(token);
+  const { references, loading: refsLoading, create: createRef, remove: removeRef, upload: uploadRef } = useStyleReferences(token);
   const [editing, setEditing] = useState<BrandProfile | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -662,6 +664,78 @@ export function BrandingTab({ token }: { token: string }) {
       )}
 
       {message && <p className="text-xs text-content-3">{message}</p>}
+
+      {/* ──────── Style References Gallery ──────── */}
+      {!isFormOpen && (
+        <div className="mt-6 pt-6 border-t border-line">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[10px] text-content-4 uppercase tracking-wider">Referencias de estilo</h3>
+            <label className="px-3 py-1.5 rounded-lg border border-line text-content-3 text-[10px] uppercase tracking-wider hover:text-content hover:border-content transition-colors cursor-pointer">
+              + Adicionar
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const url = await uploadRef(file);
+                    if (url) {
+                      await createRef({ image_url: url, title: file.name.replace(/\.[^.]+$/, "") });
+                    }
+                  } catch (err) {
+                    console.error("Erro ao upload referencia:", err);
+                  }
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+
+          {refsLoading ? (
+            <div className="flex justify-center py-6">
+              <span className="w-5 h-5 rounded-full border-2 border-content-4/30 border-t-content-4 animate-spin" />
+            </div>
+          ) : references.length === 0 ? (
+            <p className="text-xs text-content-4 text-center py-4">
+              Nenhuma referencia salva. Envie imagens de inspiracao pelo chat ou clique em &quot;Adicionar&quot;.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {references.map((ref) => (
+                <div key={ref.id} className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-line bg-surface">
+                  <img
+                    src={ref.image_url}
+                    alt={ref.title || "Referencia"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-2">
+                    <div className="flex justify-end">
+                      <button
+                        onClick={async () => {
+                          if (confirm("Remover esta referencia?")) {
+                            await removeRef(ref.id);
+                          }
+                        }}
+                        className="w-6 h-6 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500 transition-colors"
+                        title="Remover"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      </button>
+                    </div>
+                    <div>
+                      {ref.title && <p className="text-[10px] text-white font-medium truncate">{ref.title}</p>}
+                      {ref.style_description && <p className="text-[10px] text-white/70 truncate">{ref.style_description}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
