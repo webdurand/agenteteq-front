@@ -38,10 +38,16 @@ export function useTasks(token: string | null) {
       setHasMore(data.has_more ?? false);
       if (reset) {
         setTasks(newTasks);
+        offsetRef.current = newTasks.filter(t => t.status === "done").length;
       } else {
-        setTasks(prev => [...prev, ...newTasks]);
+        setTasks(prev => {
+          const prevPending = prev.filter(t => t.status === "pending");
+          const prevDone = prev.filter(t => t.status === "done");
+          const newDone = newTasks.filter(t => t.status === "done");
+          return [...prevPending, ...prevDone, ...newDone];
+        });
+        offsetRef.current += newTasks.filter(t => t.status === "done").length;
       }
-      offsetRef.current += newTasks.length;
     } catch (e) {
       console.error("Erro ao carregar tasks:", e);
     } finally {

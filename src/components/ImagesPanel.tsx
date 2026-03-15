@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ImageGalleryModal } from "./ImageGalleryModal";
+import { PDFViewerModal } from "./PDFViewerModal";
 import { useCarousels, type Carousel, type Slide } from "../hooks/useCarousels";
 import { useWSEvent } from "../hooks/useWebSocket";
 import { Skeleton } from "./ui/Skeleton";
@@ -18,6 +19,10 @@ function getSlideStatus(slide: Slide, carousel: Carousel): "ready" | "generating
   if (carousel.status === "failed" || isStaleGenerating(carousel)) return "failed";
   return "generating";
 }
+
+type GalleryItem =
+  | { kind: "slide"; slide: Slide; carousel: Carousel }
+  | { kind: "pdf"; carousel: Carousel };
 
 function GalleryImage({ slide, carousel, onClick }: {
   slide: Slide;
@@ -68,6 +73,29 @@ function GalleryImage({ slide, carousel, onClick }: {
   );
 }
 
+function GalleryPDF({ carousel, onClick }: { carousel: Carousel; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-line hover:border-accent bg-surface transition-all cursor-pointer touch-pan-y"
+    >
+      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-content-2">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="opacity-60 group-hover:opacity-90 transition-opacity">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="14 2 14 8 20 8" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <line x1="9" y1="13" x2="15" y2="13" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="9" y1="17" x2="13" y2="17" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[10px] font-medium text-center px-2 line-clamp-2">{carousel.title}</span>
+        <span className="text-[9px] text-content-3">PDF</span>
+      </div>
+      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <span className="text-white text-xs">Visualizar</span>
+      </div>
+    </button>
+  );
+}
+
 
 export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
   token: string;
@@ -77,50 +105,55 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
   const SLIDES_PER_PAGE = 10;
   const { carousels, loading, loadingMore, hasMore, loadMore, refresh, deleteCarousel } = useCarousels(token);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<Carousel | null>(null);
   const [visibleCount, setVisibleCount] = useState(SLIDES_PER_PAGE);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useWSEvent("carousel_generated", () => refresh());
 
-  const allSlides: Array<{ slide: Slide; carousel: Carousel }> = carousels.flatMap((c) =>
-    (c.slides ?? []).map((s) => ({ slide: s, carousel: c }))
-  );
+  const allItems: GalleryItem[] = carousels.flatMap<GalleryItem>((c) => {
+    if ((c.type ?? "carousel") === "pdf") {
+      return [{ kind: "pdf", carousel: c }];
+    }
+    return (c.slides ?? []).map((s) => ({ kind: "slide", slide: s, carousel: c }));
+  });
 
-  const viewableSlides = allSlides.filter(
-    ({ slide, carousel }) => getSlideStatus(slide, carousel) === "ready"
+  const viewableSlides = allItems.filter(
+    (item): item is Extract<GalleryItem, { kind: "slide" }> =>
+      item.kind === "slide" && getSlideStatus(item.slide, item.carousel) === "ready"
   );
 
   const genuinelyPending = carousels.filter(
     (c) => c.status === "generating" && !isStaleGenerating(c)
   );
 
-  const hasMoreSlides = visibleCount < allSlides.length || hasMore;
+  const hasMoreItems = visibleCount < allItems.length || hasMore;
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el || loadingMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
-      if (visibleCount < allSlides.length) {
+      if (visibleCount < allItems.length) {
         setVisibleCount(prev => prev + SLIDES_PER_PAGE);
       } else if (hasMore) {
         loadMore();
       }
     }
-  }, [loadMore, loadingMore, hasMore, visibleCount, allSlides.length]);
+  }, [loadMore, loadingMore, hasMore, visibleCount, allItems.length]);
 
   useEffect(() => {
-    if (!loadingMore && visibleCount > allSlides.length && hasMore) {
+    if (!loadingMore && visibleCount > allItems.length && hasMore) {
       loadMore();
     }
-  }, [visibleCount, allSlides.length, hasMore, loadingMore, loadMore]);
+  }, [visibleCount, allItems.length, hasMore, loadingMore, loadMore]);
 
   return (
     <div className={`flex flex-col p-4 text-content ${isMinimized ? "" : "h-full"}`}>
       <button onClick={onToggleMinimize} className={`flex items-center justify-between w-full text-left cursor-pointer ${isMinimized ? "" : "mb-4"}`}>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Imagens</h2>
-          {allSlides.length > 0 && (
-            <span className="text-[10px] text-content-3 bg-line/40 px-1.5 py-0.5 rounded-full">{allSlides.length}</span>
+          <h2 className="text-sm font-medium tracking-[0.2em] uppercase text-content-2">Midia</h2>
+          {allItems.length > 0 && (
+            <span className="text-[10px] text-content-3 bg-line/40 px-1.5 py-0.5 rounded-full">{allItems.length}</span>
           )}
           {genuinelyPending.length > 0 && (
             <span className="text-[10px] text-accent animate-pulse">gerando...</span>
@@ -135,30 +168,38 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
 
       {!isMinimized && (
         <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto scrollbar-thin">
-          {loading && allSlides.length === 0 ? (
+          {loading && allItems.length === 0 ? (
             <div className="grid grid-cols-2 gap-2">
               {[0, 1, 2, 3].map(i => (
                 <Skeleton key={i} className="aspect-[4/3] rounded-xl" delay={i * 100} />
               ))}
             </div>
-          ) : allSlides.length === 0 && genuinelyPending.length === 0 ? (
-            <p className="text-sm text-content-3 text-center py-8">Nenhuma imagem ainda.</p>
+          ) : allItems.length === 0 && genuinelyPending.length === 0 ? (
+            <p className="text-sm text-content-3 text-center py-8">Nenhuma midia ainda.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              {allSlides.slice(0, visibleCount).map(({ slide, carousel }, idx) => (
-                <GalleryImage
-                  key={`${carousel.id}-${idx}`}
-                  slide={slide}
-                  carousel={carousel}
-                  onClick={() => {
-                    const viewIdx = viewableSlides.findIndex(
-                      v => v.slide === slide && v.carousel === carousel
-                    );
-                    if (viewIdx >= 0) setSelectedIdx(viewIdx);
-                  }}
-                />
-              ))}
-              {(loadingMore || (hasMoreSlides && visibleCount >= allSlides.length)) && [0, 1].map(i => (
+              {allItems.slice(0, visibleCount).map((item, idx) =>
+                item.kind === "pdf" ? (
+                  <GalleryPDF
+                    key={item.carousel.id}
+                    carousel={item.carousel}
+                    onClick={() => setSelectedPdf(item.carousel)}
+                  />
+                ) : (
+                  <GalleryImage
+                    key={`${item.carousel.id}-${idx}`}
+                    slide={item.slide}
+                    carousel={item.carousel}
+                    onClick={() => {
+                      const viewIdx = viewableSlides.findIndex(
+                        v => v.slide === item.slide && v.carousel === item.carousel
+                      );
+                      if (viewIdx >= 0) setSelectedIdx(viewIdx);
+                    }}
+                  />
+                )
+              )}
+              {(loadingMore || (hasMoreItems && visibleCount >= allItems.length)) && [0, 1].map(i => (
                 <Skeleton key={`more-${i}`} className="aspect-[4/3] rounded-xl" delay={i * 100} />
               ))}
             </div>
@@ -182,6 +223,21 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
             if (ok) {
               setSelectedIdx(null);
             }
+            return ok;
+          }}
+        />,
+        document.body
+      )}
+
+      {selectedPdf && selectedPdf.file_url && createPortal(
+        <PDFViewerModal
+          url={selectedPdf.file_url}
+          title={selectedPdf.title}
+          carouselId={selectedPdf.id}
+          onClose={() => setSelectedPdf(null)}
+          onDelete={async (id) => {
+            const ok = await deleteCarousel(id);
+            if (ok) setSelectedPdf(null);
             return ok;
           }}
         />,

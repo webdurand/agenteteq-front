@@ -17,6 +17,8 @@ export interface Carousel {
   slides: Slide[];
   reference_images: string[];
   created_at: string;
+  type?: "carousel" | "pdf";
+  file_url?: string;
 }
 
 export function useCarousels(token: string) {
