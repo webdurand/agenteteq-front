@@ -216,11 +216,15 @@ export function useChat(token: string | null) {
           const canvasId = msg.canvas_id ?? "";
           const previewUrl = msg.preview_url ?? "";
           const layersCount = msg.layers_count ?? 0;
+          const currentSlide = msg.current_slide ?? 0;
+          const totalSlides = msg.total_slides ?? 1;
           if (previewUrl) {
             const previewText = `__CANVAS_PREVIEW__${JSON.stringify({
               canvas_id: canvasId,
               preview_url: previewUrl,
               layers_count: layersCount,
+              current_slide: currentSlide,
+              total_slides: totalSlides,
             })}`;
             setMessages((prev) => {
               // Find existing canvas preview for same canvas_id and update it
@@ -235,6 +239,24 @@ export function useChat(token: string | null) {
               return [...prev, { id: `canvas_${canvasId}`, role: "agent", text: previewText, timestamp: new Date() }];
             });
           }
+          break;
+        }
+
+        case "carousel_done": {
+          const carouselId = msg.carousel_id ?? "";
+          const slides = msg.slides ?? [];
+          const readyText = `__CAROUSEL_READY__${JSON.stringify({
+            carousel_id: carouselId,
+            slides: slides.map((s: any, i: number) => ({
+              slide_number: s.slide_number ?? (i + 1),
+              style: s.role ?? "",
+              image_url: s.image_url ?? "",
+            })),
+          })}`;
+          setMessages((prev) => [
+            ...prev,
+            { id: `carousel_${carouselId}`, role: "agent", text: readyText, timestamp: new Date() },
+          ]);
           break;
         }
 

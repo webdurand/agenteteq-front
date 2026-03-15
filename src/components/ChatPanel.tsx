@@ -116,8 +116,19 @@ function ImageEditingBubble({ prompt }: { prompt: string }) {
   );
 }
 
-function CanvasPreviewBubble({ previewUrl, layersCount }: { previewUrl: string; layersCount: number }) {
+function CanvasPreviewBubble({
+  previewUrl,
+  layersCount,
+  currentSlide = 0,
+  totalSlides = 1,
+}: {
+  previewUrl: string;
+  layersCount: number;
+  currentSlide?: number;
+  totalSlides?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const isMultiSlide = totalSlides > 1;
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
@@ -127,7 +138,14 @@ function CanvasPreviewBubble({ previewUrl, layersCount }: { previewUrl: string; 
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
               <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" />
             </svg>
-            <span className="text-xs text-content-3">Canvas Preview &middot; {layersCount} layer{layersCount !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-content-3">
+              Canvas Preview &middot; {layersCount} layer{layersCount !== 1 ? "s" : ""}
+            </span>
+            {isMultiSlide && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accent/15 text-accent">
+                Slide {currentSlide}/{totalSlides}
+              </span>
+            )}
           </div>
           {previewUrl && (
             <img
@@ -348,7 +366,14 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
   if (msg.text.startsWith(CANVAS_PREVIEW_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(CANVAS_PREVIEW_PREFIX.length));
-      return <CanvasPreviewBubble previewUrl={payload.preview_url ?? ""} layersCount={payload.layers_count ?? 0} />;
+      return (
+        <CanvasPreviewBubble
+          previewUrl={payload.preview_url ?? ""}
+          layersCount={payload.layers_count ?? 0}
+          currentSlide={payload.current_slide ?? 0}
+          totalSlides={payload.total_slides ?? 1}
+        />
+      );
     } catch {
       return null;
     }
