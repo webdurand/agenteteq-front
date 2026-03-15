@@ -27,7 +27,7 @@ function parseMessageContent(text: string) {
 
   for (const line of lines) {
     const isImageUrl = /https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)/i.test(line) ||
-      /res\.cloudinary\.com/.test(line) ||
+      (/res\.cloudinary\.com/.test(line) && !/\/raw\//.test(line) && !/\.pdf/i.test(line)) ||
       line.trim().startsWith("data:image/");
       
     if (isImageUrl) {
