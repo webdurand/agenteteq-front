@@ -26,6 +26,12 @@ const CONFIG_TOOLTIPS: Record<string, string> = {
   tts_enabled: "Habilita ou desabilita a síntese de voz (TTS) para este plano. Valores: true / false.",
   max_searches_daily: "Limite diário de buscas na web por usuário.",
   max_deep_research_daily: "Limite diário de pesquisas profundas (deep research) por usuário.",
+  max_tts_daily: "Limite diário de sínteses de voz (TTS) por usuário. 0 = desabilitado.",
+  max_messages_daily: "Limite diário de mensagens no chat web por usuário. Controla custo de LLM.",
+  max_whatsapp_messages_daily: "Limite diário de mensagens no WhatsApp por usuário. WhatsApp tem custo por mensagem.",
+  max_audio_transcriptions_daily: "Limite diário de transcrições de áudio (Whisper) por usuário.",
+  max_llm_cost_monthly_usd: "Orçamento mensal máximo em USD de custo de IA (LLM) por usuário. Soft warning, não bloqueia.",
+  video_analysis_max_minutes_monthly: "Limite mensal de minutos de análise de vídeo por usuário.",
 };
 
 const INFRA_KEYS = new Set([
@@ -42,8 +48,14 @@ const LIMIT_FIELDS: { key: string; label: string; type: "number" | "boolean" }[]
   { key: "voice_live_enabled", label: "Voz real-time", type: "boolean" },
   { key: "voice_live_max_minutes_daily", label: "Minutos de voz/dia", type: "number" },
   { key: "tts_enabled", label: "Síntese de voz (TTS)", type: "boolean" },
+  { key: "max_tts_daily", label: "TTS por dia", type: "number" },
   { key: "max_searches_daily", label: "Buscas na web/dia", type: "number" },
   { key: "max_deep_research_daily", label: "Pesquisa profunda/dia", type: "number" },
+  { key: "max_messages_daily", label: "Mensagens chat/dia", type: "number" },
+  { key: "max_whatsapp_messages_daily", label: "Mensagens WhatsApp/dia", type: "number" },
+  { key: "max_audio_transcriptions_daily", label: "Transcrições áudio/dia", type: "number" },
+  { key: "max_llm_cost_monthly_usd", label: "Budget LLM mensal (USD)", type: "number" },
+  { key: "video_analysis_max_minutes_monthly", label: "Análise vídeo mensal (min)", type: "number" },
 ];
 
 function Tooltip({ text }: { text: string }) {

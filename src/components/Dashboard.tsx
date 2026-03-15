@@ -38,6 +38,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     plan_name: string;
     plan_code: string;
     resets_at: string | null;
+    monthly_resets_at?: string | null;
     features: Record<string, {
       enabled: boolean;
       limit?: number;
@@ -46,6 +47,8 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       label: string;
       unit?: string;
       unlimited?: boolean;
+      period?: string;
+      budget_exceeded?: boolean;
     }>;
   } | null>(null);
   const [campaign, setCampaign] = useState<any | null>(null);
@@ -283,15 +286,19 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                                 <div className={`h-full transition-all ${exhausted ? "bg-amber-500" : "bg-accent"}`} style={{ width: `${pct}%` }} />
                               </div>
                               {exhausted && (
-                                <p className="text-[10px] text-amber-400">Limite diário atingido. Tente novamente amanhã!</p>
+                                <p className="text-[10px] text-amber-400">
+                                  {f.period === "monthly" ? "Limite mensal atingido." : "Limite diário atingido. Tente novamente amanhã!"}
+                                  {f.budget_exceeded && " (soft warning)"}
+                                </p>
                               )}
                             </div>
                           );
                         })}
                       </div>
-                      <p className="mt-3 text-[10px] text-content-4">
-                        {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : ""}
-                      </p>
+                      <div className="mt-3 flex flex-col gap-0.5">
+                        {limits.resets_at && <p className="text-[10px] text-content-4">Diários resetam em: {new Date(limits.resets_at).toLocaleString("pt-BR")}</p>}
+                        {limits.monthly_resets_at && <p className="text-[10px] text-content-4">Mensais resetam em: {new Date(limits.monthly_resets_at).toLocaleString("pt-BR", { day: "2-digit", month: "long" })}</p>}
+                      </div>
                       {limits.plan_code === "free" && (
                         <button
                           onClick={() => { setLimitsExpanded(false); openCheckout(); }}
