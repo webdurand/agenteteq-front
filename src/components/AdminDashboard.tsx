@@ -66,9 +66,9 @@ function Tooltip({ text }: { text: string }) {
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
-      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 rounded-xl bg-surface-up border border-line shadow-lg text-xs text-content-2 leading-relaxed pointer-events-none">
+      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 bottom-full left-0 md:left-1/2 md:-translate-x-1/2 mb-2 w-64 md:w-72 max-w-[calc(100vw-2rem)] p-3 rounded-xl bg-surface-up border border-line shadow-lg text-xs text-content-2 leading-relaxed pointer-events-none">
         {text}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-surface-up border-r border-b border-line rotate-45" />
+        <div className="absolute top-full left-4 md:left-1/2 md:-translate-x-1/2 -mt-1 w-2 h-2 bg-surface-up border-r border-b border-line rotate-45" />
       </div>
     </div>
   );
@@ -439,7 +439,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
   };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
+    <div className="h-screen-safe w-full flex flex-col bg-surface overflow-hidden transition-colors duration-300">
       {/* Topbar */}
       <header className="flex-shrink-0 px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between z-10 border-b border-line bg-surface">
         <div className="flex items-center gap-4">
@@ -463,10 +463,38 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         </div>
       </header>
 
+      {/* Mobile Tab Bar */}
+      <div className="lg:hidden flex-shrink-0 border-b border-line bg-surface-up overflow-x-auto scrollbar-thin">
+        <div className="flex gap-1 px-3 py-2 min-w-max">
+          {([
+            ["negocio", "Negócio"],
+            ["sistema", "Sistema"],
+            ["saude", "Saúde"],
+            ["usuarios", "Usuários"],
+            ["admins", "Admins"],
+            ["planos", "Planos"],
+            ["assinaturas", "Assinaturas"],
+            ["campanhas", "Campanhas"],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium tracking-wide whitespace-nowrap transition-colors ${
+                tab === key
+                  ? "bg-accent/10 text-accent border border-accent/20"
+                  : "text-content-3 hover:text-content border border-transparent"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="flex-1 flex overflow-hidden">
         {/* Sidebar Nav */}
-        <div className="w-64 border-r border-line bg-surface-up p-4 flex flex-col gap-2">
+        <div className="hidden lg:flex w-64 border-r border-line bg-surface-up p-4 flex-col gap-2">
           <button 
             onClick={() => setTab("negocio")}
             className={`p-3 text-left rounded-xl text-sm tracking-wide font-medium transition-colors ${tab === "negocio" ? "bg-accent/10 text-accent border border-accent/20" : "text-content-3 hover:bg-surface-card hover:text-content border border-transparent"}`}
@@ -518,9 +546,9 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-8 bg-surface">
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-4 md:p-8 bg-surface">
           {tab === "negocio" && (
-            <div className="max-w-6xl mx-auto space-y-8">
+            <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-light text-content">Métricas de Negócio</h2>
                 <PeriodSelect
@@ -537,41 +565,41 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               {/* Financeiro */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Financeiro</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">MRR</span>
                       <Tooltip text="Receita Mensal Recorrente, soma do valor dos planos com assinaturas ativas." />
                     </div>
-                    <span className="text-3xl font-light text-green-500">{formatBRL(analyticsData?.financial?.mrr_cents || 0)}</span>
+                    <span className="text-xl md:text-3xl font-light text-green-500">{formatBRL(analyticsData?.financial?.mrr_cents || 0)}</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Assinantes</span>
                       <Tooltip text="Total de assinaturas ativas ou em período de teste pago." />
                     </div>
-                    <span className="text-3xl font-light text-accent">{analyticsData?.financial?.active_subs || 0}</span>
+                    <span className="text-xl md:text-3xl font-light text-accent">{analyticsData?.financial?.active_subs || 0}</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Conversão</span>
                       <Tooltip text="Taxa de conversão: % de usuários que fizeram trial e se tornaram pagantes." />
                     </div>
-                    <span className="text-3xl font-light text-blue-500">{analyticsData?.financial?.conversion_rate || 0}%</span>
+                    <span className="text-xl md:text-3xl font-light text-blue-500">{analyticsData?.financial?.conversion_rate || 0}%</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Churn</span>
                       <Tooltip text="Taxa de cancelamento no período selecionado: % de assinantes que cancelaram." />
                     </div>
-                    <span className="text-3xl font-light text-red-400">{analyticsData?.financial?.churn_rate || 0}%</span>
+                    <span className="text-xl md:text-3xl font-light text-red-400">{analyticsData?.financial?.churn_rate || 0}%</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Status</span>
                       <Tooltip text="Distribuição dos status das assinaturas (ativa, teste, cancelada, etc)." />
                     </div>
-                    <div className="flex-1 -mx-4 -mt-2">
+                    <div className="flex-1 -mx-2 md:-mx-4 -mt-2">
                       {analyticsData?.financial?.status_distribution?.length > 0 ? (
                         <PieChart data={analyticsData.financial.status_distribution} height={140} innerRadius={35} outerRadius={50} />
                       ) : (
@@ -586,7 +614,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Engajamento de Usuários</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Novos Usuários por Dia</span>
                       <Tooltip text="Quantidade de novos cadastros por dia (baseado na data de início do trial)." />
@@ -597,7 +625,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       <div className="h-[220px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
                     )}
                   </div>
-                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Usuários Ativos por Dia (DAU)</span>
                       <Tooltip text="Daily Active Users (DAU): Quantidade de usuários únicos que interagiram com o Teq a cada dia." />
@@ -608,7 +636,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       <div className="h-[220px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
                     )}
                   </div>
-                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Mensagens por Dia</span>
                       <Tooltip text="Volume diário de mensagens processadas. Recebidas são as mensagens do usuário, Enviadas são as respostas do Agente." />
@@ -650,12 +678,12 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                         const colorCls = CHANNEL_COLORS[m.channel] || "text-accent";
                         const pct = totalReceived > 0 ? Math.round((m.received / totalReceived) * 100) : 0;
                         return (
-                          <div key={m.channel} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                          <div key={m.channel} className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs uppercase tracking-wider text-content-3">{label}</span>
                               <span className="text-[10px] text-content-4">{pct}%</span>
                             </div>
-                            <span className={`text-3xl font-light ${colorCls}`}>{m.received || 0}</span>
+                            <span className={`text-xl md:text-3xl font-light ${colorCls}`}>{m.received || 0}</span>
                             <span className="text-[10px] text-content-4">{m.sent || 0} respostas</span>
                           </div>
                         );
@@ -664,7 +692,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
                     {/* Mensagens por dia por canal — stacked */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">Mensagens / Dia / Canal</span>
                           <Tooltip text="Volume diário de mensagens por canal. Barras sólidas = usuário (recebidas). Barras claras = agente (enviadas)." />
@@ -689,7 +717,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       </div>
 
                       {/* DAU por canal */}
-                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">DAU por Canal</span>
                           <Tooltip text="Usuários ativos únicos por dia em cada canal." />
@@ -713,7 +741,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
                     {/* Tool calls por canal + WhatsApp media mix */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">Tool Calls por Canal</span>
                           <Tooltip text="Quantidade total de ferramentas acionadas pelo agente em cada canal." />
@@ -732,7 +760,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                         )}
                       </div>
 
-                      <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                      <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">WhatsApp: Mix de Mídia</span>
                           <Tooltip text="Proporção de mensagens recebidas via WhatsApp por tipo: texto puro, áudio e imagem." />
@@ -774,13 +802,13 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     </div>
 
                     {/* Latência, erro e voz stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                       {(ch.latency_by_channel || []).map((l: any) => (
                         <div key={l.channel} className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                           <span className="text-[10px] uppercase tracking-wider text-content-3">
                             Latência {CHANNEL_LABELS[l.channel] || l.channel}
                           </span>
-                          <span className={`text-2xl font-light ${l.avg_ms > 5000 ? 'text-red-500' : l.avg_ms > 2000 ? 'text-orange-500' : 'text-green-500'}`}>
+                          <span className={`text-lg md:text-2xl font-light ${l.avg_ms > 5000 ? 'text-red-500' : l.avg_ms > 2000 ? 'text-orange-500' : 'text-green-500'}`}>
                             {(l.avg_ms / 1000).toFixed(1)}s
                           </span>
                           <span className="text-[10px] text-content-4">{l.count} msgs</span>
@@ -791,7 +819,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                           <span className="text-[10px] uppercase tracking-wider text-content-3">
                             Erro {CHANNEL_LABELS[e.channel] || e.channel}
                           </span>
-                          <span className={`text-2xl font-light ${e.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
+                          <span className={`text-lg md:text-2xl font-light ${e.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
                             {e.error_rate}%
                           </span>
                           <span className="text-[10px] text-content-4">{e.failed}/{e.total} tools</span>
@@ -801,15 +829,15 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
 
                     {/* Voice Live + Custo LLM */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                      <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">Sessões Voz Live</span>
                           <Tooltip text="Total de sessões de voz real-time (Gemini Live) e duração média." />
                         </div>
-                        <span className="text-3xl font-light text-purple-500">{ch.voice_live_stats?.sessions || 0}</span>
+                        <span className="text-xl md:text-3xl font-light text-purple-500">{ch.voice_live_stats?.sessions || 0}</span>
                         <span className="text-xs text-content-4">Duração média: {ch.voice_live_stats?.avg_duration_s || 0}s</span>
                       </div>
-                      <div className="md:col-span-2 bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                      <div className="md:col-span-2 bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                         <div className="flex items-center">
                           <span className="text-xs uppercase tracking-wider text-content-3">Custo LLM por Canal</span>
                           <Tooltip text="Custo estimado de API do LLM (USD) separado por canal de origem." />
@@ -838,7 +866,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Uso de Features</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Top Tools (Chamadas)</span>
                       <Tooltip text="Ranking das ferramentas mais utilizadas pelo agente para responder aos usuários." />
@@ -849,7 +877,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       <div className="h-[250px] flex items-center justify-center text-sm text-content-4">Sem dados no período</div>
                     )}
                   </div>
-                  <div className="bg-surface-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+                  <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Tendência de Tools</span>
                       <Tooltip text="Evolução diária no volume de chamadas das 5 ferramentas mais populares." />
@@ -878,20 +906,20 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                   <h3 className="text-sm font-medium tracking-wide text-content-2">Custo de API ({metricsDays} dias)</h3>
                   <Tooltip text="Custo de API (Gemini) por usuário. Dados 'reais' usam tokens reportados pelo LLM. Dados 'estimados' usam contagem de mensagens × custo médio." />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <span className="text-xs uppercase tracking-wider text-content-3">Custo Total</span>
-                    <span className="text-3xl font-light text-red-400">R$ {costData?.total_cost_brl?.toFixed(2) ?? "—"}</span>
+                    <span className="text-xl md:text-3xl font-light text-red-400">R$ {costData?.total_cost_brl?.toFixed(2) ?? "—"}</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <span className="text-xs uppercase tracking-wider text-content-3">Custo Médio / Usuário</span>
-                    <span className="text-3xl font-light text-orange-400">R$ {costData?.avg_cost_per_user_brl?.toFixed(2) ?? "—"}</span>
+                    <span className="text-xl md:text-3xl font-light text-orange-400">R$ {costData?.avg_cost_per_user_brl?.toFixed(2) ?? "—"}</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <span className="text-xs uppercase tracking-wider text-content-3">Usuários com Consumo</span>
-                    <span className="text-3xl font-light text-accent">{costData?.active_users ?? "—"}</span>
+                    <span className="text-xl md:text-3xl font-light text-accent">{costData?.active_users ?? "—"}</span>
                   </div>
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <span className="text-xs uppercase tracking-wider text-content-3">Fonte dos Dados</span>
                     <div className="flex flex-col gap-1 mt-1">
                       <span className="text-sm text-green-500">{costData?.real_data_users ?? 0} reais (tokens)</span>
@@ -953,16 +981,16 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Operacional ({metricsDays} dias)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                  <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Taxa de Erro (Tools)</span>
                       <Tooltip text="Proporção de falhas nas chamadas de ferramenta pelo agente no período." />
                     </div>
-                    <span className={`text-3xl font-light ${analyticsData?.operational?.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
+                    <span className={`text-xl md:text-3xl font-light ${analyticsData?.operational?.error_rate > 5 ? 'text-red-500' : 'text-green-500'}`}>
                       {analyticsData?.operational?.error_rate || 0}%
                     </span>
                   </div>
-                  <div className="md:col-span-2 p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-4">
+                  <div className="md:col-span-2 p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-3 md:gap-4">
                     <div className="flex items-center">
                       <span className="text-xs uppercase tracking-wider text-content-3">Latência Média por Tool (ms)</span>
                       <Tooltip text="Tempo médio de resposta de cada ferramenta, em milissegundos. Valores altos indicam gargalos na API externa ou no processamento." />
@@ -985,7 +1013,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "sistema" && (
-            <div className="max-w-6xl mx-auto space-y-8">
+            <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-light text-content">Sistema e Fila</h2>
                 <PeriodSelect
@@ -1002,41 +1030,41 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
               {/* Fila Real-time */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium tracking-wide text-content-2">Fila em Tempo Real</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                     <div className="flex items-center">
                       <span className="text-[10px] uppercase tracking-wider text-content-3">Na Fila</span>
                       <Tooltip text="Tarefas aguardando processamento no momento atual." />
                     </div>
-                    <span className="text-2xl font-light text-accent">{systemQueue?.pending || 0}</span>
+                    <span className="text-lg md:text-2xl font-light text-accent">{systemQueue?.pending || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                     <div className="flex items-center">
                       <span className="text-[10px] uppercase tracking-wider text-content-3">Processando</span>
                       <Tooltip text="Tarefas sendo processadas agora pelo servidor." />
                     </div>
-                    <span className="text-2xl font-light text-orange-500">{systemQueue?.processing || 0}</span>
+                    <span className="text-lg md:text-2xl font-light text-orange-500">{systemQueue?.processing || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                     <div className="flex items-center">
                       <span className="text-[10px] uppercase tracking-wider text-content-3">Concluídas (24h)</span>
                       <Tooltip text="Tarefas finalizadas com sucesso nas últimas 24 horas." />
                     </div>
-                    <span className="text-2xl font-light text-green-500">{systemQueue?.done_today || 0}</span>
+                    <span className="text-lg md:text-2xl font-light text-green-500">{systemQueue?.done_today || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                     <div className="flex items-center">
                       <span className="text-[10px] uppercase tracking-wider text-content-3">Falhas (24h)</span>
                       <Tooltip text="Tarefas que falharam nas últimas 24 horas." />
                     </div>
-                    <span className="text-2xl font-light text-red-500">{systemQueue?.failed_today || 0}</span>
+                    <span className="text-lg md:text-2xl font-light text-red-500">{systemQueue?.failed_today || 0}</span>
                   </div>
                   <div className="p-4 rounded-xl bg-surface-card border border-line flex flex-col gap-1">
                     <div className="flex items-center">
                       <span className="text-[10px] uppercase tracking-wider text-content-3">Tempo Médio</span>
                       <Tooltip text="Tempo médio de espera na fila antes de uma tarefa começar a ser processada." />
                     </div>
-                    <span className="text-2xl font-light text-content">{systemQueue?.avg_wait || 0}s</span>
+                    <span className="text-lg md:text-2xl font-light text-content">{systemQueue?.avg_wait || 0}s</span>
                   </div>
                 </div>
               </div>
@@ -1216,11 +1244,11 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "saude" && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
               <h2 className="text-xl font-light text-content">Saúde do Sistema</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                   <div className="flex items-center">
                     <span className="text-xs uppercase tracking-wider text-content-3">Status Geral</span>
                     <Tooltip text="Indica se os serviços principais do Teq estão operando normalmente." />
@@ -1229,7 +1257,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                     {healthData?.status?.toUpperCase() || "CARREGANDO..."}
                   </span>
                 </div>
-                <div className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                <div className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                   <div className="flex items-center">
                     <span className="text-xs uppercase tracking-wider text-content-3">Banco de Dados</span>
                     <Tooltip text="Status da conexão com o banco de dados principal." />
@@ -1243,10 +1271,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "usuarios" && (
-            <div className="max-w-6xl mx-auto space-y-8">
-              <div className="flex justify-between items-center">
+            <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
                 <h2 className="text-xl font-light text-content">Gestão de Usuários</h2>
-                <div className="w-72">
+                <div className="w-full md:w-72">
                   <input 
                     value={searchUser} 
                     onChange={(e) => setSearchUser(e.target.value)} 
@@ -1256,8 +1284,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 </div>
               </div>
               
-              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
-                <table className="w-full text-left">
+              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden overflow-x-auto scrollbar-thin">
+                <table className="w-full text-left whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-line bg-surface-up text-xs uppercase tracking-wider text-content-3">
                       <th className="p-4 font-medium">Telefone</th>
@@ -1320,14 +1348,14 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "admins" && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-light text-content">Gestão de Administradores</h2>
               </div>
               
-              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+              <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 space-y-4">
                 <h3 className="text-sm font-medium text-content uppercase tracking-wider">Promover Usuário a Admin</h3>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <input 
                     value={newAdminPhone} 
                     onChange={(e) => setNewAdminPhone(e.target.value)} 
@@ -1348,8 +1376,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 </div>
               </div>
 
-              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
-                <table className="w-full text-left">
+              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden overflow-x-auto scrollbar-thin">
+                <table className="w-full text-left whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-line bg-surface-up text-xs uppercase tracking-wider text-content-3">
                       <th className="p-4 font-medium">Telefone</th>
@@ -1388,9 +1416,9 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "planos" && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
               <h2 className="text-xl font-light text-content">Planos</h2>
-              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+              <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input value={planForm.code} onChange={(e) => setPlanForm((prev) => ({ ...prev, code: e.target.value }))} placeholder="codigo" className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
                   <input value={planForm.name} onChange={(e) => setPlanForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="nome" className="w-full bg-transparent border-b border-line focus:border-line-strong py-2 text-content placeholder-content-4 focus:outline-none transition-colors" />
@@ -1463,16 +1491,16 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 {plansData.map((p, i) => {
                   const planLimits = (() => { try { return JSON.parse(p.limits_json || "{}"); } catch { return {}; } })();
                   return (
-                    <div key={i} className="p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-2">
+                    <div key={i} className="p-4 md:p-6 rounded-2xl bg-surface-card border border-line flex flex-col gap-1.5 md:gap-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xl text-content">{p.name}</span>
                         {p.code === "free" && <span className="text-[10px] uppercase tracking-wider text-content-4 border border-line px-2 py-0.5 rounded-full">Padrão</span>}
                       </div>
                       <span className="text-sm text-content-3">{p.description}</span>
-                      <span className="text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
+                      <span className="text-lg md:text-2xl font-light text-accent">{formatBRL(p.amount_cents)}</span>
                       <span className="text-xs uppercase tracking-wider text-content-3">Trial: {p.trial_days} dias</span>
                       {/* Limites resumidos */}
-                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                         {LIMIT_FIELDS.map((f) => (
                           <div key={f.key} className="flex justify-between text-[11px]">
                             <span className="text-content-3">{f.label}</span>
@@ -1500,11 +1528,11 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "assinaturas" && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
               <h2 className="text-xl font-light text-content">Assinaturas</h2>
 
               {/* Manual Subscription Form */}
-              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+              <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 space-y-4">
                 <h3 className="text-sm font-medium text-content uppercase tracking-wider">Adicionar Assinatura Manual</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <input 
@@ -1537,8 +1565,8 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                 </div>
               </div>
 
-              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden">
-                <table className="w-full text-left">
+              <div className="bg-surface-card border border-line rounded-2xl overflow-hidden overflow-x-auto scrollbar-thin">
+                <table className="w-full text-left whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-line bg-surface-up text-xs uppercase tracking-wider text-content-3">
                       <th className="p-4 font-medium">Usuário</th>
@@ -1572,10 +1600,10 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
           )}
 
           {tab === "campanhas" && (
-            <div className="max-w-5xl mx-auto space-y-8">
+            <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
               <h2 className="text-xl font-light text-content">Campanhas de Popup</h2>
 
-              <div className="bg-surface-card border border-line rounded-2xl p-6 space-y-4">
+              <div className="bg-surface-card border border-line rounded-2xl p-4 md:p-6 space-y-4">
                 <h3 className="text-sm font-medium text-content uppercase tracking-wider">Criar / editar campanha</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
