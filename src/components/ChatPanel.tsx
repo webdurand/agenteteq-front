@@ -435,6 +435,9 @@ function StatusIndicator({ text }: { text: string }) {
   } else if (lower.includes("roteiro") || lower.includes("criando") || lower.includes("escrevendo")) {
     // Pen icon
     iconPath = <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>;
+  } else if (lower.includes("video") || lower.includes("vídeo") || lower.includes("assistindo")) {
+    // Play/video icon
+    iconPath = <><polygon points="5 3 19 12 5 21 5 3" /></>;
   } else if (lower.includes("coletando") || lower.includes("dados")) {
     // Database icon
     iconPath = <><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></>;
