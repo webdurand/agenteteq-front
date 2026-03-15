@@ -212,6 +212,32 @@ export function useChat(token: string | null) {
           break;
         }
 
+        case "canvas_preview": {
+          const canvasId = msg.canvas_id ?? "";
+          const previewUrl = msg.preview_url ?? "";
+          const layersCount = msg.layers_count ?? 0;
+          if (previewUrl) {
+            const previewText = `__CANVAS_PREVIEW__${JSON.stringify({
+              canvas_id: canvasId,
+              preview_url: previewUrl,
+              layers_count: layersCount,
+            })}`;
+            setMessages((prev) => {
+              // Find existing canvas preview for same canvas_id and update it
+              const existingIdx = prev.findIndex(
+                (m) => m.text.startsWith("__CANVAS_PREVIEW__") && m.text.includes(canvasId)
+              );
+              if (existingIdx >= 0) {
+                const updated = [...prev];
+                updated[existingIdx] = { ...updated[existingIdx], text: previewText };
+                return updated;
+              }
+              return [...prev, { id: `canvas_${canvasId}`, role: "agent", text: previewText, timestamp: new Date() }];
+            });
+          }
+          break;
+        }
+
         case "action_log": {
           const channel = msg.channel || "unknown";
           if (channel === "web" || channel === "web_text") {

@@ -52,6 +52,7 @@ const CAROUSEL_READY_PREFIX = "__CAROUSEL_READY__";
 const CAROUSEL_FAILED_PREFIX = "__CAROUSEL_FAILED__";
 const CAROUSEL_CANCELLED_PREFIX = "__CAROUSEL_CANCELLED__";
 const IMAGE_EDITING_PREFIX = "__IMAGE_EDITING__";
+const CANVAS_PREVIEW_PREFIX = "__CANVAS_PREVIEW__";
 const LIMIT_REACHED_PREFIX = "__LIMIT_REACHED__";
 
 function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: string; planType: string; onOpenCheckout?: () => void }) {
@@ -109,6 +110,33 @@ function ImageEditingBubble({ prompt }: { prompt: string }) {
           <div className="mt-3 h-1.5 w-full rounded-full bg-line overflow-hidden">
             <div className="h-full rounded-full bg-accent/60 animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: "40%" }} />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CanvasPreviewBubble({ previewUrl, layersCount }: { previewUrl: string; layersCount: number }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-3 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" />
+            </svg>
+            <span className="text-xs text-content-3">Canvas Preview &middot; {layersCount} layer{layersCount !== 1 ? "s" : ""}</span>
+          </div>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="Canvas preview"
+              className={`rounded-lg cursor-pointer transition-all ${expanded ? "max-w-full" : "max-w-[280px]"}`}
+              onClick={() => setExpanded((v) => !v)}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -314,6 +342,15 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
       return <ImageEditingBubble prompt={payload.prompt ?? ""} />;
     } catch {
       return <ImageEditingBubble prompt="" />;
+    }
+  }
+
+  if (msg.text.startsWith(CANVAS_PREVIEW_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(CANVAS_PREVIEW_PREFIX.length));
+      return <CanvasPreviewBubble previewUrl={payload.preview_url ?? ""} layersCount={payload.layers_count ?? 0} />;
+    } catch {
+      return null;
     }
   }
 
