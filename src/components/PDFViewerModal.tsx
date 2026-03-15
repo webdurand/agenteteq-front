@@ -50,7 +50,7 @@ export function PDFViewerModal({ url, title, carouselId, onClose, onDelete }: {
 
         {/* PDF Viewer */}
         <iframe
-          src={url}
+          src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
           className="flex-1 w-full border-0"
           style={{ minHeight: "70vh" }}
           title={title || "PDF"}
