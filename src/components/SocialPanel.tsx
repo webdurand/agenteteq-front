@@ -28,11 +28,6 @@ function formatRelativeTime(isoStr: string | null): string {
   }
 }
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 export function SocialPanel({
   token,
@@ -322,9 +317,7 @@ function AccountCard({
               {account.platform}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-content-3 mt-0.5">
-            <span>{formatNumber(account.followers_count)} {account.platform === "youtube" ? "inscritos" : "seguidores"}</span>
-            <span>·</span>
+          <div className="text-xs text-content-3 mt-0.5">
             <span>{formatRelativeTime(account.last_fetched_at)} atras</span>
           </div>
         </div>

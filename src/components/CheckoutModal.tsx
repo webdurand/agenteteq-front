@@ -7,6 +7,20 @@ import { UpdatePaymentModal } from "./UpdatePaymentModal";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
+const PLAN_FEATURES: { key: string; label: string; type: "num" | "bool" }[] = [
+  { key: "max_images_daily", label: "Geração de imagens/dia", type: "num" },
+  { key: "max_messages_daily", label: "Mensagens (chat)/dia", type: "num" },
+  { key: "max_whatsapp_messages_daily", label: "Mensagens (WhatsApp)/dia", type: "num" },
+  { key: "max_searches_daily", label: "Buscas na web/dia", type: "num" },
+  { key: "max_deep_research_daily", label: "Pesquisa profunda/dia", type: "num" },
+  { key: "max_audio_transcriptions_daily", label: "Transcrições de áudio/dia", type: "num" },
+  { key: "max_tts_daily", label: "Síntese de voz (TTS)/dia", type: "num" },
+  { key: "voice_live_enabled", label: "Voz real-time", type: "bool" },
+  { key: "voice_live_max_minutes_daily", label: "Minutos de voz/dia", type: "num" },
+  { key: "max_tracked_accounts", label: "Contas de referência", type: "num" },
+  { key: "social_monitoring_enabled", label: "Monitoramento social", type: "bool" },
+];
+
 interface CheckoutModalProps {
   token: string;
   open: boolean;
@@ -173,20 +187,26 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
                 {/* Limits grid */}
                 {Object.keys(limits).length > 0 && (
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs border-t border-line pt-3">
-                    {limits.max_tasks_per_user_daily != null && (
-                      <div className="flex justify-between"><span className="text-content-3">Imagens por dia</span><span className="text-content">{limits.max_tasks_per_user_daily}</span></div>
-                    )}
-                    {limits.max_searches_daily != null && (
-                      <div className="flex justify-between"><span className="text-content-3">Buscas na web/dia</span><span className="text-content">{limits.max_searches_daily}</span></div>
-                    )}
-                    <div className="flex justify-between"><span className="text-content-3">Voz real-time</span><span className={limits.voice_live_enabled ? "text-green-400" : "text-content-4"}>{limits.voice_live_enabled ? "Sim" : "Não"}</span></div>
-                    {limits.voice_live_max_minutes_daily != null && limits.voice_live_max_minutes_daily > 0 && (
-                      <div className="flex justify-between"><span className="text-content-3">Minutos de voz/dia</span><span className="text-content">{limits.voice_live_max_minutes_daily}</span></div>
-                    )}
-                    <div className="flex justify-between"><span className="text-content-3">Síntese de voz (TTS)</span><span className={limits.tts_enabled ? "text-green-400" : "text-content-4"}>{limits.tts_enabled ? "Sim" : "Não"}</span></div>
-                    {limits.max_deep_research_daily != null && (
-                      <div className="flex justify-between"><span className="text-content-3">Pesquisa profunda/dia</span><span className="text-content">{limits.max_deep_research_daily}</span></div>
-                    )}
+                    {PLAN_FEATURES.filter(f => {
+                      const v = limits[f.key];
+                      return v != null && v !== undefined;
+                    }).map(f => {
+                      const v = limits[f.key];
+                      if (f.type === "bool") {
+                        return (
+                          <div key={f.key} className="flex justify-between">
+                            <span className="text-content-3">{f.label}</span>
+                            <span className={v ? "text-green-400" : "text-content-4"}>{v ? "Sim" : "Não"}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={f.key} className="flex justify-between">
+                          <span className="text-content-3">{f.label}</span>
+                          <span className="text-content">{v}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
