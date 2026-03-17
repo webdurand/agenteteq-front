@@ -7,18 +7,12 @@ import { UpdatePaymentModal } from "./UpdatePaymentModal";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
-const PLAN_FEATURES: { key: string; label: string; type: "num" | "bool" }[] = [
-  { key: "max_images_daily", label: "Geração de imagens/dia", type: "num" },
-  { key: "max_messages_daily", label: "Mensagens (chat)/dia", type: "num" },
-  { key: "max_whatsapp_messages_daily", label: "Mensagens (WhatsApp)/dia", type: "num" },
-  { key: "max_searches_daily", label: "Buscas na web/dia", type: "num" },
-  { key: "max_deep_research_daily", label: "Pesquisa profunda/dia", type: "num" },
-  { key: "max_audio_transcriptions_daily", label: "Transcrições de áudio/dia", type: "num" },
-  { key: "max_tts_daily", label: "Síntese de voz (TTS)/dia", type: "num" },
-  { key: "voice_live_enabled", label: "Voz real-time", type: "bool" },
-  { key: "voice_live_max_minutes_daily", label: "Minutos de voz/dia", type: "num" },
-  { key: "max_tracked_accounts", label: "Contas de referência", type: "num" },
-  { key: "social_monitoring_enabled", label: "Monitoramento social", type: "bool" },
+const PLAN_FEATURES: { key: string; label: string }[] = [
+  { key: "voice_live_enabled", label: "Voz real-time" },
+  { key: "tts_enabled", label: "Síntese de voz (TTS)" },
+  { key: "deep_research_enabled", label: "Pesquisa profunda" },
+  { key: "social_monitoring_enabled", label: "Monitoramento social" },
+  { key: "canvas_editor_enabled", label: "Editor Canvas" },
 ];
 
 interface CheckoutModalProps {
@@ -184,29 +178,27 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
                   </div>
                 </div>
 
-                {/* Limits grid */}
+                {/* Features included */}
                 {Object.keys(limits).length > 0 && (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs border-t border-line pt-3">
-                    {PLAN_FEATURES.filter(f => {
+                  <div className="flex flex-col gap-1.5 text-xs border-t border-line pt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400">&#10003;</span>
+                      <span className="text-content-2">Chat, imagens, busca, áudio</span>
+                    </div>
+                    {PLAN_FEATURES.map(f => {
                       const v = limits[f.key];
-                      return v != null && v !== undefined;
-                    }).map(f => {
-                      const v = limits[f.key];
-                      if (f.type === "bool") {
-                        return (
-                          <div key={f.key} className="flex justify-between">
-                            <span className="text-content-3">{f.label}</span>
-                            <span className={v ? "text-green-400" : "text-content-4"}>{v ? "Sim" : "Não"}</span>
-                          </div>
-                        );
-                      }
+                      if (!v) return null;
                       return (
-                        <div key={f.key} className="flex justify-between">
-                          <span className="text-content-3">{f.label}</span>
-                          <span className="text-content">{v}</span>
+                        <div key={f.key} className="flex items-center gap-2">
+                          <span className="text-green-400">&#10003;</span>
+                          <span className="text-content-2">{f.label}</span>
                         </div>
                       );
                     })}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-content-3">&#8226;</span>
+                      <span className="text-content-3">Limite de uso mensal controlado por budget único</span>
+                    </div>
                   </div>
                 )}
 

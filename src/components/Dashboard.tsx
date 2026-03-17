@@ -91,20 +91,12 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   // Derive header label from the most critical (closest to limit) countable feature
   const limitsHeaderLabel = (() => {
     if (!limits) return "";
-    const countable = Object.entries(limits.features).filter(
-      ([, f]) => f.enabled && typeof f.limit === "number" && f.limit > 0 && !f.unlimited
-    );
-    if (countable.length === 0) return "Limites";
-    // Find the one with lowest remaining ratio
-    const exhausted = countable.find(([, f]) => (f.remaining ?? 0) <= 0);
-    if (exhausted) return "\u26A0 Limite atingido";
-    let mostCritical = countable[0];
-    for (const entry of countable) {
-      const ratio = (entry[1].remaining ?? 0) / (entry[1].limit ?? 1);
-      const bestRatio = (mostCritical[1].remaining ?? 0) / (mostCritical[1].limit ?? 1);
-      if (ratio < bestRatio) mostCritical = entry;
-    }
-    return "Limites e cotas";
+    const budget = limits.features?.budget;
+    if (!budget || budget.unlimited) return "Limites";
+    const pct = budget.used ?? 0;
+    if (pct >= 100) return "\u26A0 Limite atingido";
+    if (pct >= 80) return `\u26A0 ${Math.round(pct)}% usado`;
+    return `${Math.round(pct)}% usado`;
   })();
 
   useEffect(() => {
@@ -279,7 +271,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] text-content-2">{f.label}</span>
                                 <span className={`text-[10px] ${exhausted ? "text-amber-400" : "text-content-3"}`}>
-                                  {f.used}{f.unit ? f.unit : ""}/{f.limit}{f.unit ? f.unit : ""}
+                                  {key === "budget" ? `${Math.round(f.used ?? 0)}%` : `${f.used}${f.unit || ""}/${f.limit}${f.unit || ""}`}
                                 </span>
                               </div>
                               <div className="h-1.5 rounded-full bg-surface border border-line overflow-hidden">
@@ -287,17 +279,15 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                               </div>
                               {exhausted && (
                                 <p className="text-[10px] text-amber-400">
-                                  {f.period === "monthly" ? "Limite mensal atingido." : "Limite diário atingido. Tente novamente amanhã!"}
-                                  {f.budget_exceeded && " (soft warning)"}
+                                  Limite mensal encerrou!
                                 </p>
                               )}
                             </div>
                           );
                         })}
                       </div>
-                      <div className="mt-3 flex flex-col gap-0.5">
-                        {limits.resets_at && <p className="text-[10px] text-content-4">Diários resetam em: {new Date(limits.resets_at).toLocaleString("pt-BR")}</p>}
-                        {limits.monthly_resets_at && <p className="text-[10px] text-content-4">Mensais resetam em: {new Date(limits.monthly_resets_at).toLocaleString("pt-BR", { day: "2-digit", month: "long" })}</p>}
+                      <div className="mt-3">
+                        {limits.monthly_resets_at && <p className="text-[10px] text-content-4">Reseta em: {new Date(limits.monthly_resets_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}</p>}
                       </div>
                       {limits.plan_code === "free" && (
                         <button
@@ -447,14 +437,14 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
                             <div className={`h-full transition-all ${exhausted ? "bg-amber-500" : "bg-accent"}`} style={{ width: `${pct}%` }} />
                           </div>
                           {exhausted && (
-                            <p className="text-[10px] text-amber-400">Limite diário atingido. Tente novamente amanhã!</p>
+                            <p className="text-[10px] text-amber-400">Limite mensal atingido. Compre mais para continuar!</p>
                           )}
                         </div>
                       );
                     })}
                   </div>
                   <p className="mt-3 text-[10px] text-content-4">
-                    {limits.resets_at ? `Reseta em: ${new Date(limits.resets_at).toLocaleString("pt-BR")}` : ""}
+                    {limits.monthly_resets_at ? `Reseta em: ${new Date(limits.monthly_resets_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}` : ""}
                   </p>
                   {limits.plan_code === "free" && (
                     <button
