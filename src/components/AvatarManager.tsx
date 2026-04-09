@@ -94,11 +94,12 @@ export default function AvatarManager({ token }: Props) {
     }
   };
 
-  const handleVoiceUpload = async (avatarId: string, file: File) => {
+  const handleVoiceUpload = async (avatarId: string, files: File | File[]) => {
     setCloningVoice(avatarId);
     setError("");
     try {
-      await addVoiceToAvatar(token, avatarId, file);
+      const fileArray = Array.isArray(files) ? files : [files];
+      await addVoiceToAvatar(token, avatarId, fileArray);
       await reload();
     } catch (e: any) {
       setError(e.message);
@@ -303,7 +304,12 @@ export default function AvatarManager({ token }: Props) {
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                       </svg>
                     </div>
-                    <span className="text-xs text-content-3">Sem voz clonada</span>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-xs text-content-3">Sem voz clonada</span>
+                      <span className="text-[10px] text-content-4 mt-0.5">
+                        Envie 1-25 amostras de 30s-5min. Mais amostras = melhor qualidade.
+                      </span>
+                    </div>
 
                     {cloningVoice === avatar.id ? (
                       <span className="ml-auto text-xs text-accent animate-pulse">
@@ -332,7 +338,7 @@ export default function AvatarManager({ token }: Props) {
                           }}
                           className="text-xs px-3 py-1.5 rounded-lg border border-line text-content-3 hover:border-accent hover:text-accent transition"
                         >
-                          Upload audio
+                          Upload audios
                         </button>
                       </div>
                     )}
@@ -349,11 +355,12 @@ export default function AvatarManager({ token }: Props) {
         ref={voiceInputRef}
         type="file"
         accept="audio/*"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && selectedAvatarForVoice) {
-            handleVoiceUpload(selectedAvatarForVoice, file);
+          const files = e.target.files;
+          if (files && files.length > 0 && selectedAvatarForVoice) {
+            handleVoiceUpload(selectedAvatarForVoice, Array.from(files));
           }
           e.target.value = "";
         }}

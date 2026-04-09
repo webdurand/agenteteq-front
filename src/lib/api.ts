@@ -593,9 +593,12 @@ export async function deleteAvatar(token: string, avatarId: string) {
   return res.json();
 }
 
-export async function addVoiceToAvatar(token: string, avatarId: string, audioFile: File, voiceName?: string) {
+export async function addVoiceToAvatar(token: string, avatarId: string, audioFiles: File | File[], voiceName?: string) {
   const form = new FormData();
-  form.append("file", audioFile);
+  const files = Array.isArray(audioFiles) ? audioFiles : [audioFiles];
+  for (const f of files) {
+    form.append("files", f);
+  }
   const url = `${API_URL}/api/video/avatar/${avatarId}/voice${voiceName ? `?voice_name=${encodeURIComponent(voiceName)}` : ""}`;
   const res = await fetch(url, {
     method: "POST",
