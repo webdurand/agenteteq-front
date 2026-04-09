@@ -54,6 +54,9 @@ const CAROUSEL_CANCELLED_PREFIX = "__CAROUSEL_CANCELLED__";
 const IMAGE_EDITING_PREFIX = "__IMAGE_EDITING__";
 const CANVAS_PREVIEW_PREFIX = "__CANVAS_PREVIEW__";
 const LIMIT_REACHED_PREFIX = "__LIMIT_REACHED__";
+const VIDEO_READY_PREFIX = "__VIDEO_READY__";
+const VIDEO_GENERATING_PREFIX = "__VIDEO_GENERATING__";
+const VIDEO_FAILED_PREFIX = "__VIDEO_FAILED__";
 
 function LimitReachedBubble({ message, planType, onOpenCheckout }: { message: string; planType: string; onOpenCheckout?: () => void }) {
   return (
@@ -215,6 +218,132 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: nu
   );
 }
 
+function VideoReadyBubble({ videoUrl, thumbnailUrl, title, duration }: { videoUrl: string; thumbnailUrl?: string; title?: string; duration?: number }) {
+  const [copied, setCopied] = useState(false);
+  const durationStr = duration ? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}` : "";
+
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <div className="rounded-xl overflow-hidden bg-zinc-900 max-w-[320px]">
+        <video
+          src={videoUrl}
+          poster={thumbnailUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full aspect-[9/16] object-cover bg-black"
+        />
+        <div className="p-3 space-y-2">
+          {(title || durationStr) && (
+            <div className="flex items-center justify-between text-xs text-zinc-400">
+              {title && <span className="truncate">{title}</span>}
+              {durationStr && <span>{durationStr}</span>}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <a
+              href={videoUrl}
+              download
+              target="_blank"
+              rel="noopener"
+              className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors text-center"
+            >
+              Baixar
+            </a>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(videoUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="flex-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {copied ? "Copiado!" : "Compartilhar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const VIDEO_STEPS = [
+  { key: "generating_voice", label: "Gerando narracao" },
+  { key: "syncing_captions", label: "Sincronizando legendas" },
+  { key: "generating_avatar", label: "Criando avatar" },
+  { key: "generating_broll", label: "Gerando cenas B-roll" },
+  { key: "assembling", label: "Montando video" },
+  { key: "encoding", label: "Encodando" },
+  { key: "uploading", label: "Fazendo upload" },
+];
+
+function VideoGeneratingBubble({ currentStep, title }: { currentStep: string; title?: string }) {
+  const currentIdx = VIDEO_STEPS.findIndex(s => s.key === currentStep);
+  const stepLabel = currentIdx >= 0 ? VIDEO_STEPS[currentIdx].label : currentStep;
+  const progress = currentIdx >= 0 ? Math.round(((currentIdx + 1) / VIDEO_STEPS.length) * 100) : 0;
+
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-surface-card border border-line shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 flex-shrink-0">
+              <svg width="32" height="32" viewBox="0 0 32 32" className="animate-spin" style={{ animationDuration: "2.5s" }}>
+                <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="2" className="text-line" />
+                <path d="M16 3a13 13 0 0 1 13 13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-accent" />
+              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-content-2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm text-content font-medium">Gerando video{title ? `: ${title}` : ""}...</span>
+              <span className="text-[11px] text-content-3 animate-pulse">{stepLabel}... ({progress}%)</span>
+            </div>
+          </div>
+          <div className="flex gap-1 mt-3">
+            {VIDEO_STEPS.map((step, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              return (
+                <div key={step.key} className="h-1.5 flex-1 rounded-full bg-line overflow-hidden" title={step.label}>
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      done ? "w-full bg-accent" : active ? "w-full bg-accent/60 animate-pulse" : "w-0 bg-accent/20"
+                    }`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VideoFailedBubble({ error }: { error?: string }) {
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
+      <div className="max-w-[90%]">
+        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-red-500/10 border border-red-500/30 shadow-sm">
+          <div className="flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 flex-shrink-0">
+              <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm text-content font-medium">Erro na geracao do video</span>
+              {error && <span className="text-[11px] text-content-3">{error}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CarouselReadyBubble({ slides }: { slides: Array<{ slide_number: number; style: string; image_url: string }> }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const validSlides = slides.filter(s => s.image_url);
@@ -360,6 +489,40 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
       return <ImageEditingBubble prompt={payload.prompt ?? ""} />;
     } catch {
       return <ImageEditingBubble prompt="" />;
+    }
+  }
+
+  if (msg.text.startsWith(VIDEO_GENERATING_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(VIDEO_GENERATING_PREFIX.length));
+      return <VideoGeneratingBubble currentStep={payload.current_step ?? "generating_voice"} title={payload.title} />;
+    } catch {
+      return <VideoGeneratingBubble currentStep="generating_voice" />;
+    }
+  }
+
+  if (msg.text.startsWith(VIDEO_FAILED_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(VIDEO_FAILED_PREFIX.length));
+      return <VideoFailedBubble error={payload.error} />;
+    } catch {
+      return <VideoFailedBubble />;
+    }
+  }
+
+  if (msg.text.startsWith(VIDEO_READY_PREFIX)) {
+    try {
+      const payload = JSON.parse(msg.text.slice(VIDEO_READY_PREFIX.length));
+      return (
+        <VideoReadyBubble
+          videoUrl={payload.video_url ?? ""}
+          thumbnailUrl={payload.thumbnail_url}
+          title={payload.title}
+          duration={payload.duration}
+        />
+      );
+    } catch {
+      return null;
     }
   }
 
