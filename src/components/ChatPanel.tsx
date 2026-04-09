@@ -277,7 +277,7 @@ const VIDEO_STEPS = [
   { key: "uploading", label: "Fazendo upload" },
 ];
 
-function VideoGeneratingBubble({ currentStep, title }: { currentStep: string; title?: string }) {
+function VideoGeneratingBubble({ currentStep, title, onCancel }: { currentStep: string; title?: string; onCancel?: () => void }) {
   const currentIdx = VIDEO_STEPS.findIndex(s => s.key === currentStep);
   const stepLabel = currentIdx >= 0 ? VIDEO_STEPS[currentIdx].label : currentStep;
   const progress = currentIdx >= 0 ? Math.round(((currentIdx + 1) / VIDEO_STEPS.length) * 100) : 0;
@@ -317,6 +317,14 @@ function VideoGeneratingBubble({ currentStep, title }: { currentStep: string; ti
               );
             })}
           </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="mt-2 text-[11px] text-content-4 hover:text-content-2 transition-colors"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -441,7 +449,7 @@ function SystemNotification({ msg }: { msg: Message }) {
   );
 }
 
-function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?: () => void }) {
+function MessageBubble({ msg, onOpenCheckout, onStop }: { msg: Message; onOpenCheckout?: () => void; onStop?: () => void }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (msg.role === "system") {
@@ -495,9 +503,9 @@ function MessageBubble({ msg, onOpenCheckout }: { msg: Message; onOpenCheckout?:
   if (msg.text.startsWith(VIDEO_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(VIDEO_GENERATING_PREFIX.length));
-      return <VideoGeneratingBubble currentStep={payload.current_step ?? "generating_voice"} title={payload.title} />;
+      return <VideoGeneratingBubble currentStep={payload.current_step ?? "generating_voice"} title={payload.title} onCancel={onStop} />;
     } catch {
-      return <VideoGeneratingBubble currentStep="generating_voice" />;
+      return <VideoGeneratingBubble currentStep="generating_voice" onCancel={onStop} />;
     }
   }
 
@@ -849,8 +857,60 @@ export function ChatPanel({
     }
   };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4",
+        });
+        audioChunksRef.current = [];
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+
+        recorder.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
+          if (blob.size < 1000) return; // Too short, ignore
+
+          // Transcribe
+          try {
+            const token = localStorage.getItem("teq_token") || "";
+            const { transcribeAudio } = await import("../lib/api");
+            const result = await transcribeAudio(token, blob);
+            if (result.text) {
+              // Send as a regular chat message
+              onSend(result.text);
+            }
+          } catch (e: any) {
+            console.error("Transcription failed:", e);
+          }
+        };
+
+        recorder.start(250); // Collect data every 250ms
+        mediaRecorderRef.current = recorder;
+        setIsRecording(true);
+        setRecordingDuration(0);
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingDuration((d) => d + 1);
+        }, 1000);
+      } catch (e: any) {
+        console.error("Microphone access failed:", e);
+      }
+    }
   };
 
   return (
@@ -893,7 +953,7 @@ export function ChatPanel({
             <p className="text-sm italic">O que vamos fazer hoje?</p>
           </div>
         ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} />)
+          messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onOpenCheckout={onOpenCheckout} onStop={onStop} />)
         )}
         
         {statusText && !statusText.includes("Teq") && (
@@ -987,14 +1047,21 @@ export function ChatPanel({
                   <button 
                     type="button"
                     onClick={toggleRecording}
-                    className={`w-8 h-8 flex items-center justify-center transition-colors rounded-full ${isRecording ? "text-surface bg-red-500 animate-pulse" : "text-content-4 hover:text-content"}`}
-                    title="Gravar áudio"
+                    className={`flex items-center justify-center transition-colors rounded-full gap-1.5 ${isRecording ? "text-surface bg-red-500 animate-pulse px-3 h-8" : "text-content-4 hover:text-content w-8 h-8"}`}
+                    title={isRecording ? "Parar gravação" : "Gravar áudio"}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                      <line x1="12" y1="19" x2="12" y2="22"></line>
-                    </svg>
+                    {isRecording ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-white" />
+                        <span className="text-xs font-medium">{recordingDuration}s</span>
+                      </>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="22"></line>
+                      </svg>
+                    )}
                   </button>
                 )}
               </div>

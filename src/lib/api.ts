@@ -272,6 +272,13 @@ export async function cancelCarousel(token: string, carouselId: string) {
   });
 }
 
+export async function cancelVideo(token: string, taskId: string) {
+  return fetchApi(`/video/${taskId}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export async function fetchTasks(token: string, status?: string, limit?: number, offset?: number) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
@@ -529,6 +536,119 @@ export async function uploadStyleReferenceImage(token: string, file: File) {
     let message = "Erro ao fazer upload";
     try { const data = await res.json(); message = data.detail || message; } catch {}
     throw new Error(message);
+  }
+  return res.json();
+}
+
+// ── Avatar Management ──
+
+export async function listAvatars(token: string) {
+  const res = await fetch(`${API_URL}/api/video/avatars`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao listar avatares");
+  return res.json();
+}
+
+export async function getActiveAvatar(token: string) {
+  const res = await fetch(`${API_URL}/api/video/avatar`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Erro ao buscar avatar");
+  return res.json();
+}
+
+export async function createAvatar(token: string, files: File[], label?: string) {
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  if (label) form.append("label", label);
+  const res = await fetch(`${API_URL}/api/video/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Erro ao criar avatar");
+  }
+  return res.json();
+}
+
+export async function activateAvatar(token: string, avatarId: string) {
+  const res = await fetch(`${API_URL}/api/video/avatar/${avatarId}/activate`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao ativar avatar");
+  return res.json();
+}
+
+export async function deleteAvatar(token: string, avatarId: string) {
+  const res = await fetch(`${API_URL}/api/video/avatar/${avatarId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao deletar avatar");
+  return res.json();
+}
+
+export async function addVoiceToAvatar(token: string, avatarId: string, audioFile: File, voiceName?: string) {
+  const form = new FormData();
+  form.append("file", audioFile);
+  const url = `${API_URL}/api/video/avatar/${avatarId}/voice${voiceName ? `?voice_name=${encodeURIComponent(voiceName)}` : ""}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Erro ao clonar voz");
+  }
+  return res.json();
+}
+
+export async function removeVoiceFromAvatar(token: string, avatarId: string) {
+  const res = await fetch(`${API_URL}/api/video/avatar/${avatarId}/voice`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao remover voz");
+  return res.json();
+}
+
+// ── Queue Status ──
+
+export async function getQueueActive(token: string) {
+  const res = await fetch(`${API_URL}/api/video/queue/active`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao buscar fila");
+  return res.json();
+}
+
+export async function getQueueHistory(token: string, limit = 20) {
+  const res = await fetch(`${API_URL}/api/video/queue/history?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Erro ao buscar histórico");
+  return res.json();
+}
+
+// ── Audio Transcription ──
+
+export async function transcribeAudio(token: string, audioBlob: Blob) {
+  const form = new FormData();
+  form.append("file", audioBlob, "recording.webm");
+  const res = await fetch(`${API_URL}/api/video/audio/transcribe`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Erro na transcrição");
   }
   return res.json();
 }

@@ -4,9 +4,11 @@ import { RemindersPanel } from "./RemindersPanel";
 import { ImagesPanel } from "./ImagesPanel";
 import { SocialPanel } from "./SocialPanel";
 import { ContentCalendarPanel } from "./ContentCalendarPanel";
+import AvatarManager from "./AvatarManager";
+import QueuePanel from "./QueuePanel";
 import { GlassCard } from "./GlassCard";
 
-type Section = "tasks" | "reminders" | "images" | "social" | "calendar";
+type Section = "tasks" | "reminders" | "images" | "social" | "calendar" | "avatars" | "queue";
 
 const TABS: { key: Section; label: string; icon: React.ReactNode }[] = [
   {
@@ -63,6 +65,30 @@ const TABS: { key: Section; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    key: "avatars",
+    label: "Avatares",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
+    key: "queue",
+    label: "Fila",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6" />
+        <line x1="8" y1="12" x2="21" y2="12" />
+        <line x1="8" y1="18" x2="21" y2="18" />
+        <line x1="3" y1="6" x2="3.01" y2="6" />
+        <line x1="3" y1="12" x2="3.01" y2="12" />
+        <line x1="3" y1="18" x2="3.01" y2="18" />
+      </svg>
+    ),
+  },
 ];
 
 export function Sidebar({ token }: { token: string }) {
@@ -105,6 +131,12 @@ export function Sidebar({ token }: { token: string }) {
         )}
         {active === "calendar" && (
           <ContentCalendarPanel token={token} isMinimized={false} onToggleMinimize={() => {}} />
+        )}
+        {active === "avatars" && (
+          <AvatarManager token={token} />
+        )}
+        {active === "queue" && (
+          <QueuePanel token={token} />
         )}
       </GlassCard>
     </div>

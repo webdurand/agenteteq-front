@@ -293,7 +293,8 @@ export function useChat(token: string | null) {
     const current = messagesRef.current;
     const hasGenerating = current.some((m) => m.text.startsWith("__CAROUSEL_GENERATING__"));
     const hasEditing = current.some((m) => m.text.startsWith("__IMAGE_EDITING__"));
-    if (!hasGenerating && !hasEditing) return;
+    const hasVideoGenerating = current.some((m) => m.text.startsWith("__VIDEO_GENERATING__"));
+    if (!hasGenerating && !hasEditing && !hasVideoGenerating) return;
 
     try {
       const res = await fetchWithAuth("/api/chat/history?limit=10", { token });
@@ -330,6 +331,17 @@ export function useChat(token: string | null) {
               return { ...m, text: match.text };
             }
           }
+          if (m.text.startsWith("__VIDEO_GENERATING__")) {
+            // Look for a READY or FAILED message in DB for this video
+            const match = dbMessages.find(
+              (db) =>
+                db.text.startsWith("__VIDEO_READY__") || db.text.startsWith("__VIDEO_FAILED__")
+            );
+            if (match) {
+              changed = true;
+              return { ...m, text: match.text };
+            }
+          }
           return m;
         });
         return changed ? updated : prev;
@@ -342,7 +354,7 @@ export function useChat(token: string | null) {
   // Start/stop polling when generating/editing placeholders exist
   useEffect(() => {
     const hasPlaceholder = messages.some(
-      (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__")
+      (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__") || m.text.startsWith("__VIDEO_GENERATING__")
     );
 
     if (hasPlaceholder && !pollRef.current) {
@@ -374,7 +386,7 @@ export function useChat(token: string | null) {
     wsClient.send(JSON.stringify({ type: "cancel" }));
     setStatusText("");
 
-    // Also cancel any active carousel generation via REST
+    // Also cancel any active carousel/video generation via REST
     const current = messagesRef.current;
     for (const m of current) {
       if (m.text.startsWith("__CAROUSEL_GENERATING__")) {
@@ -384,6 +396,16 @@ export function useChat(token: string | null) {
           if (cid && token) {
             const { cancelCarousel } = await import("../lib/api");
             cancelCarousel(token, cid).catch(() => {});
+          }
+        } catch { /* ignore */ }
+      }
+      if (m.text.startsWith("__VIDEO_GENERATING__")) {
+        try {
+          const payload = JSON.parse(m.text.slice("__VIDEO_GENERATING__".length));
+          const tid = payload.task_id;
+          if (tid && token) {
+            const { cancelVideo } = await import("../lib/api");
+            cancelVideo(token, tid).catch(() => {});
           }
         } catch { /* ignore */ }
       }
