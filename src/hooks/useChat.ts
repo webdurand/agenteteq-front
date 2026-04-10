@@ -412,19 +412,25 @@ export function useChat(token: string | null) {
     }
   }, [token]);
 
-  const sendMessageText = useCallback((text: string, images?: string[]) => {
+  const sendMessageText = useCallback((text: string, images?: string[], videos?: string[]) => {
     const messageParts = [text];
     if (images && images.length > 0) {
       images.forEach((img) => messageParts.push(img));
     }
+    if (videos && videos.length > 0) {
+      messageParts.push(`[${videos.length} video(s) anexado(s)]`);
+    }
     const displayMessage = messageParts.filter(Boolean).join("\n");
 
-    addMessage("user", displayMessage || "[Imagem anexada]");
+    addMessage("user", displayMessage || "[Arquivo anexado]");
     setStatusText("Pensando...");
 
     const payload: any = { type: "user_message", text, mode: "text" };
     if (images && images.length > 0) {
       payload.images = images;
+    }
+    if (videos && videos.length > 0) {
+      payload.videos = videos;
     }
     wsClient.send(JSON.stringify(payload));
   }, [addMessage]);

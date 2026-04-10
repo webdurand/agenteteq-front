@@ -7,7 +7,7 @@ import { ImageGalleryModal } from "./ImageGalleryModal";
 
 interface ChatPanelProps {
   messages: Message[];
-  onSendMessage: (text: string, images?: string[]) => void;
+  onSendMessage: (text: string, images?: string[], videos?: string[]) => void;
   statusText: string;
   className?: string;
   onLoadMore?: () => void;
@@ -723,10 +723,12 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [pendingVideos, setPendingVideos] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [isRecording, setIsRecording] = useState(false);
   const lastSentRef = useRef(0);
   const SEND_COOLDOWN_MS = 1500;
@@ -761,13 +763,18 @@ export function ChatPanel({
   }, [text]);
 
   const handleSubmit = () => {
-    if (isProcessing) return;
+    if (isProcessing || videoUploading) return;
     if (Date.now() - lastSentRef.current < SEND_COOLDOWN_MS) return;
-    if (!text.trim() && pendingImages.length === 0) return;
+    if (!text.trim() && pendingImages.length === 0 && pendingVideos.length === 0) return;
     lastSentRef.current = Date.now();
-    onSendMessage(text.trim(), pendingImages.length > 0 ? pendingImages : undefined);
+    onSendMessage(
+      text.trim(),
+      pendingImages.length > 0 ? pendingImages : undefined,
+      pendingVideos.length > 0 ? pendingVideos : undefined,
+    );
     setText("");
     setPendingImages([]);
+    setPendingVideos([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
 
@@ -778,18 +785,79 @@ export function ChatPanel({
     }
   };
 
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState("");
+
+  const handleVideoFile = async (file: File) => {
+    if (file.size > 500 * 1024 * 1024) {
+      alert("Vídeo muito grande. Máximo: 500MB.");
+      return;
+    }
+
+    const sizeMB = (file.size / 1024 / 1024).toFixed(0);
+    setVideoUploading(true);
+    setVideoUploadProgress(`Subindo vídeo (${sizeMB}MB)...`);
+
+    try {
+      const token = localStorage.getItem("teq_token") || "";
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const xhr = new XMLHttpRequest();
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+      const uploadPromise = new Promise<string>((resolve, reject) => {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            setVideoUploadProgress(`Subindo vídeo (${sizeMB}MB)... ${pct}%`);
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data.url);
+          } else {
+            reject(new Error(`Upload falhou: ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Erro de rede no upload"));
+        xhr.open("POST", `${baseUrl}/api/video/upload`);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.send(formData);
+      });
+
+      const videoUrl = await uploadPromise;
+      setPendingVideos(current => [...current, videoUrl]);
+      setVideoUploadProgress("");
+    } catch (err: any) {
+      alert(`Erro no upload do vídeo: ${err.message}`);
+      setVideoUploadProgress("");
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
   const processFiles = (files: File[]) => {
+    // Separate videos from images
+    const videoFiles = files.filter(f => f.type.startsWith("video/"));
+    const imageFiles = files.filter(f => !f.type.startsWith("video/"));
+
+    // Process videos
+    videoFiles.forEach(handleVideoFile);
+
+    // Process images
     const available = 10 - pendingImages.length;
-    if (available <= 0) {
+    if (available <= 0 && imageFiles.length > 0) {
       alert("Máximo de 10 imagens permitidas.");
       return;
     }
-    
-    const filesToProcess = files.slice(0, available);
-    if (files.length > available) {
+
+    const filesToProcess = imageFiles.slice(0, available);
+    if (imageFiles.length > available) {
       alert(`Apenas ${available} imagem(ns) adicionada(s). Limite de 10 atingido.`);
     }
-    
+
     filesToProcess.forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -965,23 +1033,51 @@ export function ChatPanel({
 
       <div className="flex-shrink-0 p-4 border-t border-line bg-surface/30 backdrop-blur-md">
         <div className="relative max-w-4xl mx-auto w-full">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept="image/*"
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*,video/mp4,video/quicktime,video/webm"
             multiple
           />
 
           <div className="relative flex flex-col bg-surface border border-line rounded-2xl shadow-inner overflow-hidden focus-within:border-content transition-all">
-            {pendingImages.length > 0 && (
+            {videoUploading && (
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-line bg-blue-500/10 text-sm text-blue-400">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {videoUploadProgress}
+              </div>
+            )}
+            {(pendingImages.length > 0 || pendingVideos.length > 0) && (
               <div className="flex flex-wrap items-center gap-3 p-3 border-b border-line bg-surface-card max-h-40 overflow-y-auto scrollbar-thin">
                 {pendingImages.map((img, i) => (
-                  <div key={i} className="relative group flex-shrink-0">
+                  <div key={`img-${i}`} className="relative group flex-shrink-0">
                     <img src={img} alt="Preview" className="w-16 h-16 object-contain bg-black/5 rounded-xl shadow-sm border border-line" />
-                    <button 
+                    <button
                       onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-2 -right-2 bg-content text-surface rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                {pendingVideos.map((_, i) => (
+                  <div key={`vid-${i}`} className="relative group flex-shrink-0">
+                    <div className="w-16 h-16 flex items-center justify-center bg-black/10 rounded-xl shadow-sm border border-line">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-content/60">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                    </div>
+                    <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[9px] text-center text-content/70 bg-surface/80 rounded-b-lg">MP4</span>
+                    <button
+                      onClick={() => setPendingVideos(prev => prev.filter((_, idx) => idx !== i))}
                       className="absolute -top-2 -right-2 bg-content text-surface rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
