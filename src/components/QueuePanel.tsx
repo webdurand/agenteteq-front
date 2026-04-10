@@ -30,14 +30,15 @@ async function cancelTask(token: string, taskId: string) {
 }
 
 const STEP_LABELS: Record<string, string> = {
-  generating_voice: "Gerando narração",
+  generating_voice: "Gerando voz (ElevenLabs)",
   syncing_captions: "Sincronizando legendas",
   generating_avatar: "Gerando avatar",
-  generating_scenes: "Gerando cenas realistas",
+  generating_scenes: "Gerando vídeo (HeyGen)",
   generating_broll: "Gerando B-roll",
   assembling: "Montando vídeo",
   encoding: "Encodando",
   uploading: "Fazendo upload",
+  processing: "Processando (HeyGen)",
   done: "Concluído",
   failed: "Falhou",
 };
@@ -45,8 +46,8 @@ const STEP_LABELS: Record<string, string> = {
 const STEP_ORDER = [
   "generating_voice",
   "syncing_captions",
-  "generating_avatar",
   "generating_scenes",
+  "generating_avatar",
   "generating_broll",
   "assembling",
   "encoding",
@@ -54,6 +55,8 @@ const STEP_ORDER = [
 ];
 
 function getStepProgress(step: string): number {
+  if (step === "done") return 100;
+  if (step === "processing") return 50;
   const idx = STEP_ORDER.indexOf(step);
   if (idx === -1) return 0;
   return Math.round(((idx + 1) / STEP_ORDER.length) * 100);
@@ -183,32 +186,35 @@ function TaskCard({ task, token, onCancel }: { task: Task; token: string; onCanc
 
   return (
     <div className="p-4 rounded-xl border border-line bg-surface-card">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <span className="text-sm font-medium text-content">
+      {/* Row 1: Title + Cancel */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-content truncate">
             {task.title || task.type}
           </span>
-          <span className="text-xs text-content-3 ml-2">
+          <span className="text-xs text-content-3 shrink-0">
             {task.task_id.slice(0, 8)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={task.status} />
-          <button
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="text-xs px-2 py-1 rounded-lg border border-line text-content-3 hover:border-red-500 hover:text-red-400 transition disabled:opacity-50"
-            title="Cancelar"
-          >
-            {cancelling ? "..." : "Cancelar"}
-          </button>
-        </div>
+        <button
+          onClick={handleCancel}
+          disabled={cancelling}
+          className="text-xs px-2 py-1 rounded-lg border border-line text-content-3 hover:border-red-500 hover:text-red-400 transition disabled:opacity-50 shrink-0 ml-2"
+          title="Cancelar"
+        >
+          {cancelling ? "..." : "Cancelar"}
+        </button>
+      </div>
+
+      {/* Row 2: Badge + Step label */}
+      <div className="flex items-center gap-2 mb-2">
+        <StatusBadge status={task.status} />
+        <span className="text-xs text-content-3">{label}</span>
       </div>
 
       {/* Progress bar */}
-      <div className="mb-2">
+      <div className="mb-1">
         <div className="flex justify-between text-xs text-content-3 mb-1">
-          <span>{label}</span>
           <span>{progress}%</span>
         </div>
         <div className="w-full h-1.5 rounded-full bg-surface overflow-hidden">

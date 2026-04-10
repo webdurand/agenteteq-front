@@ -159,6 +159,27 @@ export function useChat(token: string | null) {
           break;
         }
 
+        case "video_ready": {
+          const readyPayload = JSON.stringify({
+            video_url: msg.video_url ?? "",
+            thumbnail_url: msg.thumbnail_url ?? "",
+            title: msg.title ?? "",
+            duration: msg.duration ?? 0,
+          });
+          const videoReadyText = `__VIDEO_READY__${readyPayload}`;
+          setMessages((prev) => {
+            // Replace __VIDEO_GENERATING__ message if exists
+            const genIdx = prev.findIndex((m) => m.text.startsWith("__VIDEO_GENERATING__"));
+            if (genIdx >= 0) {
+              const updated = [...prev];
+              updated[genIdx] = { ...updated[genIdx], text: videoReadyText };
+              return updated;
+            }
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: videoReadyText, timestamp: new Date() }];
+          });
+          break;
+        }
+
         case "image_editing": {
           suppressNextResponseRef.current = true;
           const editPrompt = msg.prompt ?? "";
