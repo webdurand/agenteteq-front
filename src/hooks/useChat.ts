@@ -168,6 +168,10 @@ export function useChat(token: string | null) {
           });
           const videoReadyText = `__VIDEO_READY__${readyPayload}`;
           setMessages((prev) => {
+            // Skip if already have a VIDEO_READY with this URL (avoid duplicates)
+            if (prev.some((m) => m.text.startsWith("__VIDEO_READY__") && m.text.includes(msg.video_url ?? ""))) {
+              return prev;
+            }
             // Replace __VIDEO_GENERATING__ message if exists
             const genIdx = prev.findIndex((m) => m.text.startsWith("__VIDEO_GENERATING__"));
             if (genIdx >= 0) {

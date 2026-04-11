@@ -268,6 +268,7 @@ function VideoReadyBubble({ videoUrl, thumbnailUrl, title, duration }: { videoUr
 }
 
 const VIDEO_STEPS = [
+  { key: "generating_scenes", label: "Gerando cenas" },
   { key: "generating_voice", label: "Gerando narracao" },
   { key: "syncing_captions", label: "Sincronizando legendas" },
   { key: "generating_avatar", label: "Criando avatar" },
@@ -277,9 +278,9 @@ const VIDEO_STEPS = [
   { key: "uploading", label: "Fazendo upload" },
 ];
 
-function VideoGeneratingBubble({ currentStep, title, onCancel }: { currentStep: string; title?: string; onCancel?: () => void }) {
+function VideoGeneratingBubble({ currentStep, stepDetail, title, onCancel }: { currentStep: string; stepDetail?: string; title?: string; onCancel?: () => void }) {
   const currentIdx = VIDEO_STEPS.findIndex(s => s.key === currentStep);
-  const stepLabel = currentIdx >= 0 ? VIDEO_STEPS[currentIdx].label : currentStep;
+  const stepLabel = stepDetail || (currentIdx >= 0 ? VIDEO_STEPS[currentIdx].label : currentStep);
   const progress = currentIdx >= 0 ? Math.round(((currentIdx + 1) / VIDEO_STEPS.length) * 100) : 0;
 
   return (
@@ -503,7 +504,7 @@ function MessageBubble({ msg, onOpenCheckout, onStop }: { msg: Message; onOpenCh
   if (msg.text.startsWith(VIDEO_GENERATING_PREFIX)) {
     try {
       const payload = JSON.parse(msg.text.slice(VIDEO_GENERATING_PREFIX.length));
-      return <VideoGeneratingBubble currentStep={payload.current_step ?? "generating_voice"} title={payload.title} onCancel={onStop} />;
+      return <VideoGeneratingBubble currentStep={payload.current_step ?? "generating_scenes"} stepDetail={payload.step_detail} title={payload.title} onCancel={onStop} />;
     } catch {
       return <VideoGeneratingBubble currentStep="generating_voice" onCancel={onStop} />;
     }

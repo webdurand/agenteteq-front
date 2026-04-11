@@ -30,23 +30,23 @@ async function cancelTask(token: string, taskId: string) {
 }
 
 const STEP_LABELS: Record<string, string> = {
-  generating_voice: "Gerando voz (ElevenLabs)",
+  generating_scenes: "Gerando video (HeyGen)",
+  generating_voice: "Gerando voz",
   syncing_captions: "Sincronizando legendas",
   generating_avatar: "Gerando avatar",
-  generating_scenes: "Gerando vídeo (HeyGen)",
   generating_broll: "Gerando B-roll",
-  assembling: "Montando vídeo",
+  assembling: "Montando video",
   encoding: "Encodando",
   uploading: "Fazendo upload",
-  processing: "Processando (HeyGen)",
-  done: "Concluído",
+  processing: "Processando",
+  done: "Concluido",
   failed: "Falhou",
 };
 
 const STEP_ORDER = [
+  "generating_scenes",
   "generating_voice",
   "syncing_captions",
-  "generating_scenes",
   "generating_avatar",
   "generating_broll",
   "assembling",

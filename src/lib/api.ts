@@ -273,7 +273,7 @@ export async function cancelCarousel(token: string, carouselId: string) {
 }
 
 export async function cancelVideo(token: string, taskId: string) {
-  return fetchApi(`/video/${taskId}/cancel`, {
+  return fetchApi(`/api/video/${taskId}/cancel`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
