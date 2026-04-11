@@ -21,8 +21,10 @@ export function LoginForm({ auth }: LoginFormProps) {
 
   const renderGoogleButton = useCallback(() => {
     if (!window.google || !googleContainerRef.current) return;
-    
-    googleContainerRef.current.innerHTML = "";
+
+    while (googleContainerRef.current.firstChild) {
+      googleContainerRef.current.removeChild(googleContainerRef.current.firstChild);
+    }
 
     window.google.accounts.id.initialize({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
@@ -109,10 +111,20 @@ export function LoginForm({ auth }: LoginFormProps) {
           />
         </div>
 
+        <div className="flex justify-end -mt-2">
+          <button
+            type="button"
+            onClick={() => auth.setScreen("forgot_password")}
+            className="text-content-4 hover:text-content-3 text-xs transition-colors"
+          >
+            Esqueceu a senha?
+          </button>
+        </div>
+
         <button
           type="submit"
           disabled={auth.loading}
-          className="mt-4 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+          className="mt-2 w-full py-3 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {auth.loading && <Spinner size="sm" colorClass="border-surface/30 border-t-surface" />}
           {auth.loading ? "Aguarde..." : "Entrar"}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isSafeUrl } from "../lib/formatters";
 
 export function PDFViewerModal({ url, title, carouselId, onClose, onDelete }: {
   url: string;
@@ -49,12 +50,18 @@ export function PDFViewerModal({ url, title, carouselId, onClose, onDelete }: {
         </div>
 
         {/* PDF Viewer */}
-        <iframe
-          src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
-          className="flex-1 w-full border-0"
-          style={{ minHeight: "70vh" }}
-          title={title || "PDF"}
-        />
+        {isSafeUrl(url) ? (
+          <iframe
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+            className="flex-1 w-full border-0"
+            style={{ minHeight: "70vh" }}
+            title={title || "PDF"}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-8 text-content-3 text-sm">
+            URL inválida para visualização.
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-line bg-surface-card">

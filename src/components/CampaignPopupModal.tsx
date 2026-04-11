@@ -1,3 +1,5 @@
+import { isSafeUrl } from "../lib/formatters";
+
 interface CampaignPopup {
   id: number;
   title: string;
@@ -35,14 +37,22 @@ export function CampaignPopupModal({
       onOpenAccount();
       return;
     }
-    if (action === "external_url" && campaign.cta_url) {
+    if (action === "external_url" && campaign.cta_url && isSafeUrl(campaign.cta_url)) {
       window.open(campaign.cta_url, "_blank", "noopener,noreferrer");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[75] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative w-full max-w-xl rounded-3xl bg-surface-up border border-line shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[75] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={campaign.title}
+        tabIndex={-1}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl rounded-3xl bg-surface-up border border-line shadow-2xl overflow-hidden outline-none"
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-surface/70 backdrop-blur-md border border-line text-content-2 hover:text-content"

@@ -113,6 +113,10 @@ export function IntegrationsTab({ token }: IntegrationsTabProps) {
 
     const handler = async (event: MessageEvent) => {
       if (!event.data || event.data.type !== "slack_oauth") return;
+
+      const allowedOrigin = new URL(apiUrl).origin;
+      if (event.origin !== allowedOrigin) return;
+
       window.removeEventListener("message", handler);
 
       if (event.data.error) {

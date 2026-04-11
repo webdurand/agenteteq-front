@@ -260,6 +260,63 @@ export function useChat(token: string | null) {
           break;
         }
 
+        case "video_generating": {
+          suppressNextResponseRef.current = true;
+          const placeholderId = `video_gen_${msg.task_id || Date.now()}`;
+          const placeholderText = `__VIDEO_GENERATING__${JSON.stringify({
+            current_step: msg.current_step ?? "generating_scenes",
+            title: msg.title ?? "",
+            task_id: msg.task_id ?? "",
+          })}`;
+          setMessages((prev) => {
+            if (prev.some((m) => m.text.startsWith("__VIDEO_GENERATING__"))) {
+              // Update existing placeholder
+              return prev.map((m) =>
+                m.text.startsWith("__VIDEO_GENERATING__")
+                  ? { ...m, text: placeholderText }
+                  : m
+              );
+            }
+            return [...prev, { id: placeholderId, role: "agent", text: placeholderText, timestamp: new Date() }];
+          });
+          break;
+        }
+
+        case "video_ready": {
+          const readyText = `__VIDEO_READY__${JSON.stringify({
+            video_url: msg.video_url ?? "",
+            thumbnail_url: msg.thumbnail_url ?? "",
+            title: msg.title ?? "",
+            duration: msg.duration ?? 0,
+          })}`;
+          setMessages((prev) => {
+            const genIdx = prev.findIndex((m) => m.text.startsWith("__VIDEO_GENERATING__"));
+            if (genIdx >= 0) {
+              const updated = [...prev];
+              updated[genIdx] = { ...updated[genIdx], text: readyText };
+              return updated;
+            }
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: readyText, timestamp: new Date() }];
+          });
+          break;
+        }
+
+        case "video_failed": {
+          const failedText = `__VIDEO_FAILED__${JSON.stringify({
+            error: msg.error ?? msg.message ?? "Erro na geração do vídeo",
+          })}`;
+          setMessages((prev) => {
+            const genIdx = prev.findIndex((m) => m.text.startsWith("__VIDEO_GENERATING__"));
+            if (genIdx >= 0) {
+              const updated = [...prev];
+              updated[genIdx] = { ...updated[genIdx], text: failedText };
+              return updated;
+            }
+            return [...prev, { id: crypto.randomUUID(), role: "agent", text: failedText, timestamp: new Date() }];
+          });
+          break;
+        }
+
         case "action_log": {
           const channel = msg.channel || "unknown";
           if (channel === "web" || channel === "web_text") {
@@ -293,7 +350,8 @@ export function useChat(token: string | null) {
     const current = messagesRef.current;
     const hasGenerating = current.some((m) => m.text.startsWith("__CAROUSEL_GENERATING__"));
     const hasEditing = current.some((m) => m.text.startsWith("__IMAGE_EDITING__"));
-    if (!hasGenerating && !hasEditing) return;
+    const hasVideoGenerating = current.some((m) => m.text.startsWith("__VIDEO_GENERATING__"));
+    if (!hasGenerating && !hasEditing && !hasVideoGenerating) return;
 
     try {
       const res = await fetchWithAuth("/api/chat/history?limit=10", { token });
@@ -330,6 +388,15 @@ export function useChat(token: string | null) {
               return { ...m, text: match.text };
             }
           }
+          if (m.text.startsWith("__VIDEO_GENERATING__")) {
+            const match = dbMessages.find(
+              (db) => db.text.startsWith("__VIDEO_READY__") || db.text.startsWith("__VIDEO_FAILED__")
+            );
+            if (match) {
+              changed = true;
+              return { ...m, text: match.text };
+            }
+          }
           return m;
         });
         return changed ? updated : prev;
@@ -342,7 +409,7 @@ export function useChat(token: string | null) {
   // Start/stop polling when generating/editing placeholders exist
   useEffect(() => {
     const hasPlaceholder = messages.some(
-      (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__")
+      (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__") || m.text.startsWith("__VIDEO_GENERATING__")
     );
 
     if (hasPlaceholder && !pollRef.current) {
@@ -367,7 +434,7 @@ export function useChat(token: string | null) {
   }, []);
 
   const hasActiveGeneration = messages.some(
-    (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__")
+    (m) => m.text.startsWith("__CAROUSEL_GENERATING__") || m.text.startsWith("__IMAGE_EDITING__") || m.text.startsWith("__VIDEO_GENERATING__")
   );
 
   const stopGeneration = useCallback(async () => {
@@ -405,6 +472,19 @@ export function useChat(token: string | null) {
       payload.images = images;
     }
     wsClient.send(JSON.stringify(payload));
+
+    // Timeout: se não receber resposta em 45s, mostrar erro
+    const timeoutId = setTimeout(() => {
+      setStatusText("");
+      addMessage("system", "Desculpa, demorei demais para responder. Tente enviar sua mensagem novamente.");
+      cleanup();
+    }, 45000);
+    const cleanup = wsClient.on("message", (msg: any) => {
+      if (msg.type === "response" || msg.type === "error" || msg.type === "limit_reached") {
+        clearTimeout(timeoutId);
+        cleanup();
+      }
+    });
   }, [addMessage]);
 
   return {

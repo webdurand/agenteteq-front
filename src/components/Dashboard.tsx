@@ -5,7 +5,8 @@ import { Sidebar } from "./Sidebar";
 import { ChatPanel } from "./ChatPanel";
 import { BlogPreviewModal } from "./BlogPreviewModal";
 import { OnboardingModal } from "./OnboardingModal";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useWSEvent } from "../hooks/useWebSocket";
 import { SubscriptionStatus } from "./SubscriptionStatus";
 import { SubscriptionBanner } from "./SubscriptionBanner";
 import { AccountSettingsModal } from "./AccountSettingsModal";
@@ -16,6 +17,8 @@ import * as api from "../lib/api";
 import { ProductOnboardingModal } from "./ProductOnboardingModal";
 import { useProductTourPreferences } from "../hooks/useProductTourPreferences";
 import { CampaignPopupModal } from "./CampaignPopupModal";
+import { LimitsDropdown } from "./LimitsDropdown";
+import type { LimitsData } from "./LimitsDropdown";
 
 interface DashboardProps {
   token: string;
@@ -34,23 +37,7 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
   const [productOnboardingOpen, setProductOnboardingOpen] = useState(false);
   const [showLimitsHighlight, setShowLimitsHighlight] = useState(false);
   const [limitsExpanded, setLimitsExpanded] = useState(false);
-  const [limits, setLimits] = useState<{
-    plan_name: string;
-    plan_code: string;
-    resets_at: string | null;
-    monthly_resets_at?: string | null;
-    features: Record<string, {
-      enabled: boolean;
-      limit?: number;
-      used?: number;
-      remaining?: number;
-      label: string;
-      unit?: string;
-      unlimited?: boolean;
-      period?: string;
-      budget_exceeded?: boolean;
-    }>;
-  } | null>(null);
+  const [limits, setLimits] = useState<LimitsData | null>(null);
   const [campaign, setCampaign] = useState<any | null>(null);
   const [campaignOpen, setCampaignOpen] = useState(false);
 
@@ -99,21 +86,18 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
     return `${Math.round(pct)}% usado`;
   })();
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchLimits = useCallback(() => {
     api.getUsageLimits(token)
-      .then((data) => {
-        if (!mounted) return;
-        setLimits(data);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setLimits(null);
-      });
-    return () => {
-      mounted = false;
-    };
+      .then(setLimits)
+      .catch(() => setLimits(null));
   }, [token]);
+
+  useEffect(() => {
+    fetchLimits();
+  }, [fetchLimits, user]);
+
+  // Refresh limites quando o agente responde (budget pode ter mudado)
+  useWSEvent("response", fetchLimits);
 
   useEffect(() => {
     if (needsOnboarding) return;
@@ -219,95 +203,25 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             <SubscriptionStatus status={user.subscription_status || 'unknown'} trialEnd={user.trial_end || null} planActive={user.plan_active} hasStripeSubscription={user.has_stripe_subscription} onSubscribeClick={() => openCheckout()} />
             {/* Desktop limits inline */}
             {limits && (
-              <div className="hidden lg:block relative">
-                <button
-                  onClick={() => setLimitsExpanded((prev) => !prev)}
-                  className={`px-2.5 py-1 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
-                    showLimitsHighlight
-                      ? "border-accent text-accent bg-accent/10"
-                      : limitsHeaderLabel.startsWith("\u26A0")
-                        ? "border-amber-500/50 text-amber-400 bg-amber-500/10"
-                        : "border-line text-content-3 hover:text-content"
-                  }`}
-                >
-                  <span>{limitsHeaderLabel}</span>
-                  <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
-                </button>
-
-                {limitsExpanded && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setLimitsExpanded(false)} />
-                    <div className="absolute top-full left-0 mt-2 w-72 rounded-2xl border border-line bg-surface-up shadow-xl p-3 z-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
-                        <p className="text-xs text-content">{limits.plan_name || "Free"}</p>
-                      </div>
-                      <div className="flex flex-col gap-2.5">
-                        {Object.entries(limits.features).map(([key, f]) => {
-                          if (!f.enabled) {
-                            return (
-                              <div key={key} className="flex items-center justify-between">
-                                <span className="text-[11px] text-content-3">{f.label}</span>
-                                <span className="text-[10px] text-content-4 flex items-center gap-1">
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-content-4"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                                  Pro
-                                </span>
-                              </div>
-                            );
-                          }
-                          if (f.unlimited) {
-                            return (
-                              <div key={key} className="flex items-center justify-between">
-                                <span className="text-[11px] text-content-2">{f.label}</span>
-                                <span className="text-[10px] text-accent">Ilimitado</span>
-                              </div>
-                            );
-                          }
-                          if (typeof f.limit !== "number" || f.limit <= 0) return null;
-                          const pct = Math.min(100, Math.round(((f.used ?? 0) / f.limit) * 100));
-                          const exhausted = (f.remaining ?? 0) <= 0;
-                          return (
-                            <div key={key} className="flex flex-col gap-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[11px] text-content-2">{f.label}</span>
-                                <span className={`text-[10px] ${exhausted ? "text-amber-400" : "text-content-3"}`}>
-                                  {key === "budget" ? `${Math.round(f.used ?? 0)}%` : `${f.used}${f.unit || ""}/${f.limit}${f.unit || ""}`}
-                                </span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-surface border border-line overflow-hidden">
-                                <div className={`h-full transition-all ${exhausted ? "bg-amber-500" : "bg-accent"}`} style={{ width: `${pct}%` }} />
-                              </div>
-                              {exhausted && (
-                                <p className="text-[10px] text-amber-400">
-                                  Limite mensal encerrou!
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-3">
-                        {limits.monthly_resets_at && <p className="text-[10px] text-content-4">Reseta em: {new Date(limits.monthly_resets_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}</p>}
-                      </div>
-                      {limits.plan_code === "free" && (
-                        <button
-                          onClick={() => { setLimitsExpanded(false); openCheckout(); }}
-                          className="mt-2.5 w-full px-3 py-2 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
-                        >
-                          Ganhar mais limites
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <LimitsDropdown
+                limits={limits}
+                limitsHeaderLabel={limitsHeaderLabel}
+                expanded={limitsExpanded}
+                onToggle={() => setLimitsExpanded((prev) => !prev)}
+                onClose={() => setLimitsExpanded(false)}
+                showHighlight={showLimitsHighlight}
+                onUpgrade={() => openCheckout()}
+                variant="desktop"
+              />
             )}
           </div>
           
           {/* Mobile Menu Toggle */}
           <div className="lg:hidden relative flex-shrink-0">
-            <button 
+            <button
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Abrir menu"
+              aria-expanded={menuOpen}
               className="w-9 h-9 rounded-full flex items-center justify-center bg-surface border border-line text-content-3 hover:text-content"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -378,86 +292,16 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
 
         {/* Limits bar - segunda linha no mobile */}
         {limits && (
-          <div className="mt-2 lg:mt-0 lg:hidden relative">
-            <button
-              onClick={() => setLimitsExpanded((prev) => !prev)}
-              className={`px-2.5 py-1.5 rounded-full border text-[10px] tracking-wider uppercase transition-colors flex items-center gap-1.5 ${
-                showLimitsHighlight
-                  ? "border-accent text-accent bg-accent/10"
-                  : limitsHeaderLabel.startsWith("\u26A0")
-                    ? "border-amber-500/50 text-amber-400 bg-amber-500/10"
-                    : "border-line text-content-3 hover:text-content"
-              }`}
-            >
-              <span>{limitsHeaderLabel}</span>
-              <span className={`transition-transform ${limitsExpanded ? "rotate-180" : ""}`}>▾</span>
-            </button>
-
-            {limitsExpanded && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setLimitsExpanded(false)} />
-                <div className="absolute top-full left-0 mt-2 w-[calc(100vw-1.5rem)] max-w-xs rounded-2xl border border-line bg-surface-up shadow-xl p-4 z-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] uppercase tracking-wider text-content-3">Plano atual</p>
-                    <p className="text-xs text-content">{limits.plan_name || "Free"}</p>
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    {Object.entries(limits.features).map(([key, f]) => {
-                      if (!f.enabled) {
-                        return (
-                          <div key={key} className="flex items-center justify-between">
-                            <span className="text-[11px] text-content-3">{f.label}</span>
-                            <span className="text-[10px] text-content-4 flex items-center gap-1">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-content-4"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                              Pro
-                            </span>
-                          </div>
-                        );
-                      }
-                      if (f.unlimited) {
-                        return (
-                          <div key={key} className="flex items-center justify-between">
-                            <span className="text-[11px] text-content-2">{f.label}</span>
-                            <span className="text-[10px] text-accent">Ilimitado</span>
-                          </div>
-                        );
-                      }
-                      if (typeof f.limit !== "number" || f.limit <= 0) return null;
-                      const pct = Math.min(100, Math.round(((f.used ?? 0) / f.limit) * 100));
-                      const exhausted = (f.remaining ?? 0) <= 0;
-                      return (
-                        <div key={key} className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-content-2">{f.label}</span>
-                            <span className={`text-[10px] ${exhausted ? "text-amber-400" : "text-content-3"}`}>
-                              {f.used}{f.unit ? f.unit : ""}/{f.limit}{f.unit ? f.unit : ""}
-                            </span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-surface border border-line overflow-hidden">
-                            <div className={`h-full transition-all ${exhausted ? "bg-amber-500" : "bg-accent"}`} style={{ width: `${pct}%` }} />
-                          </div>
-                          {exhausted && (
-                            <p className="text-[10px] text-amber-400">Limite mensal atingido. Compre mais para continuar!</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p className="mt-3 text-[10px] text-content-4">
-                    {limits.monthly_resets_at ? `Reseta em: ${new Date(limits.monthly_resets_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}` : ""}
-                  </p>
-                  {limits.plan_code === "free" && (
-                    <button
-                      onClick={() => { setLimitsExpanded(false); openCheckout(); }}
-                      className="mt-3 w-full px-3 py-2.5 rounded-xl bg-content text-surface text-[11px] font-medium uppercase tracking-wider hover:opacity-90 transition-opacity"
-                    >
-                      Ganhar mais limites
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          <LimitsDropdown
+            limits={limits}
+            limitsHeaderLabel={limitsHeaderLabel}
+            expanded={limitsExpanded}
+            onToggle={() => setLimitsExpanded((prev) => !prev)}
+            onClose={() => setLimitsExpanded(false)}
+            showHighlight={showLimitsHighlight}
+            onUpgrade={() => openCheckout()}
+            variant="mobile"
+          />
         )}
       </header>
 
@@ -584,8 +428,9 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
       {/* Mobile Bottom Tab Bar */}
       <div className="lg:hidden flex-shrink-0 bg-surface border-t border-line pb-[env(safe-area-inset-bottom)]">
         <div className="flex justify-around items-center h-14 px-2">
-          <button 
+          <button
             onClick={() => setActiveTab("tasks")}
+            aria-label="Painéis"
             className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'tasks' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -596,8 +441,9 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             <span className="text-[10px] font-medium tracking-wider uppercase">Painéis</span>
           </button>
 
-          <button 
+          <button
             onClick={() => setActiveTab("chat")}
+            aria-label="Chat"
             className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'chat' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -606,8 +452,9 @@ export function Dashboard({ token, user, onLogout, onOpenAdmin, onRefreshUser }:
             <span className="text-[10px] font-medium tracking-wider uppercase">Chat</span>
           </button>
           
-          <button 
+          <button
             onClick={() => setActiveTab("voice")}
+            aria-label="Voz"
             className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${activeTab === 'voice' ? 'text-accent' : 'text-content-3 hover:text-content-2'}`}
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activeTab === 'voice' ? 'bg-accent/10 border border-accent/20' : 'bg-transparent'}`}>

@@ -13,24 +13,45 @@ interface SubscriptionPageProps {
   onPaymentSuccess?: () => void;
 }
 
+const formatPrice = (cents: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
+
 export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: SubscriptionPageProps) => {
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'timeout'>('idle');
+  const [plan, setPlan] = useState<{ name: string; amount_cents: number; trial_days: number; features_json: string } | null>(null);
+
+  useEffect(() => {
+    api.getBillingPlans(token).then((data: any) => {
+      const plans = data.plans || data || [];
+      const active = Array.isArray(plans) ? plans.find((p: any) => p.code !== 'free') : null;
+      if (active) setPlan(active);
+    }).catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (paymentStatus !== 'processing') return;
 
     let isPolling = true;
+    let attempts = 0;
+    const maxAttempts = 20; // 60s max (20 * 3s)
+
     const pollStatus = async () => {
+      attempts++;
       try {
         const data = await api.getBillingOverview(token);
         if ((data.status === 'active' || data.status === 'trialing') && isPolling) {
           setPaymentStatus('success');
+          return;
         }
       } catch (err) {
         // ignore errors
+      }
+      if (attempts >= maxAttempts && isPolling) {
+        // Timeout — NÃO assumir sucesso. Mostrar estado de verificação manual.
+        setPaymentStatus('timeout');
       }
     };
 
@@ -95,26 +116,58 @@ export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: Subscrip
               Utilizar meu agente
             </button>
           </div>
+        ) : paymentStatus === 'timeout' ? (
+          <div className="relative w-full py-12 flex flex-col items-center justify-center gap-6 text-center animate-in fade-in duration-500">
+            <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mb-2">
+              <svg className="w-10 h-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-light text-content mb-2">Verificando pagamento</h3>
+              <p className="text-content-3">A confirmação está demorando mais que o normal. Seu pagamento pode estar sendo processado pela operadora.</p>
+            </div>
+            <button
+              onClick={() => setPaymentStatus('processing')}
+              className="mt-2 w-full py-3.5 rounded-xl bg-content text-surface font-medium tracking-wider uppercase text-sm hover:opacity-90 transition-opacity"
+            >
+              Verificar novamente
+            </button>
+            <button
+              onClick={() => {
+                if (onPaymentSuccess) onPaymentSuccess();
+              }}
+              className="w-full py-2.5 text-content-3 hover:text-content text-xs uppercase tracking-wider transition-colors"
+            >
+              Voltar ao dashboard
+            </button>
+          </div>
         ) : !clientSecret ? (
           <div className="flex flex-col gap-4">
             <div className="bg-surface-card border border-line rounded-2xl p-6 text-left">
-              <h3 className="text-lg font-medium text-content mb-4 border-b border-line pb-2">Plano Premium</h3>
+              <h3 className="text-lg font-medium text-content mb-2 border-b border-line pb-2">{plan?.name || 'Plano Premium'}</h3>
+              {plan && (
+                <div className="mb-4">
+                  <span className="text-3xl font-light text-content">{formatPrice(plan.amount_cents)}</span>
+                  <span className="text-content-3 text-sm">/mês</span>
+                </div>
+              )}
               <ul className="space-y-3 mb-2">
                 <li className="flex items-start gap-2 text-sm text-content-2">
-                  <span className="text-accent mt-0.5">✓</span> 
+                  <span className="text-accent mt-0.5">✓</span>
                   <span>Acesso ilimitado ao WhatsApp</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-content-2">
-                  <span className="text-accent mt-0.5">✓</span> 
+                  <span className="text-accent mt-0.5">✓</span>
                   <span>Transcrição de áudio sem limites</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-content-2">
-                  <span className="text-accent mt-0.5">✓</span> 
+                  <span className="text-accent mt-0.5">✓</span>
                   <span>Tarefas e lembretes integrados</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-content-2">
-                  <span className="text-accent mt-0.5">✓</span> 
-                  <span>7 dias gratuitos</span>
+                  <span className="text-accent mt-0.5">✓</span>
+                  <span>{plan?.trial_days || 7} dias gratuitos</span>
                 </li>
               </ul>
             </div>
@@ -141,24 +194,24 @@ export const SubscriptionPage = ({ token, onLogout, onPaymentSuccess }: Subscrip
                 theme: 'stripe',
                 variables: {
                   fontFamily: 'inherit',
-                  colorText: 'var(--color-content)',
+                  colorText: 'var(--fg)',
                   colorBackground: 'transparent',
-                  colorDanger: 'var(--color-red-500)',
+                  colorDanger: '#ef4444',
                 },
                 rules: {
                   '.Input': {
-                    borderBottom: '1px solid var(--color-line)',
+                    borderBottom: '1px solid var(--border)',
                     borderRadius: '0',
                     padding: '8px 0',
                     backgroundColor: 'transparent',
                     boxShadow: 'none',
                   },
                   '.Input:focus': {
-                    borderBottomColor: 'var(--color-line-strong)',
+                    borderBottomColor: 'var(--border-strong)',
                     boxShadow: 'none',
                   },
                   '.Label': {
-                    color: 'var(--color-content-2)',
+                    color: 'var(--fg-2)',
                     fontSize: '0.75rem',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',

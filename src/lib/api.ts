@@ -1,5 +1,39 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+const TOKEN_KEY = "teq_token";
+const REFRESH_TOKEN_KEY = "teq_refresh_token";
+
+let _onAuthExpired: (() => void) | null = null;
+export function setOnAuthExpired(callback: () => void) {
+  _onAuthExpired = callback;
+}
+
+let _isRefreshing = false;
+let _refreshPromise: Promise<string | null> | null = null;
+
+async function _tryRefreshToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.token && data.refresh_token) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+      return data.token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -10,6 +44,35 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
+    // On 401, try to refresh the token before giving up
+    if (res.status === 401 && !endpoint.startsWith("/auth/")) {
+      // Deduplicate concurrent refresh attempts
+      if (!_isRefreshing) {
+        _isRefreshing = true;
+        _refreshPromise = _tryRefreshToken().finally(() => {
+          _isRefreshing = false;
+          _refreshPromise = null;
+        });
+      }
+      const newToken = await (_refreshPromise || _tryRefreshToken());
+      if (newToken) {
+        // Retry the original request with the new token
+        const retryHeaders = new Headers(options.headers);
+        retryHeaders.set("Authorization", `Bearer ${newToken}`);
+        const retryRes = await fetch(`${API_URL}${endpoint}`, {
+          ...options,
+          headers: Object.fromEntries(retryHeaders.entries()),
+        });
+        if (retryRes.ok) return retryRes.json();
+      }
+      // Refresh failed — session truly expired
+      if (_onAuthExpired) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        _onAuthExpired();
+      }
+      throw new Error("Sessão expirada. Faça login novamente.");
+    }
     let message = "Erro na requisição";
     try {
       const data = await res.json();
@@ -41,6 +104,20 @@ export async function verifyWhatsapp(phone: string, code: string) {
   return fetchApi("/auth/verify-whatsapp", {
     method: "POST",
     body: JSON.stringify({ phone, code }),
+  });
+}
+
+export async function forgotPassword(email: string) {
+  return fetchApi("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(phone: string, code: string, new_password: string) {
+  return fetchApi("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ phone, code, new_password }),
   });
 }
 
@@ -100,6 +177,10 @@ export async function getBillingPlans(token: string) {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
+}
+
+export async function getPublicPlans() {
+  return fetchApi("/billing/plans/public", { method: "GET" });
 }
 
 export async function openBillingPortal(token: string) {

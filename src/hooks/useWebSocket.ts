@@ -8,6 +8,8 @@ class WSClient {
   private url: string;
   private listeners: Map<string, Set<WSEventCallback>> = new Map();
   private isConnecting = false;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 20;
 
   constructor() {
     this.url = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
@@ -32,6 +34,7 @@ class WSClient {
     this.ws.onopen = () => {
       console.log("[WS] Conectado (Shared)");
       this.isConnecting = false;
+      this.reconnectAttempts = 0;
       if (this.listeners.has("open")) {
         this.listeners.get("open")?.forEach((cb) => cb({}));
       }
@@ -60,8 +63,10 @@ class WSClient {
       if (this.listeners.has("close")) {
         this.listeners.get("close")?.forEach((cb) => cb({ code: e.code }));
       }
-      if (this.token) {
-        setTimeout(() => this.connect(), 1500);
+      if (this.token && this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.reconnectAttempts++;
+        const delay = Math.min(1500 * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
+        setTimeout(() => this.connect(), delay);
       }
     };
 
@@ -99,14 +104,6 @@ class WSClient {
 }
 
 export const wsClient = new WSClient();
-
-export function useWebSocket(token: string | null) {
-  useEffect(() => {
-    wsClient.setToken(token);
-  }, [token]);
-
-  return wsClient;
-}
 
 export function useWSEvent(event: string, callback: WSEventCallback) {
   const cbRef = useRef(callback);

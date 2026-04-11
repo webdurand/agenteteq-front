@@ -1,19 +1,40 @@
-import { useState } from "react";
+import { useState, lazy, Suspense, Component, type ReactNode } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { AuthLayout } from "./components/AuthLayout";
 import { LoginForm } from "./components/LoginForm";
 import { RegisterForm } from "./components/RegisterForm";
+import { ForgotPasswordForm } from "./components/ForgotPasswordForm";
 import { VerifyCode } from "./components/VerifyCode";
 import { ConfirmPhone } from "./components/ConfirmPhone";
 import { Dashboard } from "./components/Dashboard";
 
-import { AdminDashboard } from "./components/AdminDashboard";
-import { SubscriptionPage } from "./components/SubscriptionPage";
+const AdminDashboard = lazy(() => import("./components/AdminDashboard").then(m => ({ default: m.AdminDashboard })));
+const SubscriptionPage = lazy(() => import("./components/SubscriptionPage").then(m => ({ default: m.SubscriptionPage })));
+const LandingPage = lazy(() => import("./components/LandingPage").then(m => ({ default: m.LandingPage })));
 import { Spinner } from "./components/ui/Spinner";
 import { ThemeToggle } from "./components/ui/ThemeToggle";
 import { TermsConsentModal } from "./components/TermsConsentModal";
 import { LegalPage } from "./components/LegalPage";
-import { LandingPage } from "./components/LandingPage";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error) { console.error("App error:", error); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-surface text-content gap-4">
+          <p className="text-lg font-medium">Algo deu errado.</p>
+          <button onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+            className="px-4 py-2 rounded-xl bg-content text-surface text-sm">
+            Recarregar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const CURRENT_TERMS_VERSION = "1.1";
 
@@ -59,7 +80,21 @@ function PendingVerification({ auth }: { auth: ReturnType<typeof useAuth> }) {
   );
 }
 
+const LazyFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-surface">
+    <Spinner size="lg" label="Carregando..." />
+  </div>
+);
+
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const auth = useAuth();
   const [isAdminView, setIsAdminView] = useState(false);
   const pathname = window.location.pathname;
@@ -82,13 +117,26 @@ export default function App() {
     );
   }
 
+  if (auth.screen === "forgot_password" || auth.screen === "reset_password") {
+    return (
+      <>
+        <ThemeToggle className={FIXED_TOGGLE_CLASS} />
+        <AuthLayout>
+          <ForgotPasswordForm auth={auth} />
+        </AuthLayout>
+      </>
+    );
+  }
+
   if (auth.screen === "login" || auth.screen === "register") {
     if (auth.screen === "login" && !auth.showAuthForm) {
       return (
-        <LandingPage
-          onLogin={() => auth.setShowAuthForm(true)}
-          onRegister={() => { auth.setScreen("register"); auth.setShowAuthForm(true); }}
-        />
+        <Suspense fallback={<LazyFallback />}>
+          <LandingPage
+            onLogin={() => auth.setShowAuthForm(true)}
+            onRegister={() => { auth.setScreen("register"); auth.setShowAuthForm(true); }}
+          />
+        </Suspense>
       );
     }
 
@@ -141,12 +189,12 @@ export default function App() {
 
   if (auth.screen === "trial_expired") {
     return (
-      <>
+      <Suspense fallback={<LazyFallback />}>
         <ThemeToggle className={FIXED_TOGGLE_CLASS} />
         <AuthLayout>
           <SubscriptionPage token={auth.token || ''} onLogout={auth.logout} onPaymentSuccess={auth.refreshUser} />
         </AuthLayout>
-      </>
+      </Suspense>
     );
   }
 
@@ -155,10 +203,10 @@ export default function App() {
 
     if (isAdminView && auth.user?.role === "admin") {
       return (
-        <>
+        <Suspense fallback={<LazyFallback />}>
           {needsTerms && <TermsConsentModal token={auth.token} onAccepted={auth.refreshUser} />}
           <AdminDashboard token={auth.token} onLogout={auth.logout} onExitAdmin={() => setIsAdminView(false)} />
-        </>
+        </Suspense>
       );
     }
     if (!auth.user) {

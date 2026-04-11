@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import * as api from "../lib/api";
@@ -139,8 +139,8 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
     }
   };
 
-  const paidPlans = allPlans.filter((p: any) => p.code !== "free");
-  const formatBRL = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+  const paidPlans = useMemo(() => allPlans.filter((p: any) => p.code !== "free"), [allPlans]);
+  const formatBRL = useCallback((cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100), []);
 
   // ----- Plan Selection Step -----
   const renderSelectingStep = () => (
@@ -164,7 +164,7 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
       ) : (
         <div className="space-y-4">
           {paidPlans.map((p: any) => {
-            const limits = (() => { try { return JSON.parse(p.limits_json || "{}"); } catch { return {}; } })();
+            const limits: Record<string, unknown> = (() => { try { return JSON.parse(p.limits_json || "{}"); } catch { return {}; } })();
             return (
               <div key={p.code} className="rounded-2xl border border-line p-5 space-y-4 hover:border-accent/40 transition-colors">
                 <div className="flex items-start justify-between gap-4">
@@ -439,7 +439,14 @@ export function CheckoutModal({ token, open, onClose, priceId, onPaymentSuccess 
 
   return (
     <div className="fixed inset-0 z-[100] bg-surface sm:bg-black/80 sm:backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4">
-      <div className="w-full sm:max-w-5xl sm:min-h-[550px] sm:max-h-[90vh] overflow-y-auto scrollbar-thin sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Checkout"
+        tabIndex={-1}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        className="w-full sm:max-w-5xl sm:min-h-[550px] sm:max-h-[90vh] overflow-y-auto scrollbar-thin sm:rounded-3xl bg-surface-up sm:border sm:border-line sm:shadow-2xl flex flex-col lg:flex-row relative outline-none"
+      >
 
         {/* Close Button */}
         <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-surface-card border border-line text-content-3 hover:text-content text-xs font-medium uppercase tracking-wider">

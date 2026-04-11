@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { ThemeToggle } from "./ui/ThemeToggle";
+import { getPublicPlans } from "../lib/api";
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -1104,10 +1105,15 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
   const [heroReady, setHeroReady] = useState(false);
   const stickyRef = useRef<HTMLElement>(null);
   const progress = useStickyScrollProgress(stickyRef);
+  const [plans, setPlans] = useState<Array<{ code: string; name: string; description: string; amount_cents: number; trial_days: number; features_json: string }>>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setHeroReady(true), 150);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    getPublicPlans().then((data: any) => setPlans(data.plans || [])).catch(() => {});
   }, []);
 
   const scrollToShowcase = useCallback(() => {
@@ -1131,7 +1137,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <ThemeToggle className="w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-content-3 hover:text-content transition-colors" />
-            <button onClick={onLogin} className="hidden sm:block px-4 py-1.5 text-xs tracking-wider uppercase text-content-2 hover:text-content transition-colors">
+            <button onClick={onLogin} className="px-2.5 sm:px-4 py-1.5 text-[10px] sm:text-xs tracking-wider uppercase text-content-2 hover:text-content transition-colors">
               Entrar
             </button>
             <button onClick={onRegister} className="btn-shine px-3.5 md:px-5 py-1.5 md:py-2 rounded-full bg-content text-surface text-[11px] md:text-xs tracking-wider uppercase font-medium hover:opacity-90 transition-all">
@@ -1254,6 +1260,70 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      {/* ── PRICING ── */}
+      {plans.length > 0 && (
+        <section className="py-24 md:py-32 px-5 relative overflow-hidden">
+          <div className="section-divider" />
+          <div className="max-w-4xl mx-auto text-center relative z-10">
+            <div className="reveal-up">
+              <h2 className="text-3xl md:text-5xl font-extralight tracking-tight mb-4">Planos</h2>
+              <p className="text-content-3 text-lg mb-12">Comece gratis. Evolua quando quiser.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto reveal-up">
+              {/* Free tier */}
+              <div className="rounded-2xl border border-line/50 bg-surface-card/20 backdrop-blur-sm p-6 md:p-8 text-left">
+                <h3 className="text-lg font-medium text-content mb-1">Gratuito</h3>
+                <div className="mb-4">
+                  <span className="text-3xl font-light text-content">R$ 0</span>
+                </div>
+                <ul className="space-y-2 mb-6">
+                  <li className="flex items-start gap-2 text-sm text-content-3"><span className="text-content-2 mt-0.5">✓</span>Acesso limitado ao agente</li>
+                  <li className="flex items-start gap-2 text-sm text-content-3"><span className="text-content-2 mt-0.5">✓</span>Geracoes com limite diario</li>
+                </ul>
+                <button onClick={onRegister} className="w-full py-2.5 rounded-xl border border-line text-sm tracking-wider uppercase text-content-2 hover:text-content hover:border-line-strong transition-all">
+                  Comecar gratis
+                </button>
+              </div>
+              {/* Paid plans */}
+              {plans.map((plan) => {
+                const price = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(plan.amount_cents / 100);
+                let features: string[] = [];
+                try { features = JSON.parse(plan.features_json || "[]"); } catch { /* ignore */ }
+                return (
+                  <div key={plan.code} className="rounded-2xl border border-content/20 bg-surface-card/30 backdrop-blur-sm p-6 md:p-8 text-left relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-content/[0.03] to-transparent pointer-events-none" />
+                    <div className="relative z-10">
+                      <h3 className="text-lg font-medium text-content mb-1">{plan.name}</h3>
+                      <div className="mb-4">
+                        <span className="text-3xl font-light text-content">{price}</span>
+                        <span className="text-content-3 text-sm">/mes</span>
+                      </div>
+                      {plan.trial_days > 0 && (
+                        <p className="text-xs text-accent mb-4">{plan.trial_days} dias gratis para testar</p>
+                      )}
+                      <ul className="space-y-2 mb-6">
+                        {features.length > 0 ? features.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-content-2"><span className="text-accent mt-0.5">✓</span>{f}</li>
+                        )) : (
+                          <>
+                            <li className="flex items-start gap-2 text-sm text-content-2"><span className="text-accent mt-0.5">✓</span>Acesso ilimitado ao WhatsApp</li>
+                            <li className="flex items-start gap-2 text-sm text-content-2"><span className="text-accent mt-0.5">✓</span>Transcricao de audio sem limites</li>
+                            <li className="flex items-start gap-2 text-sm text-content-2"><span className="text-accent mt-0.5">✓</span>Tarefas e lembretes integrados</li>
+                          </>
+                        )}
+                      </ul>
+                      <button onClick={onRegister} className="btn-shine w-full py-2.5 rounded-xl bg-content text-surface text-sm tracking-wider uppercase font-medium hover:opacity-90 transition-all">
+                        Comecar agora
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── CTA FINAL ── */}
       <section className="min-h-screen flex flex-col items-center justify-center px-5 relative overflow-hidden">

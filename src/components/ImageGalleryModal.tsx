@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isSafeUrl } from "../lib/formatters";
 
 export interface GalleryImage {
   url: string;
@@ -73,7 +74,7 @@ export function ImageGalleryModal({ images, currentIndex, onClose, onNavigate, o
 
         {/* Image */}
         <div className="rounded-2xl overflow-hidden bg-surface border border-line shadow-2xl">
-          {current?.url && (
+          {current?.url && isSafeUrl(current.url) && (
             <img src={current.url} alt={current.title} className="w-full object-contain max-h-[70vh]" />
           )}
           <div className="p-3 bg-surface-card border-t border-line flex items-center justify-between">

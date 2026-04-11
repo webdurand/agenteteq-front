@@ -18,6 +18,15 @@ const CONTENT_TYPES: Record<string, string> = {
   blog: "Blog",
 };
 
+const PILLAR_CONFIG: Record<string, { label: string; color: string }> = {
+  educacional: { label: "Educacional", color: "bg-blue-500/20 text-blue-400" },
+  entretenimento: { label: "Entretenimento", color: "bg-purple-500/20 text-purple-400" },
+  vendas: { label: "Vendas", color: "bg-green-500/20 text-green-400" },
+  autoridade: { label: "Autoridade", color: "bg-amber-500/20 text-amber-400" },
+  comunidade: { label: "Comunidade", color: "bg-pink-500/20 text-pink-400" },
+  bastidores: { label: "Bastidores", color: "bg-cyan-500/20 text-cyan-400" },
+};
+
 function formatDate(iso: string | null): string {
   if (!iso) return "Sem data";
   try {
@@ -158,11 +167,15 @@ export function ContentCalendarPanel({
                 <Skeleton className="h-16 rounded-xl" />
               </div>
             ) : activePlans.length === 0 && publishedPlans.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-content-3">Nenhum conteudo planejado.</p>
-                <p className="text-xs text-content-3 mt-1">
-                  Peca ao Teq para planejar um conteudo ou clique acima.
-                </p>
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-content-4">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <p className="text-sm text-content-3">Nenhum conteúdo planejado.</p>
+                <p className="text-xs text-content-4">Peça ao TEQ para montar um calendário editorial ou planejar posts para a semana.</p>
               </div>
             ) : (
               <>
@@ -244,6 +257,11 @@ function PlanCard({
             <span className="bg-surface-card px-1.5 py-0.5 rounded text-[10px]">
               {typeLabel}
             </span>
+            {plan.content_pillar && PILLAR_CONFIG[plan.content_pillar] && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] ${PILLAR_CONFIG[plan.content_pillar].color}`}>
+                {PILLAR_CONFIG[plan.content_pillar].label}
+              </span>
+            )}
             {platforms && <span>{platforms}</span>}
             <span>·</span>
             <span>{formatDate(plan.scheduled_at)}</span>

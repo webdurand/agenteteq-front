@@ -1232,7 +1232,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       ))}
                       {systemTasks.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-content-4 italic">Nenhuma task encontrada</td>
+                          <td colSpan={5} className="p-4 text-center text-content-4 italic">Nenhuma task encontrada. Tasks aparecem quando usuarios agendam acoes com o Teq.</td>
                         </tr>
                       )}
                     </tbody>
@@ -1339,7 +1339,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       </tr>
                     ))}
                     {usersData.length === 0 && (
-                      <tr><td colSpan={5} className="p-4 text-center text-sm text-content-3">Nenhum usuário encontrado.</td></tr>
+                      <tr><td colSpan={5} className="p-4 text-center text-sm text-content-3">Nenhum usuario encontrado. Usuarios aparecem apos o primeiro registro.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1591,7 +1591,7 @@ export function AdminDashboard({ token, onLogout, onExitAdmin }: AdminDashboardP
                       </tr>
                     ))}
                     {subsData.length === 0 && (
-                      <tr><td colSpan={4} className="p-4 text-center text-sm text-content-3">Nenhuma assinatura encontrada</td></tr>
+                      <tr><td colSpan={4} className="p-4 text-center text-sm text-content-3">Nenhuma assinatura encontrada. Assinaturas aparecem quando usuarios ativam o plano Premium.</td></tr>
                     )}
                   </tbody>
                 </table>

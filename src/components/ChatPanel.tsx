@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Message } from "../hooks/chatTypes";
+import { wsClient } from "../hooks/useWebSocket";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 
 interface ChatPanelProps {
@@ -220,10 +221,42 @@ function CarouselGeneratingBubble({ numSlides, slidesDone = 0 }: { numSlides: nu
 
 function VideoReadyBubble({ videoUrl, thumbnailUrl, title, duration }: { videoUrl: string; thumbnailUrl?: string; title?: string; duration?: number }) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const durationStr = duration ? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}` : "";
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const handleDownload = async () => {
+    try {
+      const resp = await fetch(videoUrl);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `video_teq.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(videoUrl, "_blank");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(videoUrl);
+      setCopied(true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.open(videoUrl, "_blank");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-1 items-start">
+      <span className="text-[10px] tracking-wider uppercase text-content-4 px-1">Teq</span>
       <div className="rounded-xl overflow-hidden bg-zinc-900 max-w-[320px]">
         <video
           src={videoUrl}
@@ -241,21 +274,14 @@ function VideoReadyBubble({ videoUrl, thumbnailUrl, title, duration }: { videoUr
             </div>
           )}
           <div className="flex gap-2">
-            <a
-              href={videoUrl}
-              download
-              target="_blank"
-              rel="noopener"
+            <button
+              onClick={handleDownload}
               className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors text-center"
             >
               Baixar
-            </a>
+            </button>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(videoUrl);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
+              onClick={handleShare}
               className="flex-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg transition-colors"
             >
               {copied ? "Copiado!" : "Compartilhar"}
@@ -720,6 +746,8 @@ export function ChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const lastSentRef = useRef(0);
   const SEND_COOLDOWN_MS = 1500;
   const didInitialScroll = useRef(false);
@@ -849,8 +877,45 @@ export function ChatPanel({
     }
   };
 
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
+  const toggleRecording = async () => {
+    if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm" });
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        if (blob.size < 1000) return; // ignore very short recordings
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(",")[1];
+          if (base64 && onSendMessage) {
+            onSendMessage("", []);
+            // Send audio via websocket
+            wsClient.send(JSON.stringify({ type: "user_message", text: "", mode: "text", audio_b64: base64 }));
+          }
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch {
+      // permission denied or no microphone
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 import { PDFViewerModal } from "./PDFViewerModal";
@@ -111,17 +111,17 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
 
   useWSEvent("carousel_generated", () => refresh());
 
-  const allItems: GalleryItem[] = carousels.flatMap<GalleryItem>((c) => {
+  const allItems = useMemo<GalleryItem[]>(() => carousels.flatMap<GalleryItem>((c) => {
     if ((c.type ?? "carousel") === "pdf") {
       return [{ kind: "pdf", carousel: c }];
     }
     return (c.slides ?? []).map((s) => ({ kind: "slide", slide: s, carousel: c }));
-  });
+  }), [carousels]);
 
-  const viewableSlides = allItems.filter(
+  const viewableSlides = useMemo(() => allItems.filter(
     (item): item is Extract<GalleryItem, { kind: "slide" }> =>
       item.kind === "slide" && getSlideStatus(item.slide, item.carousel) === "ready"
-  );
+  ), [allItems]);
 
   const genuinelyPending = carousels.filter(
     (c) => c.status === "generating" && !isStaleGenerating(c)
@@ -175,7 +175,15 @@ export function ImagesPanel({ token, isMinimized, onToggleMinimize }: {
               ))}
             </div>
           ) : allItems.length === 0 && genuinelyPending.length === 0 ? (
-            <p className="text-sm text-content-3 text-center py-8">Nenhuma midia ainda.</p>
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-content-4">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <p className="text-sm text-content-3">Nenhuma mídia ainda.</p>
+              <p className="text-xs text-content-4">Peça ao TEQ para criar um carrossel, imagem ou arte para suas redes.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {allItems.slice(0, visibleCount).map((item, idx) =>

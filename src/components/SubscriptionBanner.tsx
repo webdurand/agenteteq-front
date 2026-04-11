@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Spinner } from './ui/Spinner';
 
-export const SubscriptionBanner = ({ planActive, status, onManageBilling }: { planActive: boolean, status: string, onManageBilling?: () => void }) => {
+export const SubscriptionBanner = ({ planActive, status, onManageBilling, onViewPlans }: { planActive: boolean, status: string, onManageBilling?: () => void, onViewPlans?: () => void }) => {
   const [loading, setLoading] = useState(false);
 
   const handlePortal = async () => {
@@ -40,7 +40,7 @@ export const SubscriptionBanner = ({ planActive, status, onManageBilling }: { pl
             </button>
           ) : (
             <button
-              onClick={() => window.location.reload()} // Forca reload pra ir pro SubscriptionPage (gerenciado no App.tsx)
+              onClick={() => onViewPlans ? onViewPlans() : window.location.reload()}
               className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 text-sm font-medium rounded transition-colors"
             >
               Ver Planos

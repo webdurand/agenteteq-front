@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as api from "../lib/api";
 import type { UserInfo } from "../hooks/useAuth";
 import { UpdatePaymentModal } from "./UpdatePaymentModal";
+import { CancellationModal } from "./CancellationModal";
 import { formatPhone } from "../lib/formatters";
 import { IntegrationsTab } from "./IntegrationsTab";
 import { BrandingTab } from "./BrandingTab";
@@ -30,6 +31,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
@@ -108,9 +110,10 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm("Cancelar a assinatura ao fim do período atual?")) return;
     const data = await api.cancelBilling(token);
-    setMessage(data.status === "canceled_at_period_end" ? "Assinatura configurada para cancelamento no fim do período." : "Assinatura atualizada.");
+    setShowCancelModal(false);
+    setMessage(data.status === "canceled_at_period_end" ? "Assinatura configurada para cancelamento no fim do periodo." : "Assinatura atualizada.");
+    refreshBilling();
   };
 
   const handleStartEdit = () => {
@@ -145,7 +148,8 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
     try {
       const cleanedPhone = newPhone.replace(/\D/g, "");
       const data = await api.verifyPhoneChange(token, cleanedPhone, code);
-      localStorage.setItem("teq_token", data.token);
+      const { TOKEN_KEY } = await import("../hooks/useAuth");
+      localStorage.setItem(TOKEN_KEY, data.token);
       window.location.reload();
     } catch (err: any) {
       setMessage(err.message || "Código inválido.");
@@ -155,8 +159,16 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-surface-up border border-line shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Conta e Assinatura"
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-3xl bg-surface-up border border-line shadow-2xl outline-none"
+      >
         <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-line">
           <div className="flex items-center gap-3">
             <div>
@@ -401,7 +413,7 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
                       Atualizar cartão
                     </button>
                     {!billing.cancel_at_period_end && billing.status !== "canceled" && (
-                      <button onClick={handleCancelSubscription} className="px-4 py-3 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface-card transition-colors">
+                      <button onClick={() => setShowCancelModal(true)} className="px-4 py-3 rounded-xl bg-transparent border border-line text-content font-medium tracking-wider uppercase text-sm hover:bg-surface-card transition-colors">
                         Cancelar assinatura
                       </button>
                     )}
@@ -577,7 +589,14 @@ export function AccountSettingsModal({ token, user, open, onClose, onOpenCheckou
         onSuccess={refreshBilling}
       />
 
-      {/* Popup de confirmação de exclusão de conta */}
+      {showCancelModal && (
+        <CancellationModal
+          onConfirm={handleCancelSubscription}
+          onClose={() => setShowCancelModal(false)}
+        />
+      )}
+
+      {/* Popup de confirmacao de exclusao de conta */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-surface-up border border-line rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">

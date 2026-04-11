@@ -9,7 +9,9 @@ export type AuthScreen =
   | "verify_2fa"
   | "pending_verification"
   | "authenticated"
-  | "trial_expired";
+  | "trial_expired"
+  | "forgot_password"
+  | "reset_password";
 
 export interface GoogleData {
   email: string;
@@ -34,7 +36,8 @@ export interface UserInfo {
   terms_accepted_version?: string | null;
 }
 
-const TOKEN_KEY = "teq_token";
+export const TOKEN_KEY = "teq_token";
+export const REFRESH_TOKEN_KEY = "teq_refresh_token";
 
 export function useAuth() {
   const [screen, setScreen] = useState<AuthScreen>("login");
@@ -49,8 +52,9 @@ export function useAuth() {
   const [showAuthForm, setShowAuthForm] = useState(false);
   const initialCheckDone = useRef(false);
 
-  const saveTokenAndAuth = useCallback(async (newToken: string) => {
+  const saveTokenAndAuth = useCallback(async (newToken: string, refreshToken?: string) => {
     localStorage.setItem(TOKEN_KEY, newToken);
+    if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     setToken(newToken);
     try {
       const userData = await api.getMe(newToken);
@@ -92,9 +96,20 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setToken(null);
     setUser(null);
     setScreen("login");
+  }, []);
+
+  useEffect(() => {
+    api.setOnAuthExpired(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      setToken(null);
+      setUser(null);
+      setScreen("login");
+    });
   }, []);
 
   useEffect(() => {
@@ -168,7 +183,7 @@ export function useAuth() {
       const res = await api.login(email, pass);
       setPhone(res.phone);
       if (res.token) {
-        await saveTokenAndAuth(res.token);
+        await saveTokenAndAuth(res.token, res.refresh_token);
       } else if (res.purpose === "register") {
         setScreen("verify_whatsapp");
       } else {
@@ -186,7 +201,7 @@ export function useAuth() {
     setError("");
     try {
       const res = await api.verifyWhatsapp(phone, code);
-      await saveTokenAndAuth(res.token);
+      await saveTokenAndAuth(res.token, res.refresh_token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -199,7 +214,7 @@ export function useAuth() {
     setError("");
     try {
       const res = await api.verify2fa(phone, code);
-      await saveTokenAndAuth(res.token);
+      await saveTokenAndAuth(res.token, res.refresh_token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -224,7 +239,7 @@ export function useAuth() {
         setPhone(res.phone);
         setScreen("verify_whatsapp");
       } else {
-        await saveTokenAndAuth(res.token);
+        await saveTokenAndAuth(res.token, res.refresh_token);
       }
     } catch (err: any) {
       setError(err.message);

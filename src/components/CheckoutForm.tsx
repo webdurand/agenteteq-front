@@ -18,14 +18,14 @@ interface CheckoutFormProps {
 const ELEMENT_OPTIONS = {
   style: {
     base: {
-      color: '#ffffff', // Cor branca para contraste perfeito no dark mode
+      color: 'var(--fg)',
       fontFamily: '"Inter", system-ui, sans-serif',
       fontSmoothing: 'antialiased',
       fontSize: '15px',
       '::placeholder': {
-        color: '#3a3a3a', // Corresponde ao text-content-4
+        color: 'var(--fg-4)',
       },
-      iconColor: '#666666',
+      iconColor: 'var(--fg-3)',
     },
     invalid: {
       color: '#ef4444',
@@ -151,7 +151,7 @@ export const CheckoutForm = ({ onCancel, clientSecret, onSuccess, submitLabel }:
                 value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)}
                 placeholder="Como impresso no cartão"
-                className="w-full bg-transparent text-[#ffffff] placeholder-content-4 text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-content placeholder-content-4 text-[15px] focus:outline-none"
                 required
               />
             </div>
@@ -161,12 +161,12 @@ export const CheckoutForm = ({ onCancel, clientSecret, onSuccess, submitLabel }:
           <div>
             <label className="block text-xs uppercase tracking-wider text-content-3 mb-2">CPF do Titular</label>
             <div className="bg-transparent border border-line rounded-xl p-3 focus-within:border-line-strong transition-colors">
-              <input 
+              <input
                 type="text"
                 value={cpf}
                 onChange={(e) => setCpf(formatCpf(e.target.value))}
                 placeholder="000.000.000-00"
-                className="w-full bg-transparent text-[#ffffff] placeholder-content-4 text-[15px] focus:outline-none"
+                className="w-full bg-transparent text-content placeholder-content-4 text-[15px] focus:outline-none"
                 required
               />
             </div>

@@ -244,13 +244,14 @@ export function SocialPanel({
                 <Skeleton className="h-16 rounded-xl" />
               </div>
             ) : accounts.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-content-3">
-                  Nenhuma conta monitorada.
-                </p>
-                <p className="text-xs text-content-3 mt-1">
-                  Peca ao Teq para monitorar uma conta ou clique em "Monitorar conta" acima.
-                </p>
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-content-4">
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                  <rect x="2" y="9" width="4" height="12" />
+                  <circle cx="4" cy="4" r="2" />
+                </svg>
+                <p className="text-sm text-content-3">Nenhuma conta monitorada.</p>
+                <p className="text-xs text-content-4">Monitore perfis de concorrentes ou inspirações para acompanhar tendências e descobrir oportunidades.</p>
               </div>
             ) : (
               accounts.map((account) => (

@@ -7,6 +7,7 @@ export interface ContentPlan {
   title: string;
   description: string;
   content_type: string;
+  content_pillar?: string;
   platforms: string[];
   scheduled_at: string | null;
   status: "idea" | "planned" | "producing" | "ready" | "published";
