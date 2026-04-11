@@ -78,6 +78,11 @@ export function ForgotPasswordForm({ auth }: ForgotPasswordFormProps) {
       </div>
 
       <div className="w-full max-w-[300px]">
+        {message && (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-500 text-sm p-3 rounded-xl text-center mb-5">
+            {message}
+          </div>
+        )}
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-3 rounded-xl text-center mb-5">
             {error}
